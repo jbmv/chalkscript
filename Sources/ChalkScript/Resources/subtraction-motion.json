@@ -1,0 +1,53 @@
+{
+  "format": "explainer-motion",
+  "version": 1,
+  "explainer": "subtraction",
+  "shots": {
+    "whole": { "frame": ["worksheet", "count"] },
+    "ones": { "frame": ["ones"] },
+    "trade": { "frame": ["tradedTen", "arrow", "ones"] },
+    "tens": { "frame": ["tens"] },
+    "count": { "frame": ["count"] }
+  },
+  "opening": "whole",
+  "steps": {
+    "show": {
+      "shot": "whole",
+      "durations": {
+        "tenDrop": 0.32, "tenEvery": 0.18, "oneGrow": 0.26, "oneEvery": 0.16, "onesAfterTens": 0.15, "showTail": 0.45
+      }
+    },
+    "short": {
+      "shot": "ones",
+      "durations": { "mark": 0.35, "hint": 0.9, "hintHold": 0.6, "noOnesHold": 0.7 }
+    },
+    "enough": {
+      "shot": "ones",
+      "durations": { "mark": 0.35, "hint": 0.9, "hintHold": 0.6, "noOnesHold": 0.7 }
+    },
+    "trade": {
+      "shot": "trade",
+      "durations": {
+        "arrow": 0.7, "cubeAppear": 0.26, "cubeEvery": 0.05, "tenFade": 0.4, "crossDelay": 0.1, "crossDraw": 0.38,
+        "travelDelay": 0.2, "travelEvery": 0.16, "travel": 1.5, "boxDraw": 0.6, "ghostFade": 0.3
+      }
+    },
+    "takeOnes": {
+      "shot": "ones",
+      "durations": { "mark": 0.35, "takeCross": 0.28, "takeFade": 0.35, "takeEvery": 0.48, "takeTail": 0.3 }
+    },
+    "takeTens": {
+      "shot": "tens",
+      "durations": { "mark": 0.35, "takeCross": 0.28, "takeFade": 0.35, "takeEvery": 0.48, "takeTail": 0.3 }
+    },
+    "count": {
+      "shot": "whole",
+      "doShot": "count",
+      "durations": {
+        "copy": 0.95, "copyEvery": 0.09, "tenTag": 0.8, "oneTag": 0.56, "perTen": 0.85, "perOne": 0.56,
+        "beforeJoin": 0.25, "pulse": 0.5, "answerFade": 0.4, "nothingLeft": 0.5, "tapTag": 1.1, "afterLast": 0.5
+      },
+      "easings": { "copy": "settle" }
+    }
+  }
+}

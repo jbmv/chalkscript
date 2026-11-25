@@ -1,0 +1,34 @@
+#!/bin/sh
+# Runs scripts/check-public.sh on the commits about to be pushed, and refuses the push if one
+# of them, or its message, cites a private record or link.
+#
+# Git does not copy hooks with a clone. Enable this one once per clone:
+#   git config core.hooksPath scripts/hooks
+remote="$1"
+zero=0000000000000000000000000000000000000000
+input=$(cat)
+status=0
+root=$(git rev-parse --show-toplevel)
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "${local_sha:-}" ] && continue
+    [ "$local_sha" = "$zero" ] && continue          # a deleted branch sends nothing
+    if [ "$remote_sha" = "$zero" ]; then
+        "$root/scripts/check-public.sh" --tree "$local_sha" "$local_sha" --not --remotes="$remote" || status=1
+    else
+        "$root/scripts/check-public.sh" --tree "$local_sha" "$remote_sha..$local_sha" || status=1
+    fi
+done <<INPUT
+$input
+INPUT
+
+# A hook kept in this clone's own .git/hooks still runs.
+own="$(git rev-parse --git-dir)/hooks/pre-push"
+if [ -x "$own" ]; then
+    printf '%s\n' "$input" | "$own" "$@" || status=1
+fi
+
+if [ "$status" -ne 0 ]; then
+    echo "pre-push: refused. Fix the lines above, or amend the commit message, and push again." >&2
+fi
+exit $status

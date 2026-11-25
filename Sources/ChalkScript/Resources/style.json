@@ -1,0 +1,65 @@
+{
+  "format": "explainer-style",
+  "version": 1,
+  "palette": {
+    "light": {
+      "paper": "#F3F5F4",
+      "sheet": "#FFFFFF",
+      "text": "#23282B",
+      "muted": "#637078",
+      "line": "#D7DEDB",
+      "pencil": "#2C3236",
+      "onResult": "#FFFFFF",
+      "subtract": { "fill": "#D55E00", "ink": "#D55E00", "soft": "#FBE6D9" },
+      "trade": { "fill": "#CC79A7", "ink": "#A04676", "soft": "#F5E4EE" },
+      "result": { "fill": "#0072B2", "ink": "#0072B2", "soft": "#E1EEF7" },
+      "add": { "fill": "#4D6B43", "ink": "#4D6B43", "soft": "#E3E7E1" },
+      "multiply": { "fill": "#6B4301", "ink": "#6B4301", "soft": "#E7E1D6" },
+      "divide": { "fill": "#3937A2", "ink": "#3937A2", "soft": "#DFDFF0" }
+    },
+    "dark": {
+      "paper": "#121618",
+      "sheet": "#1A1F22",
+      "text": "#E7ECEA",
+      "muted": "#A3AFB4",
+      "line": "#2F383C",
+      "pencil": "#E2E8E5",
+      "onResult": "#0F1A14",
+      "subtract": { "fill": "#F08A4B", "ink": "#F08A4B", "soft": "#3D2A1C" },
+      "trade": { "fill": "#D28CA9", "ink": "#D28CA9", "soft": "#3A2633" },
+      "result": { "fill": "#5AA7E0", "ink": "#5AA7E0", "soft": "#172C3C" },
+      "add": { "fill": "#95E3A5", "ink": "#95E3A5", "soft": "#30423A" },
+      "multiply": { "fill": "#FED252", "ink": "#FED252", "soft": "#433F2B" },
+      "divide": { "fill": "#6A72D8", "ink": "#6A72D8", "soft": "#282E43" }
+    }
+  },
+  "easings": {
+    "easeOut": [0, 0, 0.58, 1],
+    "easeInOut": [0.42, 0, 0.58, 1],
+    "smooth": [0.45, 0, 0.2, 1],
+    "settle": [0.3, 0.7, 0.2, 1]
+  },
+  "motion": {
+    "durations": {
+      "appear": 0.3,
+      "draw": 0.4,
+      "fade": 0.35,
+      "travel": 1.2,
+      "lag": 0.15,
+      "hold": 0.5
+    },
+    "easings": {
+      "appear": "linear",
+      "draw": "easeOut",
+      "fade": "linear",
+      "travel": "easeInOut"
+    },
+    "camera": {
+      "at": 0,
+      "duration": 0.9,
+      "easing": "smooth",
+      "margin": 12,
+      "dim": 0.45
+    }
+  }
+}
