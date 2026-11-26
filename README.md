@@ -22,9 +22,9 @@ The requirements are in [docs/spec/explainers.md](docs/spec/explainers.md), each
 
 ## Status
 
-The project is at an early stage and its interfaces will change. The package has two targets. `ChalkScript` is the engine: the shared drawing components, the players, the style and motion formats, the reader of explainer documents, the revision of an explainer and the spoken form of numbers. It depends on nothing. The package reads documents in the explainer format ([docs/format/explainer-1.0.md](docs/format/explainer-1.0.md)): it checks a document and reports its findings, and for a problem it gives the steps, their timing and their lines in each wording and language. It does not yet play a document, and the explainers in `ChalkScriptExplainers` are still Swift templates. `ChalkScriptExplainers` depends on the engine and holds explainers for two-digit subtraction, tens and ones, two-digit addition, comparing on a tape diagram and on a bar graph, making a ten, and choosing three cards closest to a target. All are for early elementary arithmetic. The requirements are written for any subject, and other subjects are intended.
+The project is at an early stage and its interfaces will change. The package has two targets. `ChalkScript` is the engine: the shared drawing components, the players, the style and motion formats, the reader of explainer documents, the revision of an explainer and the spoken form of numbers. It depends on nothing. The package reads documents in the explainer format ([docs/format/explainer-1.0.md](docs/format/explainer-1.0.md)): it checks a document and reports its findings, and for a problem it gives the steps, their timing and their lines in each wording and language. It plays a document's watched steps: `DocumentExplainer` draws a document with the shared components, so the package's player and view play it as they play a Swift template, and the `chalkscript-render` command writes the still picture of every step to PNG files. Do it with me, What if? and try one are not yet played from a document, and the explainers in `ChalkScriptExplainers` are still Swift templates. `ChalkScriptExplainers` depends on the engine and holds explainers for two-digit subtraction, tens and ones, two-digit addition, comparing on a tape diagram and on a bar graph, making a ten, and choosing three cards closest to a target. All are for early elementary arithmetic. The requirements are written for any subject, and other subjects are intended.
 
-Planned work, not yet started: a validator that checks an explainer against the rules that can be computed; a macOS authoring app that an agent drives through the Model Context Protocol; export to video and still images; and a separate library of contributed explainers.
+Planned work, not yet started: a validator that checks an explainer against the rules that can be computed; a macOS authoring app that an agent drives through the Model Context Protocol; export to video; and a separate library of contributed explainers.
 
 ## Requirements and use
 
@@ -35,6 +35,12 @@ To build and test:
 ```
 swift build
 swift test
+```
+
+To render the still pictures of an example document for one problem:
+
+```
+swift run chalkscript-render docs/format/examples/subtraction.explainer "$TMPDIR/subtraction" a=54 b=26
 ```
 
 ## Contributing

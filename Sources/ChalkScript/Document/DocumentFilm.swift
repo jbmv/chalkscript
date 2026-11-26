@@ -27,16 +27,10 @@ struct DocumentFilm: Sendable {
     func scene(_ looks: [InstanceLook], camera: Camera?) -> Scene { painter.scene(looks, camera: camera) }
 }
 
-/// The verbs and keys this player does not draw yet, each refused by name (section 2.3: it
-/// must not draw an approximation).
-struct NotDrawn: Error {
-    var path: String
-    var message: String
-}
-
 extension DocumentFilm {
     /// Builds the film of `resolved`, with `r` evaluating the document for the same problem,
-    /// layout, wording, locale and playback.
+    /// layout, wording, locale and playback. What this player does not draw yet is refused with
+    /// a `capability` failure that names it (section 2.3: it must not draw an approximation).
     init(_ resolved: ResolvedExplainer, resolver r: Resolver) throws(EvalFailure) {
         let doc = r.doc
         let style = DocumentStyle(doc)

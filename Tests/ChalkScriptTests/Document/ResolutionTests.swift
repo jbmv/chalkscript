@@ -145,7 +145,7 @@ struct ResolutionTests {
         #expect(sub.layout(for: CGSize(width: 660, height: 760)) == "tall")
         #expect(sub.layout(for: CGSize(width: 1000, height: 540)) == "stage")
         let r = try sub.resolve(problem: DocumentFixture.values(("a", 54), ("b", 26)), wording: "everyday", area: CGSize(width: 660, height: 760))
-        #expect(r.layout == "tall" && r.camera && close(Double(r.size.height), 640 * 760 / 660))
+        #expect(r.layout == "tall" && r.camera && close(Double(r.size.height), (640.0 * 760 / 660).rounded()))
         #expect(r.steps.map(\.lead) == [0, 0.9, 0.9, 0.9, 0.9, 0.9])
         // takeOnes after the trade is in the ones shot again, but the trade's shot framed the ten too.
         let short = try step(r, "short")
