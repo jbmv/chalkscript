@@ -42,22 +42,42 @@ extension RGB {
 /// shape (`Scene.size`), in the palette of the environment's style for the view's colour scheme
 /// (EXP-6, EXP-19). With a camera, the drawing is seen through it, inside its viewport, and what
 /// is out of shot is dimmed; fixed elements stay where they are (EXP-18).
+///
+/// Given the area the scene was laid out for (`areaUse`), the scene is fitted inside the largest
+/// area of that shape in the space, centred, so that a document laid out for a declared shape
+/// other than the space's is never drawn larger than that shape (EXP-17).
 public struct ExplainerStage: View {
     public var scene: Scene
+    /// Nil, or an area used that is the area given, fits the scene to the whole space.
+    public var areaUse: AreaUse?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.explainerFonts) private var fonts
     @Environment(\.explainerStyle) private var style
 
-    public init(scene: Scene) {
+    public init(scene: Scene, areaUse: AreaUse? = nil) {
         self.scene = scene
+        self.areaUse = areaUse
+    }
+
+    /// The shape of the area used, where it is not the area given.
+    var usedRatio: CGFloat? {
+        guard let use = areaUse, !use.isGiven, use.used.width > 0, use.used.height > 0 else { return nil }
+        return use.used.width / use.used.height
     }
 
     public var body: some View {
         let palette = style.palette(dark: colorScheme == .dark)
-        Canvas { context, size in
+        let canvas = Canvas { context, size in
             Self.draw(scene, in: &context, size: size, with: StageDrawing(palette: palette, fonts: fonts))
         }
         .aspectRatio(scene.size.width / scene.size.height, contentMode: .fit)
+        if let r = usedRatio {
+            canvas
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .aspectRatio(r, contentMode: .fit)
+        } else {
+            canvas
+        }
     }
 
     /// The colours drawing `scenes` in a drawing area of `size` points resolves, by palette role:

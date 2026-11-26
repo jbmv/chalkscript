@@ -26,19 +26,21 @@ public struct ExplainerLabels: Sendable {
 /// which waits on a gentle pulse. A tap on the drawing does what Next does. The dots are controls
 /// only in the parent version (EXP-9).
 ///
-/// It is arranged by the space it is given as the child version is (`ScreenLayout`): taller than
-/// wide, the drawing in the middle and the line and controls under it; wider than tall, one
-/// column on the side of the writing hand (`hand`) holds the dots, the line and the controls, and
-/// the drawing has the rest at full height. The picture is scaled to fit and centred in the
-/// drawing area. While a touch is on the drawing and just after, presses on the controls do
-/// nothing (`PalmGuard`). Only where too little height is left for the drawing (a phone in
-/// landscape) does it scroll.
+/// It is arranged as the child version is (`ScreenLayout`), in the app's `arrangement`: with the
+/// caption below, the dots above the drawing and the line and controls under it; with it beside,
+/// one column on the side of the writing hand (`hand`) holds the dots, the line and the controls,
+/// and the drawing has the rest at full height. Automatic, the default, puts the caption below in
+/// a space taller than wide and beside it in a wider one. The picture is scaled to fit and centred
+/// in the area the explainer was laid out for (`ExplainerPlayer.areaUse`). While a touch is on the
+/// drawing and just after, presses on the controls do nothing (`PalmGuard`). Only where too little
+/// height is left for the drawing (a phone in landscape) does it scroll.
 public struct ExplainerView: View {
     private let player: ExplainerPlayer
     private let labels: ExplainerLabels
     private let forceStill: Bool
     private let debugState: Bool
     private let hand: WritingHand
+    private let arrangement: ScreenArrangement
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -55,13 +57,14 @@ public struct ExplainerView: View {
     /// right by default.
     public init(
         player: ExplainerPlayer, labels: ExplainerLabels, forceStill: Bool = false, debugState: Bool = false,
-        hand: WritingHand = .right
+        hand: WritingHand = .right, arrangement: ScreenArrangement = .automatic
     ) {
         self.player = player
         self.labels = labels
         self.forceStill = forceStill
         self.debugState = debugState
         self.hand = hand
+        self.arrangement = arrangement
     }
 
     private var palette: ExplainerPalette { style.palette(dark: colorScheme == .dark) }
@@ -69,7 +72,7 @@ public struct ExplainerView: View {
 
     public var body: some View {
         ScreenLayout(
-            hand: hand, hasQuestion: false,
+            hand: hand, arrangement: arrangement, hasQuestion: false, captionBand: ScreenPlan.captionBand,
             header: { _ in
                 dots.frame(maxWidth: .infinity, alignment: .leading)
             },
@@ -85,11 +88,12 @@ public struct ExplainerView: View {
     }
 
     /// The drawing fills the space it is given: its size is given to the player, which lays the
-    /// explainer out for it (EXP-17), and the picture is scaled to fit and centred in it. A touch
-    /// on it holds the controls (the palm rule); a tap goes on.
+    /// explainer out for it (EXP-17), and the picture is scaled to fit and centred in the area the
+    /// explainer was laid out for, which is smaller where the document does not declare the
+    /// space's shape. A touch on it holds the controls (the palm rule); a tap goes on.
     private var drawing: some View {
         GeometryReader { geo in
-            ExplainerStage(scene: player.scene)
+            ExplainerStage(scene: player.scene, areaUse: player.areaUse)
                 .frame(width: geo.size.width, height: geo.size.height)
                 .onAppear { player.layOut(for: geo.size) }
                 .onChange(of: geo.size) { player.layOut(for: geo.size) }

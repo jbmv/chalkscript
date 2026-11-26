@@ -23,19 +23,19 @@ struct ScreenTests {
     @Test func portraitIsTopToBottomAndLandscapeHasAColumnOnTheWritingHandsSide() {
         for (name, portrait, landscape) in Self.screens {
             for hand in WritingHand.allCases {
-                #expect(ScreenArrangement.choose(for: portrait, hand: hand) == .portrait, "\(name) portrait")
-                guard case let .column(width, onLeft) = ScreenArrangement.choose(for: landscape, hand: hand) else {
+                #expect(ScreenPlan.choose(for: portrait, hand: hand) == .stacked, "\(name) portrait")
+                guard case let .column(width, onLeft) = ScreenPlan.choose(for: landscape, hand: hand) else {
                     Issue.record("\(name) landscape has no column")
                     continue
                 }
                 #expect(onLeft == (hand == .left), "\(name): the column is on the \(hand) hand's side")
-                #expect(width >= ScreenArrangement.minColumn && width <= landscape.width * ScreenArrangement.maxColumnShare)
+                #expect(width >= ScreenPlan.minColumn && width <= landscape.width * ScreenPlan.maxColumnShare)
                 // The drawing has the rest of the width at full height: about square or taller.
                 let drawing = CGSize(width: landscape.width - width, height: landscape.height)
                 #expect(drawing.width <= drawing.height * 1.15, "\(name): the drawing is \(drawing)")
             }
         }
-        #expect(ScreenArrangement.choose(for: CGSize(width: 800, height: 360), hand: .right) == .scroll, "a phone in landscape scrolls")
+        #expect(ScreenPlan.choose(for: CGSize(width: 800, height: 360), hand: .right) == .scroll, "a phone in landscape scrolls")
     }
 
     @Test func aDrawingNotLaidOutAgainIsScaledToFitAndCentred() {

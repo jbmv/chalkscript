@@ -6,10 +6,11 @@ import SwiftUI
 /// and a tally, and the controls: Again; Why?, Show me and the large control. A tap on the drawing
 /// does what the large control does while it waits.
 ///
-/// It is arranged by the space it is given (`ScreenLayout`): taller than wide, the question at
-/// the top, the drawing in the middle and the line and controls at the bottom; wider than tall,
-/// one column on the side of the writing hand (`hand`) holds the parts, the question, the line
-/// and the controls, and the drawing has the rest at full height. The drawing area's size is given
+/// It is arranged in the app's `arrangement` (`ScreenLayout`): with the caption below, the
+/// question at the top, the drawing in the middle and the line and controls at the bottom; with
+/// it beside, one column on the side of the writing hand (`hand`) holds the parts, the question,
+/// the line and the controls, and the drawing has the rest at full height. Automatic, the default,
+/// puts the caption below in a space taller than wide and beside it in a wider one. The drawing area's size is given
 /// to the player, which lays the explainer out for it (`GuidedPlayer.layOut`). While a touch is on
 /// the drawing and just after, presses on the controls do nothing (`GuidedPlayer.press`).
 ///
@@ -21,6 +22,7 @@ public struct GuidedView: View {
     private let debugState: Bool
     private let dotsJump: Bool
     private let hand: WritingHand
+    private let arrangement: ScreenArrangement
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -34,13 +36,14 @@ public struct GuidedView: View {
     /// `hand` is the hand the learner writes with; right by default.
     public init(
         player: GuidedPlayer, forceStill: Bool = false, debugState: Bool = false, dotsJump: Bool = false,
-        hand: WritingHand = .right
+        hand: WritingHand = .right, arrangement: ScreenArrangement = .automatic
     ) {
         self.player = player
         self.forceStill = forceStill
         self.debugState = debugState
         self.dotsJump = dotsJump
         self.hand = hand
+        self.arrangement = arrangement
     }
 
     private var labels: GuidedLabels { player.labels }
@@ -49,7 +52,7 @@ public struct GuidedView: View {
 
     public var body: some View {
         ScreenLayout(
-            hand: hand, hasQuestion: player.question != nil,
+            hand: hand, arrangement: arrangement, hasQuestion: player.question != nil, captionBand: nil,
             header: { inColumn in header(inColumn: inColumn) },
             question: { questionText },
             drawing: { drawingArea },

@@ -79,19 +79,34 @@ struct PalmGuardedStyle: ButtonStyle {
     }
 }
 
-/// How the explainer screen is arranged in the space it is given (EXP-17), chosen by that space,
-/// never by the device, so it works on every iPad and in a window of any size.
-enum ScreenArrangement: Equatable {
-    /// Taller than wide: the parts and dots, the question, the drawing in the middle, then the
-    /// line and the controls at the bottom.
-    case portrait
-    /// Wider than tall: one column of `width` on the writing hand's side (`onLeft` for a
-    /// left-handed learner) holds the parts and dots, the question, the line and the controls; the
-    /// drawing has the rest of the width at full height.
+/// How the explainer screen is arranged round its drawing (EXP-17). The arrangement is the
+/// app's choice, not the document's; the app passes it to `ExplainerView` or `GuidedView`.
+public enum ScreenArrangement: String, CaseIterable, Sendable {
+    /// Chosen by the space, never by the device: the caption below the drawing in a space taller
+    /// than wide, beside it in a wider one.
+    case automatic
+    /// The parts and dots above the drawing, and the line and the controls below it, in any space.
+    case captionBelow
+    /// One column on the writing hand's side, holding the parts and dots, the question, the line
+    /// and the controls, beside the drawing at full height, in any space.
+    case captionBeside
+}
+
+/// The arrangement the screen takes in the space it is given (EXP-17).
+enum ScreenPlan: Equatable {
+    /// Top to bottom: the parts and dots, the question, the drawing in the middle, then the line
+    /// and the controls.
+    case stacked
+    /// One column of `width` on the writing hand's side (`onLeft` for a left-handed learner)
+    /// holds the parts and dots, the question, the line and the controls; the drawing has the rest
+    /// of the width at full height.
     case column(width: CGFloat, onLeft: Bool)
-    /// Too little height for the drawing (a phone in landscape): the portrait arrangement, which
-    /// scrolls.
+    /// Too little height for the drawing (a phone in landscape): the stacked arrangement, with the
+    /// drawing at the stage's shape, which scrolls.
     case scroll
+    /// Too little height for the drawing, with the caption beside it: the column arrangement at a
+    /// height of `scrollBelow`, which scrolls.
+    case scrollingColumn(width: CGFloat, onLeft: Bool)
 
     /// Less height than this, and the screen scrolls rather than shrink the drawing further.
     static let scrollBelow: CGFloat = 400
@@ -100,24 +115,51 @@ enum ScreenArrangement: Equatable {
     /// Nor wider than this share of the width.
     static let maxColumnShare: CGFloat = 0.45
 
-    static func choose(for size: CGSize, hand: WritingHand) -> ScreenArrangement {
-        if size.height < scrollBelow { return .scroll }
-        guard size.width > size.height else { return .portrait }
-        // The drawing about square: the column takes what the height leaves of the width.
-        let width = min(max(size.width - size.height, minColumn), size.width * maxColumnShare)
-        return .column(width: width.rounded(), onLeft: hand == .left)
+    /// The heights of the bands above and below the drawing in the stacked arrangement. They are
+    /// fixed, so the drawing area is known before the screen is laid out; what is in a band is
+    /// set smaller rather than cut.
+    static let headerBand: CGFloat = 44
+    static let controlsBand: CGFloat = 64
+    /// The watched steps' line: three lines of the display face at 26 points.
+    static let captionBand: CGFloat = 90
+    /// The height the stacked arrangement of the watched steps takes besides the drawing: the
+    /// bands, the gaps between the parts and the card's margins.
+    static let stackedChrome: CGFloat = 14 + headerBand + 8 + 8 + captionBand + 8 + controlsBand + 18
+
+    static func choose(for size: CGSize, hand: WritingHand, arrangement: ScreenArrangement = .automatic) -> ScreenPlan {
+        let onLeft = hand == .left
+        switch arrangement {
+        case .automatic:
+            if size.height < scrollBelow { return .scroll }
+            return size.width > size.height ? .column(width: columnWidth(for: size), onLeft: onLeft) : .stacked
+        case .captionBelow:
+            return size.height < scrollBelow ? .scroll : .stacked
+        case .captionBeside:
+            guard size.height < scrollBelow else { return .column(width: columnWidth(for: size), onLeft: onLeft) }
+            let laidOut = CGSize(width: size.width, height: scrollBelow)
+            return .scrollingColumn(width: columnWidth(for: laidOut), onLeft: onLeft)
+        }
+    }
+
+    /// The drawing about square where it can be: the column takes what the height leaves of the
+    /// width, within its bounds.
+    static func columnWidth(for size: CGSize) -> CGFloat {
+        min(max(size.width - size.height, minColumn), size.width * maxColumnShare).rounded()
     }
 }
 
 /// The explainer screen's layout (EXP-17), shared by the child version (`GuidedView`) and the
-/// watched steps (`ExplainerView`): the card, arranged for the space it is given. The drawing is
-/// the one flexible part; it is given all the space the rest leave, and the explainer lays its
-/// picture out for that space or is scaled to fit and centred in it.
+/// watched steps (`ExplainerView`): the card, in the app's arrangement for the space it is given.
+/// The drawing is the one flexible part; it is given all the space the rest leave, and the
+/// explainer lays its picture out for that space or is scaled to fit and centred in it.
 struct ScreenLayout<Header: View, Question: View, Drawing: View, LineBlock: View, Controls: View>: View {
     let hand: WritingHand
+    let arrangement: ScreenArrangement
     /// Whether there is a question to show apart from the drawing; with none, its area takes no
     /// space.
     let hasQuestion: Bool
+    /// The height of the line's band in the stacked arrangement; nil is the line's own height.
+    let captionBand: CGFloat?
     /// The parts strip and the dots: `true` when they are in the column.
     @ViewBuilder let header: (_ inColumn: Bool) -> Header
     @ViewBuilder let question: () -> Question
@@ -134,17 +176,22 @@ struct ScreenLayout<Header: View, Question: View, Drawing: View, LineBlock: View
 
     var body: some View {
         GeometryReader { geo in
-            switch ScreenArrangement.choose(for: geo.size, hand: hand) {
+            switch ScreenPlan.choose(for: geo.size, hand: hand, arrangement: arrangement) {
             case .scroll:
                 ScrollView {
-                    portrait(drawingHeight: geo.size.width * Scene.stage.height / Scene.stage.width)
+                    stacked(drawingHeight: geo.size.width * Scene.stage.height / Scene.stage.width)
                 }
-            case .portrait:
-                portrait(drawingHeight: nil)
+            case .stacked:
+                stacked(drawingHeight: nil)
                     .frame(width: geo.size.width, height: geo.size.height)
             case let .column(width, onLeft):
                 sideBySide(column: width, onLeft: onLeft)
                     .frame(width: geo.size.width, height: geo.size.height)
+            case let .scrollingColumn(width, onLeft):
+                ScrollView {
+                    sideBySide(column: width, onLeft: onLeft)
+                        .frame(width: geo.size.width, height: ScreenPlan.scrollBelow)
+                }
             }
         }
     }
@@ -157,10 +204,11 @@ struct ScreenLayout<Header: View, Question: View, Drawing: View, LineBlock: View
     }
 
     /// Top to bottom: the parts and dots, the question, the drawing, the line and the controls.
-    private func portrait(drawingHeight: CGFloat?) -> some View {
+    private func stacked(drawingHeight: CGFloat?) -> some View {
         card(
             VStack(spacing: 8) {
                 header(false)
+                    .frame(height: ScreenPlan.headerBand)
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
                 if hasQuestion {
@@ -172,8 +220,10 @@ struct ScreenLayout<Header: View, Question: View, Drawing: View, LineBlock: View
                     .frame(height: drawingHeight)
                     .frame(maxHeight: drawingHeight == nil ? .infinity : nil)
                 line(3)
+                    .frame(height: captionBand)
                     .padding(.horizontal, 26)
                 controls(false)
+                    .frame(height: ScreenPlan.controlsBand)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 18)
             })
@@ -216,18 +266,25 @@ struct ScreenLayout<Header: View, Question: View, Drawing: View, LineBlock: View
 /// What the engine's screen gives the drawing (EXP-17), for an app that wants to know before it
 /// lays anything out.
 public enum ExplainerScreen {
-    /// The drawing area the screen gives for a space of `size` points and the writing `hand`:
-    /// the space the drawing has beside the column, less its padding; the stage's shape where the
-    /// screen scrolls. Nil in the portrait arrangement, where it depends on the heights of the
-    /// header, the line and the controls.
-    public static func drawingArea(for size: CGSize, hand: WritingHand = .right) -> CGSize? {
-        switch ScreenArrangement.choose(for: size, hand: hand) {
-        case .scroll:
-            CGSize(width: size.width, height: size.width * Scene.stage.height / Scene.stage.width)
-        case .portrait:
-            nil
-        case let .column(width, _):
-            CGSize(width: size.width - width - 1.5 - 24, height: size.height - 24)
+    /// The drawing area `ExplainerView` gives for a space of `size` points, the writing `hand`
+    /// and the `arrangement`: with the caption below, the space less the fixed bands above and
+    /// below the drawing; with it beside, the space the drawing has beside the column, less its
+    /// padding; the stage's shape where the screen scrolls with the caption below. Nil for an
+    /// empty space. The child version (`GuidedView`) gives less with the caption below where it
+    /// shows a question, and its line, with a hint and a tally, is taller.
+    public static func drawingArea(
+        for size: CGSize, hand: WritingHand = .right, arrangement: ScreenArrangement = .automatic
+    ) -> CGSize? {
+        guard size.width > 0, size.height > 0 else { return nil }
+        // The column, the rule beside it, and the drawing's padding of 12 on each side.
+        func beside(_ column: CGFloat, height: CGFloat) -> CGSize {
+            CGSize(width: max(size.width - column - 1.5 - 24, 0), height: height - 24)
+        }
+        return switch ScreenPlan.choose(for: size, hand: hand, arrangement: arrangement) {
+        case .scroll: CGSize(width: size.width, height: size.width * Scene.stage.height / Scene.stage.width)
+        case .stacked: CGSize(width: size.width, height: size.height - ScreenPlan.stackedChrome)
+        case let .column(width, _): beside(width, height: size.height)
+        case let .scrollingColumn(width, _): beside(width, height: ScreenPlan.scrollBelow)
         }
     }
 }

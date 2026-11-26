@@ -83,7 +83,7 @@ struct AreaUseTests {
         // A phone in landscape scrolls and the drawing has the stage's shape.
         let phone = ExplainerScreen.drawingArea(for: CGSize(width: 800, height: 390))
         #expect(phone.map { abs($0.width / $0.height - 1000.0 / 540.0) < 1e-9 } == true)
-        // Portrait depends on the heights of the controls, which the engine does not fix.
-        #expect(ExplainerScreen.drawingArea(for: CGSize(width: 600, height: 900)) == nil)
+        // With the caption below, the bands above and below the drawing have fixed heights.
+        #expect(ExplainerScreen.drawingArea(for: CGSize(width: 600, height: 900)) == CGSize(width: 600, height: 900 - 254))
     }
 }
