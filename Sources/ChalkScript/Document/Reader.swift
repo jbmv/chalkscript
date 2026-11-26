@@ -873,7 +873,7 @@ final class DocumentChecker {
     }
 
     /// One action. `inner` is true for an action in an `each`'s `then` or an `act`'s `then`.
-    func action(_ value: JSONValue, _ p: String, scope: SlotScope, inner: Bool, part: WordingCoverage.Part, hasTarget: Bool = false) {
+    func action(_ value: JSONValue, _ p: String, scope: SlotScope, inner: Bool, part: WordingCoverage.Part) {
         guard let o = value.object else {
             error(.schema, p, "\(last(p)) is \(value.typeName), not an action")
             return
@@ -1193,7 +1193,7 @@ final class DocumentChecker {
                 }
                 values[key] = value
             }
-            guard expressions.keys.contains(where: { $0.hasPrefix("/params/") }) || params.values.allSatisfy({ $0["min"] == nil }) else { continue }
+            // A sample is checked against parameters that can themselves be read.
             if findings.contains(where: { $0.severity == .error && $0.path.hasPrefix("/params") }) { continue }
             for f in ProblemCheck.check(values, params: root["params"]?.object ?? JSONObject(), expressions: expressions) {
                 findings.append(DocumentFinding(.error, .range, f.path.isEmpty ? p : DocumentPath.join(p, f.path), values: values, f.message))

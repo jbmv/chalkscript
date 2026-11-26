@@ -289,8 +289,8 @@ operator applied to its operands, a call, an index or a member access; the root 
 
 ### 6.3 Values and operators
 
-A value is a number (an IEEE 754 double), a truth value, a string or a selection (section 7). There
-is no conversion between them.
+A value is a number (an IEEE 754 double), a truth value, a string, a selection (section 7) or, in
+`components.arithmetic`, a placement (section 9.4). There is no conversion between them.
 
 | Operator | Operands | Result |
 |---|---|---|
@@ -334,7 +334,7 @@ table below); then the parameters, `let` values (with the layout's replacements,
 
 | Local | In scope |
 |---|---|
-| `i` | In an element's keys other than `repeat` and `when`: the instance's index, from 0. In `via` and in the per-instance keys of an action: the instance's position in the action's selection, from 0. In an `each`: the position of the current instance. |
+| `i` | In the keys of an element with `repeat`, other than `repeat` and `when`: the instance's index, from 0. In an action's per-instance keys, `rise`, `grow`, `to` and `via`: the instance's position in the action's selection, from 0. In an `each`: the position of the current instance. |
 | the names of an `each`'s `let`, such as `n` | In that `each`'s `gap` and in its `then` actions and their lines. |
 | `x0`, `y0` | In a `move`'s `via`: the instance's position as the move begins (section 13.6). |
 | `n` | In a `forms` entry and in a phrase entry: the value it is filled with (section 14.3). |
@@ -482,8 +482,9 @@ reference renderer's values are a stroke of 2.4 units, a cross-out of 3, a divid
 
 ### 9.4 The capability `components.arithmetic`
 
-This capability adds four kinds of *piece*, one placement function and the arithmetic operation
-roles of the standard style (section 16.1).
+This capability adds four kinds of *piece*, one placement function and the operation roles
+`subtract`, `trade`, `add`, `multiply` and `divide` of the standard style (section 16.1). The role
+`result` is part of the core, since outlines, tags and text styles use it.
 
 | Kind | Drawn as |
 |---|---|
@@ -502,8 +503,8 @@ for `one` and `circle`), drawn in the `subtract` role. It has its own `progress`
 `opacity`.
 
 `split(s)` is a *placement*, used only as the value of `appear`'s `place`. `s` must select one
-`ten` or `stick`, with `rect` [*x*, *y*, *w*, *h*]; the action's targets must be ten instances; the
-*k*-th is placed at (*x* + 1, *y* + *k*·*h*/10 + 1).
+`ten` or `stick`, with `rect` [*x*, *y*, *w*, *h*]; the action's targets must be exactly ten `one`
+instances; the *k*-th is placed at (*x* + 1, *y* + *k*·*h*/10 + 1).
 
 A piece must never be faded below a ghost (section 13.2). A piece is a quantity, and a quantity is
 never erased.
@@ -548,7 +549,8 @@ the drawing's units, outside the camera, after every other element, and is never
 ### 10.4 The camera's move
 
 When a step's shot frames differently from the shot the camera holds, the step begins with the
-camera's move (section 12.5). The view's middle moves in a straight line, its size changes
+camera's move (section 12.5). Two shots frame differently when their views differ or the regions
+outside which they dim differ (section 10.3); shots with different names may frame the same. The view's middle moves in a straight line, its size changes
 geometrically, and the dimming fades between the two shots, all by the eased progress of the move.
 
 ## 11. Steps
@@ -808,7 +810,7 @@ locals of section 6.5 and, for a text element, its runs.
 - `{entry:name}` fills the entry `entry` (a `text` or `forms` entry, itself without phrases) with
   `n` set to the value of `name`, and inserts the result.
 - A `forms` entry chooses its text by the plural category of `n` under the locale's CLDR cardinal
-  plural rules.
+  plural rules. A reader that does not have a locale's rules warns of it, and uses `other`.
 
 The text outside placeholders must not contain a decimal digit. Every number in a line is computed
 from the problem.
@@ -832,7 +834,9 @@ uses. The section name `shared` is reserved.
 A wording must provide every entry its watched part needs: the steps' lines, the `say`, `set`,
 `tag` and `appear` entries of their actions, the runs' entries and `intro.watch`. An entry needed
 only by do it with me, What if? or try one may be absent from a wording; a player does not play
-those parts with that wording, and a reader lists them.
+those parts with that wording. A reader reports, for each wording, the parts it can play and the
+entries each other part lacks; this is not a finding, since a wording may be meant for the watched
+part alone.
 
 ### 14.6 Wordings and languages
 
@@ -848,7 +852,7 @@ document was written in, and `wording` must contain it.
 
 A translation is a further locale in `wording`, with the same sections and entry names. Each
 translated entry is an object with `of`: the first 8 hexadecimal digits, in lowercase, of the hash
-(section 19) of the source entry as it was when translated. A reader lists, for each locale, the
+(section 19) of the source entry as it was when translated. A reader warns, for each locale, of the
 entries missing, the entries whose source has changed since (*stale*), and the entries that have no
 source. A player falls back to the source locale for a missing entry and lists the gap.
 
@@ -1012,10 +1016,10 @@ The options are chosen by whoever plays the document, not by the document:
 |---|---|
 | `control` | `paced`: no step starts until the viewer asks, and no step is cut short. `skippable`: the viewer may finish a playing step at once and jump to any step, and only the watched part is played. |
 | `counts` | `spoken` or `shown`. When shown, a `say` with `count: true` is neither spoken nor captioned; the drawing still shows the count. |
-| `countPace` | A positive number, by default 1: every time in a step marked `counts` (its `at`, `dur`, `each`, `gap`, `fade`, `duration` and `hold`) is multiplied by it. The camera's lead is not. |
+| `countPace` | A positive number, by default 1. A step marked `counts` is timed as written, and every time on its own timeline (its actions' starts, durations, staggers, gaps and fades, its `duration` and its `hold`) is then multiplied by it, so that a time given by `start()` or `end()` is not multiplied twice. The camera's lead is not. |
 
-When counts are spoken, a step marked `counts` holds its clock at 0 until its own line has been
-heard, so that its first count follows the line.
+When counts are spoken, a step marked `counts` holds its clock at the start of its own timeline,
+after any camera lead, until its own line has been heard, so that its first count follows the line.
 
 `plays` maps `paced` and `skippable` to a wording name: the wording the document suggests for each,
 for a player that has no choice of its own.
@@ -1048,8 +1052,9 @@ lowercase hexadecimal; a *short hash* is its first 12 digits.
 - A translated entry's `of` is the first 8 digits of the hash of its source entry.
 - The *revision* of a document for a wording and a locale is the short hash of the document with
   `about` removed, `wording` reduced to that locale with only its `shared` section and that wording,
-  and `notes`, `maxLength` and `of` removed from every entry left. A change to another language or
-  another wording, or to formatting, leaves the revision unchanged.
+  and `notes`, `maxLength` and `of` removed from every entry left; an entry then left with only
+  `text` is written as that string. A change to another language or another wording, to a note for
+  translators, or to formatting leaves the revision unchanged.
 
 How a document is laid out as text is not part of its meaning. A tool that writes a document should
 keep the author's layout and key order where it can, so that a line in a stored file stays where it
@@ -1088,13 +1093,13 @@ A reader and a validator report *findings*. Each has:
 
 | Code | Finding |
 |---|---|
-| `json` | The file is not JSON, is not an object, or has a duplicate key. |
+| `json` | The file is not JSON, is not an object, or has a duplicate key. Its path is that of the object with the duplicate key, or empty, and its message gives the line and column. |
 | `format` | `format` is missing or is not `chalkscript-explainer`. |
 | `version` | The major version is not implemented (error), or the minor version is newer than the reader's (warning). |
 | `capability` | A required capability is not implemented, or one used is not required. |
 | `schema` | A missing key, a value of the wrong type, an unknown verb, kind or input, or a name that does not match its pattern. |
 | `unknown` | An unknown key (warning). |
-| `ref` | A reference to a step, action, element, part, shot, layout, entry or `vars` value that does not exist. |
+| `ref` | A reference to a step, action, element, run, part, shot, layout, entry, `vars` value, role or curve that does not exist. |
 | `expr` | A syntax error, unknown name, unknown function, wrong arguments, or a cycle. |
 | `wording` | A placeholder that cannot be filled, a typed numeral, a spoken form that cannot be derived, or an entry in both `shared` and a wording. |
 | `eval` | An evaluation error for a problem (section 6.6). |

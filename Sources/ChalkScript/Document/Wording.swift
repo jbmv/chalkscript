@@ -26,7 +26,7 @@ extension DocumentChecker {
                 error(.wording, lp, "locale \(locale) does not have the same sections as \(source)")
             }
             for (section, entries, sp) in map(sections, lp) {
-                guard case let .object(es) = entries else {
+                guard case .object = entries else {
                     error(.schema, sp, "section \(section) is \(entries.typeName), not an object of entries")
                     continue
                 }
@@ -35,7 +35,6 @@ extension DocumentChecker {
                     if section != "shared", secs["shared"]?[name] != nil {
                         error(.wording, ep, "entry \(name) is in both shared and \(section)")
                     }
-                    _ = es
                 }
             }
             if locale != source { checkTranslation(locale, secs, lp, source: source) }
