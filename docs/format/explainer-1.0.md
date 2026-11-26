@@ -526,8 +526,8 @@ nothing has no region.
 | `margin` | Added on every side. By default the style's camera margin (12). |
 
 A shot's region is the box round its parts' regions and its `region`, grown by its margin. A shot
-with no region frames the whole drawing. `opening` names the shot before the first step; without
-it the camera starts on the whole drawing.
+with no region frames the drawing's extent (section 10.3). `opening` names the shot before the
+first step; without it the camera starts on the drawing's extent.
 
 ### 10.2 When the camera is used
 
@@ -536,14 +536,16 @@ whole and a step's `shot` changes nothing.
 
 ### 10.3 Framing
 
-The camera shows a *view* of the drawing in a *viewport*: the drawing less a band of `band` at its
-top. To frame a shot, the player grows the shot's region about its middle to the viewport's shape,
-then slides it, where it fits, to lie inside the box round the drawing and the region. It maps the
-view uniformly onto the viewport.
+The camera shows a *view* of the drawing in a *viewport*: the layout's `size` less a band of `band`
+at its top. With the camera on, `size` is the shape of the picture shown, and the drawing may reach
+past it; the drawing's *extent* is the box round the bounds of every instance that is not fixed, at
+its place. To frame a shot, the player grows the shot's region about its middle to the viewport's
+shape, then slides it, where it fits, to lie inside the box round the extent and the region, and
+centres it on that box where it does not fit. It maps the view uniformly onto the viewport.
 
 Elements whose middle lies outside the shot's region are *dimmed*: drawn toward the paper by the
 style's camera `dim` (0.45), in proportion to their distance outside, reaching the full amount 24
-units out. A shot whose region contains the whole drawing dims nothing. A fixed element is drawn in
+units out. A shot whose region contains the extent dims nothing. A fixed element is drawn in
 the drawing's units, outside the camera, after every other element, and is never dimmed.
 
 ### 10.4 The camera's move
@@ -597,7 +599,9 @@ instant verb has no `dur`, `each`, `reverse` or `ease`.
 
 The instance at position *k* of an action's selection (or at position *n* − 1 − *k* when `reverse`
 is true, with *n* instances) starts at `at` + *k* · `each` and runs for `dur`, then, for `cross`
-with `fade`, for `fade` seconds more. An action's *end* is its start plus (*n* − 1) · `each` +
+with `fade`, for `fade` seconds more. Every instance takes its start state (section 13) as the
+action starts, and holds it until its own start: a staggered `appear` keeps the instances that
+have yet to start at opacity 0. An action's *end* is its start plus (*n* − 1) · `each` +
 `dur` + `fade`. An action with a target that selects nothing does nothing, and its end is its
 start. An action without a target ends at `at` + `dur`.
 
@@ -632,8 +636,10 @@ time in the step is moved later by the lead. The step's length is the lead plus 
 Lines are queued: each is spoken after the one before it ends. `wait: "voice"` holds the step's
 clock at the action's start until every line begun before that moment has been heard. While the
 clock is held, the picture is the one just before that moment. On an `each`, the wait applies at the
-start of every iteration, so that each number said is heard with the piece it counts. A step is
-finished when its clock reaches its length and every line it said has been heard.
+start of every iteration, so that each number said is heard with the piece it counts. When counts
+are shown (section 17), an `each` whose `then` has a `say` with `count: true` does not wait: a
+count that is shown is not heard, and a step that does not count aloud moves while its line is
+said. A step is finished when its clock reaches its length and every line it said has been heard.
 
 The times this reference gives are those of a silent voice, which never holds the clock. A player
 that speaks adds the holds.
@@ -661,7 +667,7 @@ Kind `appear`. Targets: elements and runs.
 
 | Parameter | Holds |
 |---|---|
-| `rise` | A distance: the instance starts this far below its position and rises to it. |
+| `rise` | A distance: the instance starts this far below its position and rises to it. A negative distance starts it above its position, so that it drops in. |
 | `grow` | A scale from 0 to 1: the instance starts at this size about its middle and grows to its own. |
 | `place` | A placement (such as `split(...)`, section 9.4): the instance's position becomes the placement's for it as the action starts. |
 | `text` | An entry: the instance (a text element or a run) takes this text as the action starts. |
@@ -735,8 +741,7 @@ instance shows that entry, filled at that moment with the names then in scope (s
 Kind `appear`. Targets: elements and pieces. Parameter: `text`, an entry (required).
 
 A small card in the `result` role, showing the entry, appears over each target and goes: 48 by 34
-units over a ten or stick and 30 by 34 otherwise, centred above the target's bounds with its lower
-edge 6 units above them. Over eased progress *p* its opacity goes from 0 to 1 by *p* = 0.2, holds,
+units over a ten or stick and 30 by 34 otherwise, centred on the target's bounds. Over eased progress *p* its opacity goes from 0 to 1 by *p* = 0.2, holds,
 and returns to 0 from *p* = 0.75 to 1, and its scale goes from 0.6 to 1 by *p* = 0.2. Start and
 end: no tag.
 

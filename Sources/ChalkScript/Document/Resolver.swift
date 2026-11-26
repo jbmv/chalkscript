@@ -374,8 +374,11 @@ final class Resolver: EvaluationScope {
                     let caption = !hidden && captionFlag(a.path, count: isCount)
                     lines.append(ResolvedLine(time: offset + a.start, entry: text, caption: caption, spoken: !hidden && text.spoken != nil, count: isCount, action: a.path))
                 }
+                // An each that says a count waits so that each number is heard with its piece; a
+                // count that is shown is not heard, so it does not wait (EXP-10).
+                let shownCounts = playback.counts == .shown && saysCount(a.path)
                 for it in a.iterations {
-                    if a.waitsForVoice { waits.append(offset + it.start) }
+                    if a.waitsForVoice && !shownCounts { waits.append(offset + it.start) }
                     for x in it.actions { collect(x, offset: offset) }
                 }
             }
@@ -407,6 +410,11 @@ final class Resolver: EvaluationScope {
     }
 
     func countFlag(_ path: String) -> Bool { doc.json.value(at: path + "/count") == .bool(true) }
+
+    /// Whether the `each` at `path` says a count in its `then`.
+    func saysCount(_ path: String) -> Bool {
+        (doc.json.value(at: path + "/then")?.object?.entries ?? []).contains { $0.value["do"] == .string("say") && $0.value["count"] == .bool(true) }
+    }
 
     func captionFlag(_ path: String, count: Bool) -> Bool {
         if case let .bool(b)? = doc.json.value(at: path + "/caption") { return b }

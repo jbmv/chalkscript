@@ -125,15 +125,27 @@ struct CameraFraming {
     let resolver: Resolver
     let size: CGSize
     let viewport: CGRect
+    /// The drawing's extent: the box round every instance seen through the camera, at its place.
+    /// With the camera on, the layout's size is the shape of the picture shown, and the drawing
+    /// may reach past it.
+    let drawing: CGRect
 
     init(_ r: Resolver, size: CGSize) {
         resolver = r
         self.size = size
         let band = (try? r.number(DocumentPath.join("/layouts", r.layout, "band"), default: 0, what: "band")) ?? 0
         viewport = CGRect(x: 0, y: band, width: size.width, height: max(size.height - band, 1))
+        var extent: CGRect?
+        for (name, el) in r.root["elements"]?.object?.entries ?? [] where el["fixed"] != .bool(true) {
+            let n = (try? r.instanceCount(name)) ?? 0
+            let repeated = el["repeat"] != nil
+            for k in 0..<n {
+                guard let b = try? r.bounds(DocumentInstance(name, repeated ? k : nil)) else { continue }
+                extent = extent.map { $0.union(b) } ?? b
+            }
+        }
+        drawing = extent ?? CGRect(origin: .zero, size: size)
     }
-
-    var drawing: CGRect { CGRect(origin: .zero, size: size) }
 
     func frame(_ shot: String?) throws(EvalFailure) -> Frame {
         guard let shot, let spec = resolver.root["shots"]?[shot]?.object else { return framing(drawing, focused: false) }
@@ -151,12 +163,13 @@ struct CameraFraming {
         guard let r = region else { return framing(drawing, focused: false) }
         let margin = try resolver.number(p + "/margin", default: resolver.cameraMargin, what: "margin")
         let grown = r.insetBy(dx: -margin, dy: -margin)
-        // A shot whose region contains the whole drawing dims nothing.
+        // A shot whose region contains the drawing's extent dims nothing.
         return framing(grown, focused: !grown.contains(drawing))
     }
 
     /// The region grown about its middle to the viewport's shape and, where it fits, slid to lie
-    /// inside the box round the drawing and the region.
+    /// inside the box round the drawing's extent and the region; centred on that box where it
+    /// does not fit.
     func framing(_ region: CGRect, focused: Bool) -> Frame {
         var view = region
         let aspect = viewport.width / viewport.height

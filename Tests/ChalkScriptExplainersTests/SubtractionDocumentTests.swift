@@ -7,7 +7,12 @@ import Testing
 /// The subtraction document (`docs/format/examples/subtraction.explainer`, EXP-19) against the
 /// running `SubtractionExplainer`: for every problem the template accepts, in the learner's and
 /// the parent's playback, on the stage and laid out for a tall drawing area, the document's
-/// resolved steps, step durations, lines in order and count times are the template's.
+/// resolved steps, step durations, lines in order, count times and waits for the voice are the
+/// template's.
+///
+/// One wait differs, and the template is at fault: a step that counts aloud says its line first
+/// and then moves (EXP-10), so the document's count step holds at the start of its own timeline
+/// until its line is heard, where the template copies what is left while the line is said.
 struct SubtractionDocumentTests {
     static let document: ExplainerDocument = {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -84,6 +89,15 @@ struct SubtractionDocumentTests {
                             for (a, b) in zip(ours, theirs) where abs(a.1 - b.1) > Self.tolerance {
                                 differences.append("\(label) \(step.name): line \(a.0) at \(a.1) against \(b.1)")
                             }
+                        }
+                        // The waits, less the learner's hold before the count (EXP-10).
+                        let theirWaits = script.events.compactMap { ev in ev.action == .waitForVoice ? ev.time : nil }
+                        var ourWaits = step.waits
+                        if step.counts && playback.counts == .spoken, let k = ourWaits.firstIndex(where: { abs($0 - step.lead) <= Self.tolerance }) {
+                            ourWaits.remove(at: k)
+                        }
+                        if ourWaits.count != theirWaits.count || zip(ourWaits.sorted(), theirWaits.sorted()).contains(where: { abs($0 - $1) > Self.tolerance }) {
+                            differences.append("\(label) \(step.name): waits \(ourWaits) against \(theirWaits)")
                         }
                         if step.name == "count" {
                             let lead = e.lead(k, from: e.state(after: k - 1).shot)

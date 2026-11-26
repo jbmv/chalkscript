@@ -45,7 +45,7 @@
     "stage": { "size": [1000, 540] },
     "tall": {
       "suits": "areaW <= areaH * 1.35",
-      "size": [640, "640 * areaH / areaW"], "band": 96, "camera": true,
+      "size": [640, "round(640 * areaH / areaW)"], "band": 96, "camera": true,
       "let": {
         "ctX": 40, "cgap": 40, "clx": "dT == 0 ? 54 : 40 + (dT - 1) * 40 + 54",
         "countY": 470, "totalY": 760, "eqX": 320,
@@ -94,7 +94,7 @@
       "shot": "whole", "say": "show", "duration": "aT * 0.18 + 0.45 + aO * 0.16",
       "actions": {
         "labels": { "do": "appear", "target": "tensLabel + onesLabel", "dur": 0 },
-        "tens": { "do": "appear", "target": "ten", "dur": 0.32, "each": 0.18, "rise": 14 },
+        "tens": { "do": "appear", "target": "ten", "dur": 0.32, "each": 0.18, "rise": -14 },
         "ones": { "do": "appear", "target": "one", "at": "aT * 0.18 + 0.15", "dur": 0.26, "each": 0.16, "grow": 0.4 }
       }
     },
