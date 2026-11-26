@@ -271,6 +271,7 @@ The screen is arranged by the space it is given, not by the device. In a tall sp
 **Acceptance:**
 - The arrangement is chosen from the space given. Both arrangements fit without scrolling.
 - A drawing not laid out for its area is scaled to fit and centred. It is never cropped or stretched.
+- A document may declare the shapes of area it is made for; in another area it is laid out for the nearest declared shape, scaled and centred.
 - Handedness is right or left, and right by default.
 - While a touch is on the drawing, and for one second after, the column's controls ignore presses.
 

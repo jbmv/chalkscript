@@ -50,6 +50,7 @@ A document is one JSON object in a `.explainer` file.
 | `id`, `title`, `about` | Identity; `about` changes nothing seen or heard. |
 | `sourceLocale` | The locale written in, such as `en-US`. |
 | `params`, `let`, `vars`, `samples`, `kind` | The problem (topic `problem`). |
+| `areas` | The shapes of drawing area the document is made for (topic `camera`). |
 | `layouts`, `elements`, `parts`, `shots`, `opening` | The drawing and camera (topics `elements`, `camera`). |
 | `intro`, `sequence`, `steps` | The lines before the first step, the step names in order, and the steps (topic `steps`). |
 | `try`, `whatIf` | Later parts: try one, and What if?. |
@@ -190,6 +191,27 @@ outside the shot is dimmed, not hidden. Another layout has `suits` (an expressio
 `areaH`), `size`, `camera`, `band` and `let` replacements; the first that suits the window, by
 name, is used, and otherwise `stage`. The studio's window chooses the layout from its size.
 
+`areas` declares the shapes of drawing area the document is made for: a list of entries, each a
+`layout` (a layout's name, or `stage`) and a `ratio` `[min, max]`, the least and greatest ratio of
+the area's width to its height, as plain numbers with 0 < min <= max. Ranges may meet at an end,
+as the subtraction example's do at 1.35, and may leave gaps. The layout is still chosen by `suits`;
+`areas` says which layout the author expects at each shape. Give each layout's `suits` the same
+boundary as its range, and declare `stage` for the shapes it is scaled to fit. A document without
+`areas` declares nothing. Change the declaration with an ordinary patch on `/areas`:
+
+```json
+{"op": "add", "path": "/areas", "value": [{"layout": "stage", "ratio": [0.9, 2.2]}]}
+{"op": "add", "path": "/areas/-", "value": {"layout": "tall", "ratio": [0.6, 1.35]}}
+{"op": "replace", "path": "/areas/1/ratio/1", "value": 2.4}
+{"op": "remove", "path": "/areas/0"}
+{"op": "remove", "path": "/areas"}
+```
+
+The first declares for the first time, the second adds a range, the third widens one, the fourth
+removes one and the fifth removes the declaration. Removing the last entry with `remove /areas/0`
+leaves an empty `areas`, which is a `schema` error; remove `/areas` instead. A range that
+disagrees with the layouts is accepted with an `areas` warning.
+
 ## findings: what the codes mean
 
 One finding is one line: severity, code, JSON Pointer, `@offset` inside an expression or text,
@@ -205,5 +227,6 @@ the problem's values, a time, then the message.
 | `wording` | A placeholder that cannot be filled, a typed numeral, or an unsayable number. |
 | `eval` | An expression failed for the problem in braces; try that problem with `show`. |
 | `range` | A problem outside the parameters. |
+| `areas` | A warning that a declared range and a layout's `suits` disagree, that no entry names a layout, or that `suits` depends on the area's size; change the range or the layout's `suits`, or add the missing entry. |
 | `patch` | A refused patch: stale base, protected path, or an operation that failed. |
 | `capability` | A kind or verb used without its capability in `requires`, or one this studio does not draw. |

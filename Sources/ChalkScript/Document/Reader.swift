@@ -45,7 +45,13 @@ extension ExplainerDocument {
             checker.findings.append(.warning(.version, "/version", "version \(v) is newer than this reader's \(readerVersion.major).\(readerVersion.minor)"))
         }
         checker.check()
-        let doc = ExplainerDocument(json: json, findings: checker.findings, coverage: checker.coverage, expressions: checker.expressions)
+        var doc = ExplainerDocument(json: json, findings: checker.findings, coverage: checker.coverage, expressions: checker.expressions)
+        // The declaration is compared with the layouts only in a document that has no error,
+        // since the layouts' `suits` are evaluated.
+        if root["areas"] != nil, !checker.findings.hasErrors {
+            checker.findings += doc.areaFindings()
+            doc = ExplainerDocument(json: json, findings: checker.findings, coverage: checker.coverage, expressions: checker.expressions)
+        }
         return DocumentReading(document: doc, findings: checker.findings)
     }
 
@@ -492,7 +498,7 @@ final class DocumentChecker {
     func check() {
         object(.object(root), "", known: [
             "format", "version", "requires", "id", "title", "about", "sourceLocale", "params", "let", "vars", "samples", "kind",
-            "layouts", "elements", "parts", "shots", "opening", "intro", "sequence", "steps", "try", "whatIf", "style", "plays",
+            "areas", "layouts", "elements", "parts", "shots", "opening", "intro", "sequence", "steps", "try", "whatIf", "style", "plays",
             "wording", "extensions",
         ], required: ["format", "version", "id", "title", "sourceLocale", "params", "samples", "elements", "sequence", "steps", "wording"])
         gatherNames()
@@ -500,6 +506,7 @@ final class DocumentChecker {
         checkParams()
         checkValues()
         checkLayouts()
+        checkAreas()
         checkElements()
         checkPartsAndShots()
         checkSteps()
@@ -682,6 +689,41 @@ final class DocumentChecker {
             }
             reportCycle(graph, what: "layout \(name)'s let values") { k in
                 o["let"]?[k] != nil ? DocumentPath.join(p, "let", k) : "/let/" + k
+            }
+        }
+    }
+
+    /// The declaration of the areas the document is made for (section 8.2): its structure and
+    /// the layouts it names. What it says about the layouts' `suits` is checked once the
+    /// document has been read (`ExplainerDocument.areaFindings`).
+    func checkAreas() {
+        guard let value = root["areas"] else { return }
+        guard case let .array(entries) = value, !entries.isEmpty else {
+            error(.schema, "/areas", "areas is not a non-empty array of entries")
+            return
+        }
+        let layouts = Set(root["layouts"]?.object?.keys ?? []).union(["stage"])
+        for (k, e) in entries.enumerated() {
+            let p = "/areas/\(k)"
+            guard let o = object(e, p, known: ["layout", "ratio"], required: ["layout", "ratio"]) else { continue }
+            nameRef(o, "layout", p, in: layouts, what: "layout")
+            guard let ratio = o["ratio"] else { continue }
+            let rp = p + "/ratio"
+            guard case let .array(bounds) = ratio, bounds.count == 2 else {
+                error(.schema, rp, "ratio is not [min, max], two numbers")
+                continue
+            }
+            var numbers: [Double] = []
+            for (i, b) in bounds.enumerated() {
+                guard case let .number(n) = b else {
+                    error(.schema, "\(rp)/\(i)", "the \(i == 0 ? "least" : "greatest") ratio is \(b.typeName), not a number")
+                    continue
+                }
+                if n <= 0 { error(.schema, "\(rp)/\(i)", "the \(i == 0 ? "least" : "greatest") ratio is \(Canonical.number(n)), not more than 0") }
+                numbers.append(n)
+            }
+            if numbers.count == 2, numbers[0] > 0, numbers[0] > numbers[1] {
+                error(.schema, rp, "the least ratio \(Canonical.number(numbers[0])) is more than the greatest \(Canonical.number(numbers[1]))")
             }
         }
     }

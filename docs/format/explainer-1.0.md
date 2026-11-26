@@ -152,6 +152,7 @@ then reports every reference the rename broke.
 | `vars` | no | Values a viewer's actions may change (section 5.3). |
 | `samples` | yes | The problems a reviewer is shown (section 5.4). |
 | `kind` | no | Which other problems are of the same kind (section 5.5). |
+| `areas` | no | The shapes of drawing area the document is made for (section 8.2). |
 | `layouts` | no | The drawing's size, and alternative layouts (section 8). |
 | `elements` | yes | What is drawn (section 9). |
 | `parts` | no | Named selections, which shots frame (section 10). |
@@ -339,7 +340,7 @@ table below); then the parameters, `let` values (with the layout's replacements,
 | `x0`, `y0` | In a `move`'s `via`: the instance's position as the move begins (section 13.6). |
 | `n` | In a `forms` entry and in a phrase entry: the value it is filled with (section 14.3). |
 | `left` | In a `tooMany` miss line: how many right marks the step still needs. |
-| `areaW`, `areaH` | In a layout's `suits` and `size`: the drawing area's width and height. |
+| `areaW`, `areaH` | In a layout's `suits` and `size`: the width and height of the area the layout is chosen for (section 8.2). |
 
 ### 6.6 Evaluation and errors
 
@@ -380,6 +381,8 @@ crossed out before.
 
 ## 8. Layouts and coordinates
 
+### 8.1 Coordinates and layouts
+
 A drawing has its own units. The origin is the top-left corner, *x* increases to the right and *y*
 downward. A player scales the drawing to fit the area it is given, keeping its shape, and centres
 it; it never crops or stretches it.
@@ -395,10 +398,32 @@ it; it never crops or stretches it.
 | `band` | The height at the top of the drawing kept for fixed elements when the camera is on (section 10.3). By default 0. |
 | `let` | Values that replace, or add to, the document's `let` in this layout. |
 
-Given a drawing area, a player uses the first layout other than `stage`, by name in code point
+Given the area of section 8.2, a player uses the first layout other than `stage`, by name in code point
 order, whose `suits` is true, and otherwise `stage`. A name a layout adds to `let` exists only in
 that layout, and may be named only by that layout's own `let` values; every other name a layout
 gives must already be in `let`.
+
+### 8.2 The areas a document is made for
+
+`areas` lists the shapes of drawing area the document is made for, and the layout it is drawn in
+at each. Each entry has `layout`, the name of a layout or `stage`, and `ratio`, `[min, max]`: the
+least and greatest ratio of the area's width to its height, numbers with 0 < `min` <= `max`. The
+*declared shapes* are the ratios inside any entry's range, ends included. Ranges may meet at an
+end and may leave gaps; an entry whose `min` equals its `max` declares one shape. `areas` is
+optional; when present it has at least one entry. A document without it declares nothing, and a
+player lays it out for the area it is given, as section 8.1 says.
+
+Given a drawing area *w* by *h*, a player finds the area it lays the document out for. Without
+`areas`, it is *w* by *h*. With `areas`, if *r* = *w* / *h* is a declared shape, it is *w* by *h*.
+Otherwise let *r'* be the declared shape nearest *r*, by |ln *r* - ln *r'*|, taking the greater
+when two are equally near; the area is the largest of ratio *r'* inside *w* by *h*, which is
+(*h* * *r'*, *h*) when *r'* < *r* and (*w*, *w* / *r'*) otherwise, centred in the area the player
+was given. The layout is then chosen for that area as section 8.1 says, and `areaW` and `areaH`
+are its width and height. A player that lays the document out for an area other than the one it
+was given says so to whoever gave it the area (section 18).
+
+At every declared shape, the layout section 8.1 chooses should be the one the entry names. A
+reader checks this (section 21, `areas`).
 
 ## 9. Elements
 
@@ -1035,7 +1060,8 @@ options together. A review of a document names all of them.
 ## 18. State, stills and what a player is given
 
 A player is given the document, a problem, a wording, a locale, the playback options and the size
-of the drawing area, from which it chooses the layout (section 8).
+of the drawing area, from which it finds the area it lays the document out for and chooses the
+layout (section 8). When that area is not the one it was given, it says so to whoever gave it.
 
 The *state* of the drawing is, for every instance, its opacity, progress, position, place, size,
 look, text, tint, and whether it is crossed out or ghosted, with the same for each cross-out; and
@@ -1109,6 +1135,7 @@ A reader and a validator report *findings*. Each has:
 | `wording` | A placeholder that cannot be filled, a typed numeral, a spoken form that cannot be derived, or an entry in both `shared` and a wording. |
 | `eval` | An evaluation error for a problem (section 6.6). |
 | `range` | A problem outside the parameters' ranges. |
+| `areas` | A declared shape at which another layout is chosen, a layout no entry names, or a `suits` that depends on the area's size (warnings). |
 | `patch` | A patch refused: a stale base, a protected path, or an operation that failed. |
 
 A validator adds its own codes for the checks it computes. One finding is written on one line as
@@ -1126,7 +1153,7 @@ error wording /wording/en-US/everyday/skip @12: number {b} is followed by letter
 A document *conforms* when a reader finds no error in it. It is *sound* for a problem when nothing
 evaluated for that problem fails. A reader conforms when it reports what sections 2 to 21 make an
 error or a warning. A player conforms when, for a conforming document and a problem for which it is
-sound, it plays the steps, timing, camera, lines and interaction this reference defines, and
+sound, it lays the document out for the area section 8.2 gives and plays the steps, timing, camera, lines and interaction this reference defines, and
 refuses what section 2 says it must refuse.
 
 Beside this reference:
@@ -1134,9 +1161,9 @@ Beside this reference:
 | File | Is |
 |---|---|
 | `explainer-1.0.schema.json` | The JSON Schema (draft 2020-12) of a version 1.x document. It checks structure and types; it does not parse expressions or resolve references, which a reader does. |
-| `examples/subtraction.explainer` | Two-digit subtraction, trading a ten when the ones are too few, with two English wordings and do it with me. It uses a tall layout with the camera. |
-| `examples/equal-groups.explainer` | Multiplication as equal groups, counted on group by group, with two English wordings. |
-| `check-schema.py` | Checks that the schema accepts both examples and refuses documents with an unknown verb, a missing required key and a value of the wrong type. Run it with `python3 docs/format/check-schema.py`. It uses the `jsonschema` package when it is installed and otherwise a validator of the schema keywords it uses. |
+| `examples/subtraction.explainer` | Two-digit subtraction, trading a ten when the ones are too few, with two English wordings and do it with me. It uses a tall layout with the camera, and declares the shapes 0.6 to 1.35 (tall) and 1.35 to 2.2 (stage). |
+| `examples/equal-groups.explainer` | Multiplication as equal groups, counted on group by group, with two English wordings, and declares the shapes 0.9 to 2.2 (stage). |
+| `check-schema.py` | Checks that the schema accepts both examples and refuses documents with an unknown verb, a missing required key, a value of the wrong type and an `areas` entry whose `ratio` is not two numbers. Run it with `python3 docs/format/check-schema.py`. It uses the `jsonschema` package when it is installed and otherwise a validator of the schema keywords it uses. |
 
 ## 23. Prior art
 

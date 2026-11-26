@@ -1,7 +1,8 @@
 """Checks the explainer format's JSON Schema against the example documents.
 
 The schema must accept both examples and refuse a document with an unknown verb, a missing
-required key, or a value of the wrong type. Each refused document is an example with one change,
+required key, a value of the wrong type, or an `areas` entry that lacks `layout` or `ratio`, whose
+`ratio` is not two numbers above 0, or an empty `areas`. Each refused document is an example with one change,
 and the check also requires that the schema refuses it at the place that was changed.
 
 Usage: python3 docs/format/check-schema.py
@@ -236,6 +237,18 @@ def main():
          lambda d: d.update({"samples": {"a": 2, "b": 2}})),
         ("a value of the wrong type (a duration)", "/steps/same/actions/loop/dur",
          lambda d: d["steps"]["same"]["actions"]["loop"].update({"dur": [0.9]})),
+        ("an areas entry without layout", "/areas/0",
+         lambda d: d["areas"][0].pop("layout")),
+        ("an areas entry without ratio", "/areas/0",
+         lambda d: d["areas"][0].pop("ratio")),
+        ("an areas ratio of one number", "/areas/0/ratio",
+         lambda d: d["areas"][0].update({"ratio": [0.9]})),
+        ("an areas ratio that is not numbers", "/areas/0/ratio/1",
+         lambda d: d["areas"][0].update({"ratio": [0.9, "wide"]})),
+        ("an areas ratio with a minimum of 0", "/areas/0/ratio/0",
+         lambda d: d["areas"][0].update({"ratio": [0, 2.2]})),
+        ("an empty areas", "/areas",
+         lambda d: d.update({"areas": []})),
     ]
     for what, where, change in refused:
         found = errors(changed(groups, change))

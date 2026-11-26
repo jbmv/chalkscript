@@ -8,11 +8,15 @@ extension ExplainerDocument {
     public func layout(for area: CGSize, problem: [String: DocumentValue] = [:]) -> String {
         let names = (root["layouts"]?.object?.keys ?? []).filter { $0 != "stage" }
             .sorted { Array($0.unicodeScalars.map(\.value)).lexicographicallyPrecedes($1.unicodeScalars.map(\.value)) }
-        for name in names {
-            let r = Resolver(self, problem: problem, layout: name, area: area, wording: wordings.first ?? "", locale: sourceLocale, playback: DocumentPlayback())
-            if case .truth(true)? = try? r.eval(DocumentPath.join("/layouts", name, "suits"), locals: r.areaLocals) { return name }
-        }
+        for name in names where suits(name, area: area, problem: problem) { return name }
         return "stage"
+    }
+
+    /// Whether layout `name`'s `suits` is true for `area`. One that cannot be evaluated does not suit.
+    func suits(_ name: String, area: CGSize, problem: [String: DocumentValue]) -> Bool {
+        let r = Resolver(self, problem: problem, layout: name, area: area, wording: wordings.first ?? "", locale: sourceLocale, playback: DocumentPlayback())
+        if case .truth(true)? = try? r.eval(DocumentPath.join("/layouts", name, "suits"), locals: r.areaLocals) { return true }
+        return false
     }
 
     /// Resolves the watched part for one problem (EXP-19): the steps it has, each step's actions

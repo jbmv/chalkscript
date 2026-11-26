@@ -41,6 +41,10 @@
     "near": { "aT": 2 }
   },
 
+  "areas": [
+    { "layout": "tall", "ratio": [0.6, 1.35] },
+    { "layout": "stage", "ratio": [1.35, 2.2] }
+  ],
   "layouts": {
     "stage": { "size": [1000, 540] },
     "tall": {

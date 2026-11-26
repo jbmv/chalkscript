@@ -32,6 +32,8 @@ public struct DocumentFinding: Equatable, Hashable, Sendable, CustomStringConver
         case eval
         /// A problem outside the parameters' ranges.
         case range
+        /// A declaration of the areas the document is made for that disagrees with its layouts.
+        case areas
         /// A patch refused.
         case patch
     }
