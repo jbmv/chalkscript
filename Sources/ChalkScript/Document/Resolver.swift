@@ -84,7 +84,12 @@ final class Resolver: EvaluationScope {
     let wordingName: String
 
     var cache: [String: DocumentValue] = [:]
+    /// Values that failed while their dependents were being prepared; the failure is raised
+    /// only where one is used.
+    var failed: [String: EvalFailure] = [:]
     var evaluating: Set<String> = []
+    static let maxChain = 16
+    var boundsPending: Set<DocumentInstance> = []
     var varValues: [String: DocumentValue] = [:]
     var counts: [String: Int] = [:]
     var countsPending: Set<String> = []
@@ -190,26 +195,67 @@ final class Resolver: EvaluationScope {
     func value(of name: String) throws(ExpressionError) -> DocumentValue? {
         for frame in locals.reversed() { if let v = frame[name] { return v } }
         if let v = problem[name] { return v }
-        if let v = cache[name] { return v }
-        let path: String
-        if layoutLets[name] != nil {
-            path = DocumentPath.join("/layouts", layout, "let", name)
-        } else if root["let"]?[name] != nil {
-            path = DocumentPath.join("/let", name)
-        } else if root["vars"]?[name] != nil {
-            if let v = varValues[name] { return v }
-            let v = try inner { () throws(EvalFailure) in try self.evalIsolated(DocumentPath.join("/vars", name)) }
-            varValues[name] = v
-            return v
-        } else {
-            return nil
+        if let v = cache[name] ?? varValues[name] { return v }
+        guard let path = valuePath(name) else { return nil }
+        if let f = failed[name] {
+            if nested == nil { nested = f }
+            throw ExpressionError(f.message, at: f.at ?? 0)
         }
         guard !evaluating.contains(name) else { throw ExpressionError("'\(name)' depends on itself", at: 0) }
+        // Values that name one another are evaluated in order of dependency (`prepare`); this
+        // bounds what is left, such as a cycle in a document that does not conform.
+        guard evaluating.count < Self.maxChain else {
+            throw ExpressionError("'\(name)' is reached through more than \(Self.maxChain) values that name one another", at: 0)
+        }
+        prepare(name)
         evaluating.insert(name)
         defer { evaluating.remove(name) }
         let v = try inner { () throws(EvalFailure) in try self.evalIsolated(path) }
-        cache[name] = v
+        if path.hasPrefix("/vars/") { varValues[name] = v } else { cache[name] = v }
         return v
+    }
+
+    /// The JSON Pointer of the `let` or `vars` value `name` in this layout, or nil.
+    func valuePath(_ name: String) -> String? {
+        if layoutLets[name] != nil { return DocumentPath.join("/layouts", layout, "let", name) }
+        if root["let"]?[name] != nil { return DocumentPath.join("/let", name) }
+        if root["vars"]?[name] != nil { return DocumentPath.join("/vars", name) }
+        return nil
+    }
+
+    /// Evaluates the values `name` depends on, those it depends on first, so that evaluating
+    /// `name` finds each already kept and a long chain of values never deepens the stack. A
+    /// value that fails is kept as a failure, raised only if an evaluation actually uses it
+    /// (section 5.2: values are evaluated on demand).
+    func prepare(_ name: String) {
+        var order: [String] = []
+        var seen: Set<String> = [name]
+        var stack: [(String, Bool)] = [(name, false)]
+        while let (n, expanded) = stack.popLast() {
+            if expanded {
+                order.append(n)
+                continue
+            }
+            stack.append((n, true))
+            guard let path = valuePath(n), !evaluating.contains(n) || n == name else { continue }
+            doc.expressions[path]?.root.walk { node in
+                if case let .name(d) = node.kind, !seen.contains(d), cache[d] == nil, failed[d] == nil, problem[d] == nil, valuePath(d) != nil {
+                    seen.insert(d)
+                    stack.append((d, false))
+                }
+            }
+        }
+        for n in order where n != name && cache[n] == nil && varValues[n] == nil && failed[n] == nil && !evaluating.contains(n) {
+            guard let path = valuePath(n) else { continue }
+            evaluating.insert(n)
+            do {
+                let v = try evalIsolated(path)
+                if path.hasPrefix("/vars/") { varValues[n] = v } else { cache[n] = v }
+            } catch {
+                failed[n] = error
+            }
+            evaluating.remove(n)
+        }
     }
 
     /// Evaluates a document-level value with no locals in scope.
@@ -301,8 +347,10 @@ final class Resolver: EvaluationScope {
             let actionsPath = source("actions") + "/actions"
             let actionObject = value("actions")?.object ?? JSONObject()
             for (k, v) in actionObject.entries { stepActions[k] = (v.object ?? JSONObject(), DocumentPath.join(actionsPath, k)) }
-            var actions: [ResolvedAction] = []
-            for k in actionObject.keys { if let a = try resolveTopLevel(k) { actions.append(a) } }
+            // Resolved in order of dependency, so that start() and end() find what they name
+            // already timed; listed in the document's order.
+            for k in timingOrder(actionObject.keys) { _ = try resolveTopLevel(k) }
+            let actions = actionObject.keys.compactMap { resolvedActions[$0] }
 
             let durationPath = source("duration") + "/duration"
             let latest = actions.map(\.end).max() ?? 0
@@ -336,7 +384,7 @@ final class Resolver: EvaluationScope {
 
             // Paced, then moved later by the camera's lead; the step's line stays at 0.
             func shift(_ t: Double) -> Double { lead + pace * t }
-            actions = actions.map { Self.retime($0, pace: pace, lead: lead) }
+            let retimed = actions.map { Self.retime($0, pace: pace, lead: lead) }
             lines = lines.enumerated().map { k, l in
                 var x = l
                 if k > 0 { x.time = shift(l.time) }
@@ -347,7 +395,7 @@ final class Resolver: EvaluationScope {
             let h = pace * hold
             steps.append(ResolvedStep(
                 name: name, shot: shot, lead: lead, timeline: t, hold: h, duration: lead + t + h, counts: counted, line: line,
-                actions: actions, lines: lines, waits: waits))
+                actions: retimed, lines: lines, waits: waits))
         }
         let intro = try root["intro"]?["watch"]?.string.map { name throws(EvalFailure) in try fill(name, at: "/intro/watch") }
         // Do it with me's line may be absent from a wording that plays only the watched part.
@@ -426,6 +474,9 @@ final class Resolver: EvaluationScope {
         if notRunning.contains(name) { return nil }
         guard let (o, path) = stepActions[name] else { throw EvalFailure(path: "", message: "there is no action '\(name)' in this step") }
         guard !timing.contains(name) else { throw EvalFailure(path: path + "/at", message: "\(name)'s start depends on itself") }
+        guard timing.count < Self.maxChain else {
+            throw EvalFailure(path: path + "/at", message: "\(name) is timed through more than \(Self.maxChain) actions that name one another")
+        }
         timing.insert(name)
         defer { timing.remove(name) }
         guard let a = try resolveAction(name, o, path, iterationStart: nil, current: nil, locals: [:]) else {
@@ -546,6 +597,33 @@ final class Resolver: EvaluationScope {
             name: name, path: path, verb: verb, targets: targets, start: start, duration: dur, stagger: each, reverse: reverse, fade: fade,
             end: end, ease: ease, mark: o["mark"] == .bool(true), waitsForVoice: o["wait"] == .string("voice"), starts: starts, text: text,
             iterations: iterations)
+    }
+
+    /// The step's actions, each after those its `at` names through `start()` and `end()`.
+    func timingOrder(_ names: [String]) -> [String] {
+        var order: [String] = []
+        var seen = Set<String>()
+        for root in names where !seen.contains(root) {
+            seen.insert(root)
+            var stack: [(String, Bool)] = [(root, false)]
+            while let (n, expanded) = stack.popLast() {
+                if expanded {
+                    order.append(n)
+                    continue
+                }
+                stack.append((n, true))
+                guard let path = stepActions[n]?.path else { continue }
+                doc.expressions[path + "/at"]?.root.walk { node in
+                    if case let .call(f, args) = node.kind, f == "start" || f == "end", case let .name(d)? = args.first?.kind,
+                        stepActions[d] != nil, !seen.contains(d)
+                    {
+                        seen.insert(d)
+                        stack.append((d, false))
+                    }
+                }
+            }
+        }
+        return order
     }
 
     /// An `each`'s `let` names in an order of dependency.

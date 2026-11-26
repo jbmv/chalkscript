@@ -14,6 +14,11 @@ extension Resolver {
         guard let el = root["elements"]?[name]?.object, let kind = el["kind"]?.string else {
             throw EvalFailure(path: p, message: "there is no element '\(name)'")
         }
+        guard !boundsPending.contains(instance), boundsPending.count < Self.maxChain else {
+            throw EvalFailure(path: p, message: "\(instance)'s bounds depend on themselves")
+        }
+        boundsPending.insert(instance)
+        defer { boundsPending.remove(instance) }
         let l: [String: DocumentValue] = instance.index.map { ["i": .number(Double($0))] } ?? [:]
         func point(_ key: String) throws(EvalFailure) -> CGPoint {
             CGPoint(x: try number(p + "/\(key)/0", locals: l, what: "x"), y: try number(p + "/\(key)/1", locals: l, what: "y"))

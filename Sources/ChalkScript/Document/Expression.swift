@@ -80,13 +80,36 @@ public struct ExpressionNode: Equatable, Sendable {
         }
     }
 
-    public var nodeCount: Int { 1 + children.reduce(0) { $0 + $1.nodeCount } }
-    public var depth: Int { 1 + (children.map(\.depth).max() ?? 0) }
+    // These walk the tree without recursion, since a tree is measured before its size is known
+    // to be within the format's limits.
+
+    public var nodeCount: Int {
+        var n = 0
+        var stack = [self]
+        while let x = stack.popLast() {
+            n += 1
+            stack += x.children
+        }
+        return n
+    }
+
+    public var depth: Int {
+        var best = 0
+        var stack = [(self, 1)]
+        while let (x, d) = stack.popLast() {
+            best = max(best, d)
+            for c in x.children { stack.append((c, d + 1)) }
+        }
+        return best
+    }
 
     /// Every node of the tree, this one first.
     public func walk(_ visit: (ExpressionNode) -> Void) {
-        visit(self)
-        for c in children { c.walk(visit) }
+        var stack = [self]
+        while let x = stack.popLast() {
+            visit(x)
+            stack += x.children.reversed()
+        }
     }
 }
 
@@ -180,7 +203,13 @@ private struct ExpressionParser {
             }
         }
         tokens.append((.end, s.count))
+        if lexError == nil, tokens.count > Self.maxTokens {
+            lexError = ExpressionError("the expression has more than \(Self.maxTokens) tokens", at: tokens[Self.maxTokens].1)
+        }
     }
+
+    /// More tokens than any expression within the format's limits needs.
+    static let maxTokens = 2048
 
     var token: Token { tokens[k].0 }
     var offset: Int { tokens[k].1 }
@@ -206,106 +235,81 @@ private struct ExpressionParser {
     mutating func parse() throws(ExpressionError) -> ExpressionNode {
         if let lexError { throw lexError }
         if token == .end { throw ExpressionError("the expression is empty", at: 0) }
-        let e = try conditional()
-        guard token == .end else { throw ExpressionError("unexpected \(describe(token))", at: offset) }
+        let e = try expression(Self.conditionalLevel)
+        guard token == .end else { throw ExpressionError("unexpected \(describe(token)) after a complete expression", at: offset) }
         return e
     }
 
-    mutating func enter() throws(ExpressionError) {
-        nesting += 1
-        // Parentheses add no nodes, so the parser bounds its own recursion as well.
-        if nesting > 4 * DocumentExpression.maxDepth {
-            throw ExpressionError("the expression is nested too deeply", at: offset)
-        }
-    }
-
-    mutating func conditional() throws(ExpressionError) -> ExpressionNode {
-        try enter()
-        defer { nesting -= 1 }
-        let c = try or()
-        guard token == .symbol("?") else { return c }
-        let at = offset
-        k += 1
-        let a = try conditional()
-        try expect(":")
-        let b = try conditional()
-        return ExpressionNode(.conditional(c, a, b), at: at)
-    }
-
-    mutating func or() throws(ExpressionError) -> ExpressionNode {
-        var e = try and()
-        while token == .keyword("or") {
-            let at = offset
-            k += 1
-            e = ExpressionNode(.binary(.or, e, try and()), at: at)
-        }
-        return e
-    }
-
-    mutating func and() throws(ExpressionError) -> ExpressionNode {
-        var e = try not()
-        while token == .keyword("and") {
-            let at = offset
-            k += 1
-            e = ExpressionNode(.binary(.and, e, try not()), at: at)
-        }
-        return e
-    }
-
-    mutating func not() throws(ExpressionError) -> ExpressionNode {
-        guard token == .keyword("not") else { return try comparison() }
-        let at = offset
-        k += 1
-        try enter()
-        defer { nesting -= 1 }
-        return ExpressionNode(.not(try not()), at: at)
-    }
+    // The grammar's levels, loosest first. The parser climbs them (precedence climbing) rather
+    // than calling one function per level, so that each level of nesting costs few stack frames.
+    static let conditionalLevel = 1
+    static let notLevel = 4
+    static let comparisonLevel = 5
+    static let unaryLevel = 8
 
     static let comparisons: [String: ExpressionNode.BinaryOperator] = [
         "==": .equal, "!=": .notEqual, "<": .less, "<=": .lessOrEqual, ">": .greater, ">=": .greaterOrEqual,
     ]
 
-    mutating func comparison() throws(ExpressionError) -> ExpressionNode {
-        let a = try sum()
-        guard case let .symbol(s) = token, let op = Self.comparisons[s] else { return a }
-        let at = offset
-        k += 1
-        let b = try sum()
-        if case let .symbol(s2) = token, Self.comparisons[s2] != nil {
-            throw ExpressionError("comparisons do not chain: group them with 'and'", at: offset)
+    /// The binary operator at the current token, with its level.
+    var binary: (ExpressionNode.BinaryOperator, Int)? {
+        switch token {
+        case .keyword("or"): (.or, 2)
+        case .keyword("and"): (.and, 3)
+        case .symbol("+"): (.add, 6)
+        case .symbol("-"): (.subtract, 6)
+        case .symbol("*"): (.multiply, 7)
+        case .symbol("/"): (.divide, 7)
+        case let .symbol(s): Self.comparisons[s].map { ($0, Self.comparisonLevel) }
+        default: nil
         }
-        return ExpressionNode(.binary(op, a, b), at: at)
     }
 
-    mutating func sum() throws(ExpressionError) -> ExpressionNode {
-        var e = try product()
-        while token == .symbol("+") || token == .symbol("-") {
-            let op: ExpressionNode.BinaryOperator = token == .symbol("+") ? .add : .subtract
-            let at = offset
-            k += 1
-            e = ExpressionNode(.binary(op, e, try product()), at: at)
+    mutating func enter() throws(ExpressionError) {
+        nesting += 1
+        // Parentheses add no nodes, so the parser bounds its own recursion as well.
+        if nesting > 2 * DocumentExpression.maxDepth {
+            throw ExpressionError("the expression is nested too deeply", at: offset)
         }
-        return e
     }
 
-    mutating func product() throws(ExpressionError) -> ExpressionNode {
-        var e = try unary()
-        while token == .symbol("*") || token == .symbol("/") {
-            let op: ExpressionNode.BinaryOperator = token == .symbol("*") ? .multiply : .divide
-            let at = offset
-            k += 1
-            e = ExpressionNode(.binary(op, e, try unary()), at: at)
-        }
-        return e
-    }
-
-    mutating func unary() throws(ExpressionError) -> ExpressionNode {
-        guard token == .symbol("-") else { return try postfix() }
-        let at = offset
-        k += 1
+    /// An expression whose operators are all at `level` or tighter.
+    mutating func expression(_ level: Int) throws(ExpressionError) -> ExpressionNode {
         try enter()
         defer { nesting -= 1 }
-        return ExpressionNode(.negate(try unary()), at: at)
+        var left: ExpressionNode
+        let at = offset
+        if token == .keyword("not") {
+            // not = "not" not | comparison: it cannot stand where a sum or tighter is expected.
+            guard level <= Self.notLevel else { throw ExpressionError("expected a value but found 'not'", at: at) }
+            k += 1
+            left = ExpressionNode(.not(try expression(Self.notLevel)), at: at)
+        } else if token == .symbol("-") {
+            k += 1
+            left = ExpressionNode(.negate(try expression(Self.unaryLevel)), at: at)
+        } else {
+            left = try postfix()
+        }
+        while true {
+            if token == .symbol("?") {
+                guard level <= Self.conditionalLevel else { return left }
+                let q = offset
+                k += 1
+                let a = try expression(Self.conditionalLevel)
+                try expect(":")
+                let b = try expression(Self.conditionalLevel)
+                left = ExpressionNode(.conditional(left, a, b), at: q)
+                continue
+            }
+            guard let (op, opLevel) = binary, opLevel >= level, level < Self.unaryLevel else { return left }
+            let o = offset
+            k += 1
+            let right = try expression(opLevel + 1)
+            left = ExpressionNode(.binary(op, left, right), at: o)
+            if opLevel == Self.comparisonLevel, let (_, next) = binary, next == Self.comparisonLevel {
+                throw ExpressionError("comparisons do not chain: group them with 'and'", at: offset)
+            }
+        }
     }
 
     mutating func postfix() throws(ExpressionError) -> ExpressionNode {
@@ -314,7 +318,7 @@ private struct ExpressionParser {
             if token == .symbol("[") {
                 let at = offset
                 k += 1
-                let index = try conditional()
+                let index = try expression(Self.conditionalLevel)
                 try expect("]")
                 e = ExpressionNode(.index(e, index), at: at)
             } else if token == .symbol(".") {
@@ -350,21 +354,21 @@ private struct ExpressionParser {
             k += 1
             var args: [ExpressionNode] = []
             if token != .symbol(")") {
-                args.append(try conditional())
+                args.append(try expression(Self.conditionalLevel))
                 while token == .symbol(",") {
                     k += 1
-                    args.append(try conditional())
+                    args.append(try expression(Self.conditionalLevel))
                 }
             }
             try expect(")")
             return ExpressionNode(.call(n, args), at: at)
         case .symbol("("):
             k += 1
-            let e = try conditional()
+            let e = try expression(Self.conditionalLevel)
             try expect(")")
             return e
         default:
-            throw ExpressionError("unexpected \(describe(token))", at: at)
+            throw ExpressionError("expected a value but found \(describe(token))", at: at)
         }
     }
 }
