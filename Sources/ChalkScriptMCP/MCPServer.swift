@@ -32,7 +32,6 @@ public final class MCPServer: @unchecked Sendable {
     private var legacyClient: Implementation?
     /// Calls waiting on the studio, by their request id's JSON text.
     private var inFlight: [String: StudioCancellation] = [:]
-    private let calls = DispatchGroup()
 
     /// - Parameter send: writes one message; called from several threads, so it serialises itself.
     public init(studio: StudioClient, send: @escaping @Sendable (String) -> Void) {
@@ -52,11 +51,6 @@ public final class MCPServer: @unchecked Sendable {
             case .end, .failed, .timedOut: return
             }
         }
-    }
-
-    /// Waits until every tool call has answered; for tests and an orderly exit.
-    public func waitForCalls(timeout: Duration = .seconds(5)) {
-        _ = calls.wait(timeout: .now() + .milliseconds(Int(timeout.components.seconds * 1000)))
     }
 
     /// Handles one message. A tool call runs on another thread, so that `ping` and cancellation are
@@ -198,9 +192,7 @@ public final class MCPServer: @unchecked Sendable {
         let key = id.serialized
         let cancellation = StudioCancellation()
         lock.withLock { inFlight[key] = cancellation }
-        calls.enter()
         DispatchQueue.global().async { [self] in
-            defer { calls.leave() }
             let result = HelperTools.call(name, arguments: arguments, studio: studio, client: client,
                                           cancellation: cancellation)
             lock.withLock { inFlight[key] = nil }
