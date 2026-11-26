@@ -61,7 +61,8 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   arranged round the drawing, as an app that plays the document would choose it (EXP-17):
   **Automatic**, the default, puts the caption and controls below the drawing in a pane taller
   than wide and in a column beside it in a wider one; **Caption Below** and **Caption Beside**
-  keep that arrangement whatever the pane's shape. The drawing area changes with it, so a
+  keep that arrangement whatever the pane's shape, except that a pane too narrow for the
+  column takes the caption below. The drawing area changes with it, so a
   document that lays itself out for its area is laid out again, and the Shape menu's preview is
   taken inside the new area. The arrangement is not part of the document and is kept when another
   document is chosen.

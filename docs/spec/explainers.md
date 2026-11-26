@@ -264,7 +264,7 @@ An explainer may have a version for a person helping the learner. It uses the sa
 status: draft
 governs: Sources/ChalkScript/Player/ScreenLayout.swift, Sources/ChalkScript/Player/GuidedView.swift
 
-The arrangement of the question, line and controls round the drawing is the app's choice, not the document's. There are three. With the caption below, the question is at the top, the drawing in the middle, and the line and controls at the bottom. With the caption beside, one column holds the question, line and controls, on the side that the writing hand covers. Automatic, the default, is chosen by the space given, not by the device: the caption below in a tall space and beside in a wide one. The drawing takes the remaining space, and its size is given to the explainer.
+The arrangement of the question, line and controls round the drawing is the app's choice, not the document's. There are three. With the caption below, the question is at the top, the drawing in the middle, and the line and controls at the bottom. With the caption beside, one column holds the question, line and controls, on the side that the writing hand covers; a space too narrow for that column takes the caption below. Automatic, the default, is chosen by the space given, not by the device: the caption below in a tall space and beside in a wide one. The drawing takes the remaining space, and its size is given to the explainer.
 
 **Why:** the drawing is where the learner works, so it gets the space. A resting palm must not press a control. How the screen sits among an app's own controls is for the app to decide, and a document cannot know it.
 

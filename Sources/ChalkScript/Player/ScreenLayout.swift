@@ -88,7 +88,8 @@ public enum ScreenArrangement: String, CaseIterable, Sendable {
     /// The parts and dots above the drawing, and the line and the controls below it, in any space.
     case captionBelow
     /// One column on the writing hand's side, holding the parts and dots, the question, the line
-    /// and the controls, beside the drawing at full height, in any space.
+    /// and the controls, beside the drawing at full height. A space too narrow for the column
+    /// takes the caption below.
     case captionBeside
 }
 
@@ -114,6 +115,9 @@ enum ScreenPlan: Equatable {
     static let minColumn: CGFloat = 340
     /// Nor wider than this share of the width.
     static let maxColumnShare: CGFloat = 0.45
+    /// Less width than this, and the column could not be `minColumn` wide within its share, so the
+    /// caption beside becomes the caption below.
+    static let besideFrom: CGFloat = minColumn / maxColumnShare
 
     /// The heights of the bands above and below the drawing in the stacked arrangement. They are
     /// fixed, so the drawing area is known before the screen is laid out; what is in a band is
@@ -135,6 +139,8 @@ enum ScreenPlan: Equatable {
         case .captionBelow:
             return size.height < scrollBelow ? .scroll : .stacked
         case .captionBeside:
+            // Too narrow for a column the controls fit in: the caption goes below.
+            if size.width < besideFrom { return choose(for: size, hand: hand, arrangement: .captionBelow) }
             guard size.height < scrollBelow else { return .column(width: columnWidth(for: size), onLeft: onLeft) }
             let laidOut = CGSize(width: size.width, height: scrollBelow)
             return .scrollingColumn(width: columnWidth(for: laidOut), onLeft: onLeft)

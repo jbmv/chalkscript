@@ -89,7 +89,12 @@ struct ArrangementTests {
         #expect(plan(Self.square, .automatic) == .stacked, "a square space is not wider than tall")
         #expect(plan(Self.wide, .automatic) == .column(width: 600, onLeft: false))
         #expect(plan(Self.wide, .automatic, .left) == .column(width: 600, onLeft: true))
-        for size in [Self.tall, Self.square, Self.wide] {
+        // Too narrow for the column, the caption beside goes below.
+        #expect(plan(Self.tall, .captionBelow) == .stacked)
+        #expect(plan(Self.tall, .captionBeside) == .stacked)
+        #expect(plan(CGSize(width: 390, height: 844), .captionBeside) == .stacked, "a phone held upright")
+        #expect(plan(CGSize(width: 756, height: 1000), .captionBeside) == .column(width: 340, onLeft: false))
+        for size in [Self.square, Self.wide] {
             #expect(plan(size, .captionBelow) == .stacked, "\(size)")
             guard case let .column(width, onLeft) = plan(size, .captionBeside, .left) else {
                 Issue.record("\(size): the caption is not beside the drawing")
@@ -114,7 +119,7 @@ struct ArrangementTests {
             (Self.wide, .captionBelow, CGSize(width: 1400, height: 800 - ScreenPlan.stackedChrome)),
             // The caption beside: the width less the column, its rule and the drawing's padding.
             (Self.wide, .automatic, CGSize(width: 1400 - 600 - 25.5, height: 776)),
-            (Self.tall, .captionBeside, CGSize(width: 700 - 315 - 25.5, height: 976)),
+            (Self.tall, .captionBeside, CGSize(width: 700, height: 1000 - ScreenPlan.stackedChrome)),
             (Self.square, .captionBeside, CGSize(width: 900 - 340 - 25.5, height: 876)),
             (Self.wide, .captionBeside, CGSize(width: 1400 - 600 - 25.5, height: 776)),
             // Too short: the stage's shape below, or the column laid out at the least height.
@@ -134,7 +139,7 @@ struct ArrangementTests {
     }
 
     @Test func theChildVersionTakesTheArrangementToo() {
-        for (space, arrangement) in [(Self.tall, ScreenArrangement.captionBeside), (Self.wide, .captionBelow), (Self.wide, .automatic)] {
+        for (space, arrangement) in [(Self.square, ScreenArrangement.captionBeside), (Self.wide, .captionBelow), (Self.wide, .automatic)] {
             let player = GuidedPlayer(lesson: BarExplainer.lesson(), voice: RecordingVoice(), labels: Fixture.guidedLabels, drivesItself: false)
             _ = Self.render(GuidedView(player: player, arrangement: arrangement), space)
             let area = try? #require(player.drawingArea)
