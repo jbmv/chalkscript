@@ -62,7 +62,7 @@ public final class StudioModel {
         selectedName = nil
         reload()
         if watch {
-            watcher = FolderWatcher(folder: url) { [weak self] in self?.reload() }
+            watcher = FolderWatcher(folder: url.resolvingSymlinksInPath()) { [weak self] in self?.reload() }
         }
     }
 

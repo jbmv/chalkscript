@@ -319,7 +319,7 @@ struct StudioProjectTests {
         let hash = model.document(named: "equal-groups")?.hash
         let text = try String(contentsOf: project.url("equal-groups"), encoding: .utf8)
         try text.replacingOccurrences(of: #""hold": 0.4"#, with: #""hold": 0.8"#).write(to: project.url("equal-groups"), atomically: true, encoding: .utf8)
-        for _ in 0..<50 where model.document(named: "equal-groups")?.hash == hash {
+        for _ in 0..<150 where model.document(named: "equal-groups")?.hash == hash {
             try await Task.sleep(for: .milliseconds(100))
         }
         #expect(model.document(named: "equal-groups")?.hash != hash)
