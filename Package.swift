@@ -7,6 +7,8 @@ let package = Package(
     products: [
         .library(name: "ChalkScript", targets: ["ChalkScript"]),
         .library(name: "ChalkScriptExplainers", targets: ["ChalkScriptExplainers"]),
+        .library(name: "ChalkScriptMCP", targets: ["ChalkScriptMCP"]),
+        .executable(name: "chalkscript-mcp", targets: ["chalkscript-mcp"]),
     ],
     targets: [
         .target(
@@ -22,6 +24,18 @@ let package = Package(
             resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        // The MCP helper's protocol and the studio app's end of its socket, for macOS only: the
+        // sources compile to nothing elsewhere. It depends on neither target above, because the
+        // helper forwards each call to the studio and reads no document itself.
+        .target(
+            name: "ChalkScriptMCP",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .executableTarget(
+            name: "chalkscript-mcp",
+            dependencies: ["ChalkScriptMCP"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
         .testTarget(
             name: "ChalkScriptTests",
             dependencies: ["ChalkScript"],
@@ -30,6 +44,12 @@ let package = Package(
         .testTarget(
             name: "ChalkScriptExplainersTests",
             dependencies: ["ChalkScriptExplainers", "ChalkScript"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "ChalkScriptMCPTests",
+            // The executable is a dependency so that it is built before the tests launch it.
+            dependencies: ["ChalkScriptMCP", "chalkscript-mcp"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
