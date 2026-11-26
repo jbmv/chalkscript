@@ -5,9 +5,6 @@
 #
 # Usage: Studio/build.sh [Debug|Release]   (default: Debug)
 #
-# Debug is the default because Swift 6.4.2 crashes optimising the engine (in CopyPropagation, on
-# EntryFiller.lookup in Sources/ChalkScript/Document/Wording.swift), so Release does not build
-# with that compiler; `swift build -c release` fails the same way.
 set -eu
 cd "$(dirname "$0")"
 configuration="${1:-Debug}"

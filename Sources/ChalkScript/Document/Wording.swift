@@ -269,9 +269,12 @@ struct EntryFiller {
     /// The entry `name`: in the wording being played, then in `shared`, in the locale asked for
     /// and then in the source locale.
     func lookup(_ name: String) -> (entry: JSONValue, path: String, locale: String)? {
-        for loc in locale == source ? [locale] : [locale, source] {
+        var locales = [locale]
+        if locale != source { locales.append(source) }
+        for loc in locales {
             for s in [section, "shared"] {
-                if let e = wording[loc]?[s]?[name] { return (e, DocumentPath.join("/wording", loc, s, name), loc) }
+                let found: JSONValue? = wording[loc]?[s]?[name]
+                if found != nil { return (found!, DocumentPath.join("/wording", loc, s, name), loc) }
             }
         }
         return nil
