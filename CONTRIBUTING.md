@@ -21,7 +21,7 @@ claims, and no statistics or anecdotes used for effect.
 
 - `swift build` and `swift test` pass before a pull request is opened.
 - Every number an explainer draws, shows or speaks is computed from the problem's values
-  (EXP-2). Wording is given to a template by the app; it is not written in the package.
+  (EXP-2). An explainer's text is not typed into Swift source.
 - Comments follow [docs/COMMENTS.md](docs/COMMENTS.md).
 
 ## Commit messages
@@ -34,10 +34,11 @@ claims, and no statistics or anecdotes used for effect.
   the commits being pushed. Enable the hook once per clone with
   `git config core.hooksPath scripts/hooks`.
 
-## Children's data
+## Learners' data
 
-Nothing from a real child goes into the repository, an issue or a pull request: no handwriting
-samples, no photographs of homework, no names, no school details. Use synthetic examples.
+Nothing from a real learner goes into the repository, an issue or a pull request: no handwriting
+or drawings, no photographs of their work, no names, and no details of a school or class. This
+matters most where the learners are children. Use synthetic examples.
 
 ## Licences
 

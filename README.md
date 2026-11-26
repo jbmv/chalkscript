@@ -28,7 +28,7 @@ Planned work, not yet started: a validator that checks an explainer against the 
 
 ## Requirements and use
 
-Swift 6, iOS 27 or macOS 27. Add the package to a project by this repository's URL and import `ChalkScript`, for the engine, and `ChalkScriptExplainers`, for the explainers. The package has no dependencies. It owns no wording: an app gives a template its lines, and the package fills in the numbers and their spoken forms.
+Swift 6, iOS 27 or macOS 27. Add the package to a project by this repository's URL and import `ChalkScript`, for the engine, and `ChalkScriptExplainers`, for the explainers. The package has no dependencies. Explainers do not yet carry their wording: a template is given its lines, and the package fills in the numbers and their spoken forms.
 
 To build and test:
 
