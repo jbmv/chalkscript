@@ -37,33 +37,33 @@ An explainer is written once as a template. Its drawing, motion, narration and n
 
 *In the package:* the subtraction template takes two numbers and shows a trade only when one is needed.
 
-## EXP-3. The method is shown on a different problem of the same kind
+## EXP-3. A template can make another problem of the same kind
 
 status: draft
 
-An explainer can be filled with a problem that differs from the learner's own but is of the same kind. The method is then shown without giving the learner's answer.
+A template can produce a problem of the same kind and the same case as a given one, with different numbers and a different answer.
 
 **Why:** a worked example followed by an attempt on an equivalent problem is a studied sequence (Renkl, Atkinson and colleagues 2000 to 2003).
 
 **Acceptance:**
-- A template can produce another problem of the same kind and the same case, with different numbers and a different answer.
-- The problem the learner acts on in do it with me (EXP-14) differs from the watched problem and from the learner's own.
+- A template can produce another problem of the same kind and case, with different numbers and a different answer.
+- In the guided presentation, the problems watched, done together and tried alone differ from one another.
 
-*In the package:* `isomorph(_:)` on a problem model, and `GuidedLesson`, which holds the problems of the parts. Choosing when to offer an explainer is left to the app.
+*In the package:* `isomorph(_:)` on a problem model, and `GuidedLesson`, which holds the problems of the parts. Which problem an app shows, and when it offers an explainer, are the app's.
 
-## EXP-7. An explainer uses the representation the learner already works with
+## EXP-7. An explainer can use the representation its learners already work with
 
 status: draft
 
-Where the learner already works with a representation, the explainer animates that representation, drawn as the learner is asked to draw it. It does not substitute a different model.
+Where learners already work with a representation, an explainer can animate that representation as they are asked to draw it, rather than substitute a different model. Where material shows one idea in more than one way, the template takes the representation as one of its values.
 
 **Why:** the explainer then rehearses the work the learner will do.
 
 **Acceptance:**
-- The pieces, marks and layout follow the conventions of the learner's material for that subject.
-- Where material shows one idea in more than one way, the template takes the representation as one of its values.
+- A template whose subject has more than one common representation takes the representation as a value.
+- Each representation a template offers follows a stated convention for its pieces, marks and layout.
 
-*In the package:* base-ten drawings as on worksheets (a tall rectangle for a ten, a small square for a one, a crossed line for taking away, a box for a traded ten), tape diagrams and bar graphs. Tens and ones are drawn either as rectangles and squares or as sticks and circles in a chart.
+*In the package:* base-ten drawings in the common worksheet convention (a tall rectangle for a ten, a small square for a one, a crossed line for taking away, a box for a traded ten), tape diagrams and bar graphs. Tens and ones are drawn either as rectangles and squares or as sticks and circles in a chart. Which representation a learner sees is chosen by the author or the app.
 
 ## EXP-5. Every motion shows what happens to which quantity
 
@@ -116,7 +116,7 @@ Subtract, the answer and the fill for trade are Okabe-Ito colours. Add, multiply
 status: draft
 governs: Sources/ChalkScript/Drawing/Components.swift, Sources/ChalkScript/Drawing/Scene.swift, Sources/ChalkScript/Drawing/Stage.swift, Sources/ChalkScript/Drawing/Timing.swift
 
-Explainers share their drawing components. A representation the learner draws is shown as pencil on paper. Colour follows EXP-6.
+Explainers share their drawing components. How a drawn representation looks (in the package, pencil on paper) is set by the components and the style, not by each explainer. Colour follows EXP-6.
 
 **Why:** explainers are designed one at a time, and shared components keep them consistent.
 
@@ -164,7 +164,7 @@ An explainer may show its drawing through a camera. Each step names a shot, and 
 status: draft
 governs: Sources/ChalkScript/NumberWords.swift, Sources/ChalkScriptExplainers/Subtraction/SubtractionWording.swift, Sources/ChalkScriptExplainers/PlaceValue/TensOnesWording.swift
 
-Each step has one line, which is spoken and shown as text. The package owns no wording. An app gives a template its lines, and the package fills in the numbers and their spoken forms.
+Each step has one line, which is spoken and shown as text. A template is given its lines from outside the Swift source, and the package fills in the numbers and their spoken forms.
 
 **Why:** a learner who is still learning to read can follow a spoken line. Speech and picture are understood better together (Mayer and Anderson 1991; Ginns 2006).
 
