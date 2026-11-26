@@ -136,14 +136,6 @@ struct StatusLine: View {
                 Text(area).lineLimit(1).truncationMode(.head)
                     .help(area)
             }
-            if let label = model.additionLabel {
-                Button(label) {
-                    let findings = model.addShownArea()
-                    refused = findings.isEmpty ? nil : findings.prefix(2).map(\.message).joined(separator: "; ")
-                }
-                .controlSize(.mini)
-                .help("Make the document made for this shape. It changes the document, and Edit > Undo takes it back.")
-            }
         }
         .onChange(of: model.playerSerial) { refused = nil }
         .font(.caption)

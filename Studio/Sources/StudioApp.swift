@@ -34,6 +34,9 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
         let guide = Bundle.main.url(forResource: "authoring-guide", withExtension: "md")
             .flatMap { try? AuthoringGuide(contentsOf: $0) } ?? AuthoringGuide(text: "The authoring guide is missing from this build.")
         model = StudioModel(guide: guide)
+        // A document is first shown in the Square preset, so the drawing's bounds are always seen.
+        model.defaultPreview = .ratio(Preset.square.nominal)
+        model.setPreview(model.defaultPreview)
         super.init()
     }
 

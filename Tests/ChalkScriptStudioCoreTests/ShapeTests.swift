@@ -37,6 +37,71 @@ struct ShapeTests {
 
     private func plan(_ model: StudioModel) throws -> LayoutPlan { try #require(model.layoutPlan) }
 
+    // MARK: the presets a document is made for
+
+    @Test func tickingAndUntickingAPresetWritesOnlyAreas() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.select("subtraction")
+        let before = try saved(model, "subtraction")
+        #expect(model.madeFor == [.tall, .square, .wide])
+        // Ticking what is ticked changes nothing.
+        #expect(model.setMadeFor(.square, true).isEmpty)
+        #expect(try saved(model, "subtraction").shortHash == before.shortHash)
+
+        #expect(model.setMadeFor(.wide, false).isEmpty)
+        var doc = try saved(model, "subtraction")
+        // The rule gives 1.35 itself to the wide layout, so without Wide the range stops short of it.
+        #expect(areas(doc) == ["tall 0.6-1.34"])
+        #expect(model.madeFor == [.tall, .square])
+        #expect(doc.json["layouts"] == before.json["layouts"], "no layout is made, removed or given another rule")
+        #expect(areaWarnings(doc).isEmpty)
+
+        #expect(model.setMadeFor(.tall, false).isEmpty)
+        #expect(areas(try saved(model, "subtraction")) == ["tall 0.9-1.34"])
+        #expect(model.setMadeFor(.square, false).isEmpty)
+        doc = try saved(model, "subtraction")
+        #expect(doc.json["areas"] == nil && model.madeFor.isEmpty)
+
+        // Ticked again, each range names the layout the document's own rule chooses there.
+        for preset in Preset.allCases { #expect(model.setMadeFor(preset, true).isEmpty) }
+        doc = try saved(model, "subtraction")
+        #expect(areas(doc) == ["tall 0.6-1.35", "stage 1.35-2.2"])
+        #expect(doc.json["layouts"] == before.json["layouts"])
+        #expect(areaWarnings(doc).isEmpty)
+    }
+
+    @Test func aPresetIsMadeForWhenItsNominalRatioIsDeclaredAndOutsideRangesAreKept() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.select("equal-groups")
+        #expect(model.madeFor == [.square, .wide], "stage is declared from 0.9 to 2.2")
+        #expect(model.setMadeFor(.tall, true).isEmpty)
+        var doc = try saved(model, "equal-groups")
+        #expect(areas(doc) == ["stage 0.6-2.2"])
+        #expect(areaWarnings(doc).isEmpty)
+        // A range beyond the presets, written by an agent, survives a tick.
+        let wider = try DocJSON.parse(#"[{"op": "add", "path": "/areas/-", "value": {"layout": "stage", "ratio": [2.5, 4]}}]"#)
+        _ = try model.patch("equal-groups", base: doc.shortHash, ops: wider.array ?? [], actionName: "test")
+        #expect(model.setMadeFor(.tall, false).isEmpty)
+        doc = try saved(model, "equal-groups")
+        #expect(areas(doc) == ["stage 0.9-2.2", "stage 2.5-4"])
+    }
+
+    @Test func aDocumentIsFirstShownAtTheDefaultPreview() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.defaultPreview = .ratio(Preset.square.nominal)
+        model.select("subtraction")
+        model.select("equal-groups")
+        #expect(model.preview == .ratio(1.1))
+        model.setPreview(.ratio(Preset.tall.nominal))
+        model.select("subtraction")
+        #expect(model.preview == .ratio(1.1))
+        model.player?.layOut(for: CGSize(width: 800, height: 600))
+        #expect(model.areaStatus == "Layout tall · previewing Square at 1.10")
+    }
+
     // MARK: reading a document as presets
 
     @Test func presetsAreTheStudiosNamesForThreeRanges() {

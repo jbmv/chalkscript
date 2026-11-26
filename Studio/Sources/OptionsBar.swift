@@ -14,7 +14,6 @@ struct OptionsBar: View {
     @State private var outside: String?
     @State private var asksRatio = false
     @State private var ratioText = ""
-    @State private var editsLayouts = false
 
     private var doc: ExplainerDocument? { document.document }
 
@@ -53,9 +52,7 @@ struct OptionsBar: View {
             HStack(spacing: 10) {
                 viewOnly
                 Spacer(minLength: 0)
-                Button("Layouts…") { editsLayouts = true }
-                    .disabled(doc == nil)
-                    .help("The shapes of drawing area the document is made for, and the layout it is drawn in at each. Saved in the document.")
+                madeFor
             }
         }
         .controlSize(.small)
@@ -69,9 +66,6 @@ struct OptionsBar: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The drawing area's width over its height, such as 0.75. The preview changes nothing in the document.")
-        }
-        .sheet(isPresented: $editsLayouts) {
-            if let plan = model.layoutPlan { LayoutsSheet(model: model, plan: plan) }
         }
     }
 
@@ -89,27 +83,48 @@ struct OptionsBar: View {
         .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.5)))
     }
 
-    /// None, each preset the document is made for at its nominal ratio, and a typed ratio (EXP-17).
+    /// The shape of area the drawing is previewed in: one of the three presets, or a typed ratio
+    /// (EXP-17). Every preset is offered, whether or not the document is made for it.
     private var previewMenu: some View {
-        Menu {
-            Toggle("None", isOn: Binding(get: { model.preview == .none }, set: { _ in model.setPreview(.none) }))
-            let items = model.previewItems
-            if !items.isEmpty {
-                Divider()
-                ForEach(items) { item in
-                    Toggle(item.label, isOn: Binding(get: { model.preview == .ratio(item.ratio) }, set: { _ in model.setPreview(.ratio(item.ratio)) }))
-                }
+        HStack(spacing: 6) {
+            Picker("Preview", selection: Binding(get: { previewedPreset }, set: { p in
+                if let p { model.setPreview(.ratio(p.nominal)) }
+            })) {
+                ForEach(Preset.allCases) { Text($0.title).tag(Preset?.some($0)) }
             }
-            Divider()
-            Button("Test Ratio…") {
+            .pickerStyle(.segmented)
+            .fixedSize()
+            .help("The shape of the area the drawing is shown in, framed inside the pane. It changes nothing in the document.")
+            Button(previewedPreset == nil ? "Test Ratio: \(model.shownRatio.map(Shapes.text) ?? "…")" : "Test Ratio…") {
                 ratioText = model.shownRatio.map(Shapes.text) ?? ""
                 asksRatio = true
             }
-        } label: {
-            Text(previewTitle)
+            .fixedSize()
+            .help("Preview any other shape by its width over its height.")
         }
-        .fixedSize()
-        .help("Preview the drawing in an area of one of the shapes the document is made for, framed inside the pane. None plays it in the pane's own area.")
+    }
+
+    private var previewedPreset: Preset? {
+        guard case let .ratio(r) = model.preview else { return nil }
+        return Preset.allCases.first { abs($0.nominal - r) < 1e-9 }
+    }
+
+    /// The shapes the document is made for: the one control here that changes the document.
+    private var madeFor: some View {
+        HStack(spacing: 8) {
+            Text("Explainer is made for:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(Preset.allCases) { preset in
+                Toggle(preset.title, isOn: Binding(get: { model.madeFor.contains(preset) }, set: { on in
+                    let refused = model.setMadeFor(preset, on)
+                    outside = refused.isEmpty ? nil : "The studio refused the change: " + refused.prefix(2).map(\.message).joined(separator: "; ")
+                }))
+                .toggleStyle(.checkbox)
+            }
+        }
+        .disabled(doc == nil)
+        .help("Tick the shapes of drawing area this explainer is meant to be shown in. Saved in the document; Edit > Undo takes a change back. In any other shape, a player shows it at the nearest ticked shape, scaled and centred.")
     }
 
     /// The arrangement is an app's choice, not the document's, so it is kept from one document to
@@ -122,15 +137,6 @@ struct OptionsBar: View {
         }
         .fixedSize()
         .help("A preview of how an app that plays the explainer might arrange the screen round the drawing. The app chooses its own arrangement; this is not a setting of the document.")
-    }
-
-    private var previewTitle: String {
-        switch model.preview {
-        case .none: return "Preview: None"
-        case let .ratio(r):
-            let item = model.previewItems.first { abs($0.ratio - r) < 1e-9 }
-            return "Preview: " + (item?.title ?? Shapes.text(r))
-        }
     }
 
     private func previewTypedRatio() {

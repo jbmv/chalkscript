@@ -27,6 +27,9 @@ public final class StudioModel {
     /// What the shown document is previewed at: nothing, so that it is played in the pane's own
     /// area, or a ratio. A preview changes nothing in the document.
     public private(set) var preview: PreviewChoice = .none
+    /// What a document is previewed at when it is first shown. The studio's window sets it to
+    /// the Square preset, so that the bounds of the drawing are always seen.
+    public var defaultPreview: PreviewChoice = .none
     /// The player of the shown document, or nil when it cannot be played (`refusal` says why).
     public private(set) var player: ExplainerPlayer?
     /// Changes whenever `player` is replaced, so that a view can start again with the new one.
@@ -110,7 +113,7 @@ public final class StudioModel {
     public func select(_ name: String?) {
         guard name != selectedName else { return }
         selectedName = name
-        preview = .none
+        preview = defaultPreview
         rebuild(keepStep: false)
     }
 
@@ -191,8 +194,23 @@ public final class StudioModel {
             return "\(layout) · \(shape) is not a shape the document is made for; drawn at \(Shapes.text(used))"
         }
         guard let r = s.ratio else { return "\(layout) · pane \(Shapes.text(given))" }
-        let item = previewItems.first { abs($0.ratio - r) < 1e-9 }
-        return "\(layout) · previewing " + (item.map { "\($0.title) at \(Shapes.text(r))" } ?? Shapes.text(r))
+        let title = Preset.allCases.first { abs($0.nominal - r) < 1e-9 }?.title ?? previewItems.first { abs($0.ratio - r) < 1e-9 }?.title
+        return "\(layout) · previewing " + (title.map { "\($0) at \(Shapes.text(r))" } ?? Shapes.text(r))
+    }
+
+    /// The presets the shown document is made for (EXP-17).
+    public var madeFor: Set<Preset> { selected?.document.map(Shapes.madeFor) ?? [] }
+
+    /// Makes the shown document made for `preset`, or no longer so, as one patch of `areas`
+    /// through the patch engine, so that it is checked, saved and one step of Undo. Returns why
+    /// the patch was refused, or nothing.
+    @discardableResult
+    public func setMadeFor(_ preset: Preset, _ on: Bool) -> [DocumentFinding] {
+        guard let shown = selected, let doc = shown.document else { return [] }
+        var presets = Shapes.madeFor(doc)
+        if on { presets.insert(preset) } else { presets.remove(preset) }
+        guard let ops = Shapes.ops(doc, madeFor: presets) else { return [] }
+        return apply(ops, to: shown.name, base: doc.shortHash, actionName: on ? "Made for \(preset.title)" : "Not made for \(preset.title)")
     }
 
     /// The plan that makes the shown document made for the area shown, when it is not, and how
@@ -352,7 +370,7 @@ public final class StudioModel {
         }
         if selectedName != name {
             selectedName = name
-            preview = .none
+            preview = defaultPreview
         }
         rebuild(keepStep: false)
         guard let player, let e = shaped?.shown else {

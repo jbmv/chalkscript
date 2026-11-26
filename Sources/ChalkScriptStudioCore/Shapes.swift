@@ -503,6 +503,62 @@ public enum Shapes {
         return attempt.isEmpty ? nil : attempt
     }
 
+    // MARK: the presets a document is made for
+
+    /// The presets the document is made for: those whose nominal ratio it declares. None for a
+    /// document without `areas`.
+    public static func madeFor(_ doc: ExplainerDocument) -> Set<Preset> {
+        guard doc.declaresAreas else { return [] }
+        return Set(Preset.allCases.filter { p in doc.declaredShapes.contains { $0.ratio.contains(p.nominal) } })
+    }
+
+    /// The patch that makes the document made for exactly `presets`, or nil when it already is.
+    /// It writes `areas` and nothing else: each preset's range names the layout the document's
+    /// own rule chooses there for its first sample, split where the rule changes layout, so no
+    /// layout is made, removed or given another `suits`. A declared range that lies wholly
+    /// outside the presets' ratios is kept. With no preset and no such range, `areas` is removed.
+    static func ops(_ doc: ExplainerDocument, madeFor presets: Set<Preset>) -> [DocJSON]? {
+        guard presets != madeFor(doc) else { return nil }
+        let problem = doc.samples.first ?? [:]
+        let step = 0.01
+        func hundredths(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+        var spans: [Span] = []
+        for p in Preset.allCases where presets.contains(p) {
+            let lo = p.range.lowerBound
+            let count = Int(((p.range.upperBound - lo) / step).rounded())
+            for i in 0..<count {
+                let layout = doc.layout(for: namingArea(lo + (Double(i) + 0.5) * step), problem: problem)
+                let from = hundredths(lo + Double(i) * step), to = hundredths(lo + Double(i + 1) * step)
+                if let last = spans.last, last.layout == layout, abs(last.hi - from) < 1e-9 {
+                    spans[spans.count - 1].hi = to
+                } else {
+                    spans.append(Span(layout: layout, lo: from, hi: to))
+                }
+            }
+        }
+        // The rule's own boundary may fall exactly on a range's end and choose the layout on the
+        // other side there. Unless a neighbouring range names that layout at the end, the end
+        // moves in by a step, so that the reader finds the declaration and the rule agree.
+        for k in spans.indices {
+            func settled(_ end: Double) -> Bool {
+                let chosen = doc.layout(for: area(ratio: end, longerSide: 1000), problem: problem)
+                return chosen == spans[k].layout || spans.contains { $0.layout == chosen && $0.lo <= end && end <= $0.hi }
+            }
+            if !settled(spans[k].lo) { spans[k].lo = hundredths(spans[k].lo + step) }
+            if !settled(spans[k].hi) { spans[k].hi = hundredths(spans[k].hi - step) }
+        }
+        spans.removeAll { $0.lo > $0.hi }
+        let all = Preset.tall.range.lowerBound...Preset.wide.range.upperBound
+        let kept = doc.declaredShapes
+            .filter { $0.ratio.upperBound < all.lowerBound || $0.ratio.lowerBound > all.upperBound }
+            .map { Span(layout: $0.layout, lo: $0.ratio.lowerBound, hi: $0.ratio.upperBound) }
+        spans = (spans + kept).sorted { $0.lo < $1.lo }
+        let has = doc.json["areas"] != nil
+        if spans.isEmpty { return has ? [op("remove", "/areas")] : nil }
+        let entries = DocJSON.array(spans.map { .object(DocObject([("layout", .string($0.layout)), ("ratio", .array([.number($0.lo), .number($0.hi)]))])) })
+        return [op(has ? "replace" : "add", "/areas", entries)]
+    }
+
     private static func op(_ name: String, _ path: String, _ value: DocJSON? = nil) -> DocJSON {
         var pairs: [(String, DocJSON)] = [("op", .string(name)), ("path", .string(path))]
         if let value { pairs.append(("value", value)) }

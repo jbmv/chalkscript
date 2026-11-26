@@ -229,9 +229,10 @@ leaves an empty `areas`, which is a `schema` error; remove `/areas` instead. A r
 disagrees with the layouts is accepted with an `areas` warning, which means a declared range and
 a layout's `suits` disagree; when you change a range, change the `suits` of the layouts on each
 side of it in the same patch. A preset given a layout of its own needs a new entry in `layouts`,
-usually a copy of the layout it was drawn in, and its range in `areas`. The person can do all of
-this in the studio's Layouts sheet, which writes `areas`, the new layout and each `suits` as one
-patch; after it, the new layout is the same as the one it was copied from until you change it.
+usually a copy of the layout it was drawn in, and its range in `areas`. The person ticks which of
+Tall, Square and Wide an explainer is made for in the studio, which writes `areas` only, naming
+the layout the document's `suits` already chooses at each; a layout of its own for one shape is
+yours to add when the person asks for a different arrangement there.
 The window shows an area of a shape the document is not made for at the nearest declared shape.
 To see a shape, `show` with `ratio` and `image`.
 

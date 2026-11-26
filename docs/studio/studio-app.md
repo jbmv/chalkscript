@@ -53,8 +53,9 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   the question, the line and the controls round the drawing belongs to the app that plays the
   document (EXP-17), and nothing the studio's view controls choose is saved in the document or
   has any bearing on an app that plays it. The options bar therefore keeps two kinds of control
-  apart: the Preview menu and the Arrangement menu sit in a group marked "View only, not saved",
-  and the Layouts button, which changes the document, stands at the end of the row.
+  apart: the Preview and Arrangement controls sit in a group marked "View only, not saved",
+  and the ticks for the shapes the explainer is made for, which change the document, stand at
+  the end of the row.
 - **Presets.** The studio names three ranges of the drawing area's ratio of width to height:
   **Tall**, 0.6 to 0.9; **Square**, 0.9 to 1.35; **Wide**, 1.35 to 2.2. Each has a nominal ratio,
   0.75, 1.1 and 1.78, at which it is previewed and for which an agent arranges. Square is the
@@ -62,13 +63,12 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   about as wide as it is high. The format has no presets: a document stores ranges in `areas`
   (the format reference, section 8.2), and the studio reads an entry whose range is exactly one
   preset, or several that follow one another, as those presets.
-- **Preview.** The Preview menu chooses the area the drawing is shown in. **None**, the default,
-  plays it in the pane's own area, as an app would, with no frame. The menu also lists each
-  preset the document is made for, at its nominal ratio, and each custom range at the ratio
-  midway between its ends in ln r. **Test Ratio…** previews a ratio typed in. A preview lays the
-  player out for the largest area of that ratio inside the pane, centred and framed with a thin
-  line in the `line` role, and changes nothing in the document; choosing another document
-  returns to None.
+- **Preview.** The Preview control chooses the shape of area the drawing is shown in: Tall,
+  Square or Wide, each at its nominal ratio, whether or not the document is made for it. A
+  document is first shown in Square, so the bounds of the drawing are always seen. **Test
+  Ratio…** previews a ratio typed in. A preview lays the player out for the largest area of
+  that ratio inside the pane, centred and framed with a thin line in the `line` role, and
+  changes nothing in the document.
 - **Arrangement.** The menu labelled "App arrangement" previews how an app that plays the
   explainer might arrange the screen round the drawing (EXP-17): **Automatic**, the default,
   puts the caption and controls below the drawing in a pane taller than wide and in a column
@@ -77,33 +77,22 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   below. The drawing area changes with it, so a document that lays itself out for its area is
   laid out again, and a preview is taken inside the new area. It is not a setting of the
   document, and it is kept when another document is chosen.
-- **Layouts.** **Layouts…** opens a sheet that lists Tall, Square and Wide, each with a tick for
-  whether the document is made for it, and any custom ranges, each given by its least and
-  greatest ratio and added with **Custom…**. Each shape the document is made for is drawn in its
-  own layout or in the same layout as another shape; a layout of the document that no shape is
-  drawn in can also be chosen. A shape given a layout of its own when it has none gets a new
-  layout, named after it, that starts as a copy of a layout of the document, by default the one
-  it was drawn in. For a document without `areas` the sheet starts from a suggestion: every
-  preset ticked, each drawn in the layout the document chooses at its nominal ratio. Saving
-  writes one patch through the same path as an agent's edit, so it is checked, saved at once and
-  one step of Edit > Undo. The patch writes `areas`, with neighbouring ranges in the same layout
-  joined; adds each new layout; and writes the `suits` of each layout whose part of the ratio
-  axis changed, so that the layout chosen at every declared shape is the one its range names.
-  Between two ranges that leave a gap, the boundary is a ratio near the middle of the gap. The
-  sheet refuses to save when a custom range is not two positive numbers, least first, when two
-  ranges in different layouts overlap, when a layout of the document would be drawn at no shape,
-  or when the result would carry an `areas` warning the document does not have. Saving the sheet
-  unchanged writes nothing, whether its ranges are presets or custom. The sheet does not
-  otherwise edit a layout; that is done in the document, by the agent or in a text editor.
+- **Made for.** Three ticks, Tall, Square and Wide, say which shapes the explainer is made
+  for. A preset is ticked when the document's `areas` declares its nominal ratio; a document
+  without `areas` has none ticked and is laid out for whatever area it is given. Ticking or
+  unticking one writes one patch through the same path as an agent's edit, so it is checked,
+  saved at once and one step of Edit > Undo. The patch writes `areas` and nothing else: each
+  ticked preset's range names the layout the document's own rule (`suits`) chooses there,
+  split where the rule changes layout, with neighbouring ranges in the same layout joined. No
+  layout is made, removed or given another rule; a different arrangement of the scene for one
+  shape is a layout the agent adds to the document. A declared range that lies wholly outside
+  the presets' ratios is kept. Unticking the last preset removes `areas`.
 - **The status line.** On its right, the status line names the layout the document is drawn in
   and the area shown: "Layout tall · pane 1.04", or "Layout tall · previewing Square at 1.10".
   When that area is not one the document is made for, the document is drawn as a player draws
   it, at the nearest declared shape, and the status line says so, such as "Layout tall · pane
-  0.40 is not a shape the document is made for; drawn at 0.60", with one button that adds it.
-  The button adds the preset that holds the area's ratio, drawn in the layout it is drawn in
-  now, when the document is not made for that preset; otherwise it widens the nearest range to
-  the ratio, rounded outward to two decimals. A document without `areas` is laid out for any
-  area it is given, so for it the status line names the layout only.
+  0.40 is not a shape the document is made for; drawn at 0.60". A document without `areas` is
+  laid out for any area it is given, so for it the status line names the layout only.
 - **Findings.** Below the player are the document's findings: the reader's, and what refuses any
   sample in any wording when the document is played. Each shows its line in the file and its JSON
   Pointer; clicking one on a step plays that step.
@@ -129,5 +118,5 @@ picture of its window to that path, for a session that cannot capture the screen
 ## Not built yet
 
 Narration (lines are shown, not spoken), do it with me, What if? and try one, export to video, a
-timeline or inspector, editing in the window other than the Layouts sheet, a document's own
+timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for, a document's own
 palette, and notarisation.
