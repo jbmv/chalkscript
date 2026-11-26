@@ -27,7 +27,7 @@ struct AreasTests {
         #expect(sub.map(\.min) == [0.6, 1.35])
         #expect(sub.map(\.max) == [1.35, 2.2])
         let groups = DocumentFixture.equalGroups.areaEntries
-        #expect(groups.map(\.layout) == ["stage"] && groups.map(\.min) == [0.9] && groups.map(\.max) == [2.2])
+        #expect(groups.map(\.layout) == ["stage", "tall"] && groups.map(\.min) == [0.9, 0.6] && groups.map(\.max) == [2.2, 0.9])
         #expect(DocumentFixture.subtraction.findings.isEmpty)
         #expect(DocumentFixture.equalGroups.findings.isEmpty)
     }

@@ -74,10 +74,12 @@ struct ShapeTests {
         let project = try TemporaryProject()
         let model = try openModel(project)
         model.select("equal-groups")
-        #expect(model.madeFor == [.square, .wide], "stage is declared from 0.9 to 2.2")
+        #expect(model.madeFor == [.tall, .square, .wide], "tall is declared from 0.6 to 0.9 and stage from 0.9 to 2.2")
+        #expect(model.setMadeFor(.tall, false).isEmpty)
+        #expect(model.madeFor == [.square, .wide])
         #expect(model.setMadeFor(.tall, true).isEmpty)
         var doc = try saved(model, "equal-groups")
-        #expect(areas(doc) == ["stage 0.6-2.2"])
+        #expect(areas(doc) == ["tall 0.6-0.9", "stage 0.9-2.2"])
         #expect(areaWarnings(doc).isEmpty)
         #expect(model.previewItems.map(\.title) == ["Tall", "Square", "Wide"])
         // A range beyond the presets, written by an agent, survives a tick.
@@ -118,6 +120,8 @@ struct ShapeTests {
         #expect(model.previewItems.map(\.label) == ["Tall · 0.75", "Square · 1.10", "Wide · 1.78"])
 
         model.select("equal-groups")
+        #expect(model.previewItems.map(\.label) == ["Tall · 0.75", "Square · 1.10", "Wide · 1.78"])
+        #expect(model.setMadeFor(.tall, false).isEmpty)
         #expect(model.previewItems.map(\.label) == ["Square · 1.10", "Wide · 1.78"])
     }
 
@@ -156,6 +160,7 @@ struct ShapeTests {
         let project = try TemporaryProject()
         let model = try openModel(project)
         model.select("equal-groups")
+        #expect(model.setMadeFor(.tall, false).isEmpty)
         model.player?.layOut(for: CGSize(width: 750, height: 1000))
         #expect(model.areaStatus == "Layout stage · pane 0.75 is not a shape the document is made for; drawn at 0.90")
     }

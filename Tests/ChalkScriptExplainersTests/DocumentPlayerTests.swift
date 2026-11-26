@@ -256,8 +256,8 @@ struct DocumentPlayerTests {
     @Test func whatIsNotDrawnIsRefusedByName() throws {
         let source = try String(contentsOf: Self.examples.appendingPathComponent("equal-groups.explainer"), encoding: .utf8)
         let cases: [(String, String, String)] = [
-            ("\"do\": \"tint\", \"target\": \"equation.b\"", "\"do\": \"tint\", \"target\": \"ring\"", "tints only a run"),
-            ("\"kind\": \"text\", \"style\": \"total\", \"at\": [500, 470]", "\"kind\": \"text\", \"style\": \"total\", \"at\": [500, 470], \"ink\": \"text\"",
+            ("\"target\": \"equation.b\"", "\"target\": \"ring\"", "tints only a run"),
+            ("\"style\": \"total\", \"at\": [\"cx\", \"totalY\"]", "\"style\": \"total\", \"at\": [\"cx\", \"totalY\"], \"ink\": \"text\"",
              "a total centred and in the result role"),
             ("\"ink\": \"multiply\",\n", "\"ink\": \"pencil\",\n", "operation role"),
         ]

@@ -1162,7 +1162,7 @@ Beside this reference:
 |---|---|
 | `explainer-1.0.schema.json` | The JSON Schema (draft 2020-12) of a version 1.x document. It checks structure and types; it does not parse expressions or resolve references, which a reader does. |
 | `examples/subtraction.explainer` | Two-digit subtraction, trading a ten when the ones are too few, with two English wordings and do it with me. It uses a tall layout with the camera, and declares the shapes 0.6 to 1.35 (tall) and 1.35 to 2.2 (stage). |
-| `examples/equal-groups.explainer` | Multiplication as equal groups, counted on group by group, with two English wordings, and declares the shapes 0.9 to 2.2 (stage). |
+| `examples/equal-groups.explainer` | Multiplication as equal groups, counted on group by group, with two English wordings. Its places are named values, which a tall layout replaces to stack the groups in rows; it declares the shapes 0.6 to 0.9 (tall) and 0.9 to 2.2 (stage). |
 | `check-schema.py` | Checks that the schema accepts both examples and refuses documents with an unknown verb, a missing required key, a value of the wrong type and an `areas` entry whose `ratio` is not two numbers. Run it with `python3 docs/format/check-schema.py`. It uses the `jsonschema` package when it is installed and otherwise a validator of the schema keywords it uses. |
 
 ## 23. Prior art
