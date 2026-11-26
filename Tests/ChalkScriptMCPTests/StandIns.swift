@@ -68,6 +68,10 @@ final class CannedStudio: StudioHandler, @unchecked Sendable {
             var result: JSONObject = ["step": .string(params["step"]?.string ?? "start"), "index": .int(3), "count": .int(7)]
             if params["image"]?.bool == true {
                 result["image"] = .object(["data": .string("iVBORw0KGgo="), "mimeType": .string("image/png")])
+                if let ratio = params["ratio"] {
+                    result["ratio"] = ratio
+                    result["layout"] = .string("tall")
+                }
             }
             return .result(.object(result))
         case Studio.Method.guide:

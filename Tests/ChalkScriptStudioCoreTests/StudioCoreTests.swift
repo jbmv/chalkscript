@@ -124,7 +124,7 @@ struct StudioMethodTests {
         // Shown: the player is new, plays the step it was on, and says the new line.
         let player = try #require(model.player)
         #expect(player.phase == .playing(0))
-        let e = try #require(player.explainer as? DocumentExplainer)
+        let e = try #require((player.explainer as? ShapedExplainer)?.shown)
         #expect(e.resolved.steps[0].hold == 1.5)
         #expect(e.resolved.steps[0].line.line.display == "Make 2 groups. Put 2 in each one.")
     }
@@ -282,7 +282,7 @@ struct StudioProjectTests {
         #expect(outside.first?.code == .range)
         #expect(model.problem(for: "subtraction") == ["a": .number(10), "b": .number(1)])
         #expect(model.setProblem(["a": .number(54), "b": .number(26)], for: "subtraction").isEmpty)
-        let e = try #require(model.player?.explainer as? DocumentExplainer)
+        let e = try #require(model.shaped?.shown)
         #expect(e.problem == ["a": .number(54), "b": .number(26)])
     }
 
@@ -309,7 +309,7 @@ struct StudioProjectTests {
         try String(contentsOf: examples[1], encoding: .utf8).write(to: project.url("copy"), atomically: true, encoding: .utf8)
         model.reload()
         #expect(model.documents.map(\.name) == ["copy", "equal-groups", "subtraction"])
-        let e = try #require(model.player?.explainer as? DocumentExplainer)
+        let e = try #require(model.shaped?.shown)
         #expect(e.resolved.steps[0].hold == 0.9)
     }
 

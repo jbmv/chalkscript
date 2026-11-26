@@ -1,6 +1,7 @@
 #if os(macOS)
 import ChalkScript
 import ChalkScriptMCP
+import struct ChalkScript.Scene
 import Foundation
 
 extension StudioModel {
@@ -98,10 +99,21 @@ extension StudioModel {
             case let .bool(b)?: wantsImage = b
             default: throw MethodError(code: Studio.RPCError.invalidParams, "image must be true or false.")
             }
+            var ratio: Double?
+            if let r = params["ratio"] {
+                guard let n = r.double, n > 0, n.isFinite else {
+                    throw MethodError(code: Studio.RPCError.invalidParams, "ratio must be a number greater than 0, the area's width over its height.")
+                }
+                ratio = n
+            }
             let shown = try show(name, step: step, problem: problem)
             var reply: WireObject = ["step": .string(shown.step), "index": .int(shown.index + 1), "count": .int(shown.count)]
-            if wantsImage, let e = player?.explainer as? DocumentExplainer, let png = StepPicture.png(e, step: shown.index) {
-                reply["image"] = .object(["data": .string(png.base64EncodedString()), "mimeType": .string("image/png")])
+            // Without a ratio, the picture is at the shape the window is showing.
+            let shape = ratio ?? shownRatio ?? Double(Scene.stage.width / Scene.stage.height)
+            if wantsImage, let e = shaped?.made, let picture = StepPicture.png(e, step: shown.index, ratio: shape) {
+                reply["image"] = .object(["data": .string(picture.png.base64EncodedString()), "mimeType": .string("image/png")])
+                reply["ratio"] = .number(Canonical.number((picture.ratio * 100).rounded() / 100))
+                reply["layout"] = .string(picture.layout)
             }
             note("show \(name) \(shown.step)", client: client)
             return .object(reply)

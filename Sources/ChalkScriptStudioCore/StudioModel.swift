@@ -24,6 +24,8 @@ public final class StudioModel {
     public private(set) var wording: String?
     public private(set) var locale: String?
     public private(set) var control: DocumentPlayback.Control = .paced
+    /// The shape the shown document is played at: the window's, or a ratio chosen to preview.
+    public private(set) var shape: ShapeChoice = .window
     /// The player of the shown document, or nil when it cannot be played (`refusal` says why).
     public private(set) var player: ExplainerPlayer?
     /// Changes whenever `player` is replaced, so that a view can start again with the new one.
@@ -107,6 +109,7 @@ public final class StudioModel {
     public func select(_ name: String?) {
         guard name != selectedName else { return }
         selectedName = name
+        shape = .window
         rebuild(keepStep: false)
     }
 
@@ -122,6 +125,13 @@ public final class StudioModel {
 
     public func setControl(_ value: DocumentPlayback.Control) {
         control = value
+        rebuild(keepStep: true)
+    }
+
+    /// Plays the shown document at `choice`; a ratio that is not a positive number is ignored.
+    public func setShape(_ choice: ShapeChoice) {
+        if case let .ratio(r) = choice, !(r > 0 && r.isFinite) { return }
+        shape = choice
         rebuild(keepStep: true)
     }
 
@@ -145,11 +155,70 @@ public final class StudioModel {
         return []
     }
 
+    /// The shown document's explainer as the player has it, at the shape it is shown at.
+    var shaped: ShapedExplainer? { player?.explainer as? ShapedExplainer }
+
     /// The wording the shown document is played in.
-    public var playedWording: String? { (player?.explainer as? DocumentExplainer)?.resolved.wording }
+    public var playedWording: String? { shaped?.shown.resolved.wording }
 
     /// The names of the steps the shown document has for its problem.
-    public var stepNames: [String] { (player?.explainer as? DocumentExplainer)?.resolved.stepNames ?? [] }
+    public var stepNames: [String] { shaped?.shown.resolved.stepNames ?? [] }
+
+    // MARK: shapes
+
+    /// The shapes the Shape menu offers to preview for the shown document (EXP-17).
+    public var previewShapes: [PreviewShape] {
+        guard let shown = selected, let doc = shown.document else { return [] }
+        return Shapes.previews(doc, problem: problem(for: shown.name))
+    }
+
+    /// The ratio of the area the shown document is laid out for, once the window has given it one.
+    public var shownRatio: Double? { shaped?.shown.areaUse.flatMap { Shapes.ratio($0.used) } }
+
+    /// What the status line says of the shape: a preview, or a shape the document does not
+    /// declare and the declared shape it is shown at instead. Nil for a declared window shape,
+    /// and for a document without a declaration in the window.
+    public var shapeStatus: String? {
+        guard let s = shaped, let use = s.shown.areaUse, let given = Shapes.ratio(use.given), let used = Shapes.ratio(use.used) else { return nil }
+        let name = s.ratio == nil ? "Window \(Shapes.text(given))" : Shapes.text(given)
+        if !Shapes.fills(use) { return "\(name) is not a declared shape; shown as \(Shapes.text(used))" }
+        return s.ratio == nil ? nil : "Previewing \(name) · \(s.shown.resolved.layout)"
+    }
+
+    /// Whether the shape shown is outside the shown document's declaration, so that Declare This
+    /// Shape can widen the nearest range to it.
+    public var canDeclareShownShape: Bool {
+        guard let use = shaped?.shown.areaUse else { return false }
+        return !Shapes.fills(use)
+    }
+
+    /// Declares the shape shown by moving the nearest end of the nearest declared range to it,
+    /// as one patch. Returns why it was refused, or nothing.
+    @discardableResult
+    public func declareShownShape() -> [DocumentFinding] {
+        guard let shown = selected, let doc = shown.document, let use = shaped?.shown.areaUse, let r = Shapes.ratio(use.given),
+              let ops = Shapes.declaring(doc, ratio: r) else { return [] }
+        return apply(ops, to: shown.name, base: doc.shortHash, actionName: "Declare This Shape")
+    }
+
+    /// Makes the shown document's declaration `rows`, as one patch through the patch engine, so
+    /// that it is checked, saved and one step of Undo. Returns why the patch was refused; throws
+    /// when a row cannot be written.
+    @discardableResult
+    public func declareShapes(_ rows: [DeclaredRow]) throws(ShapeError) -> [DocumentFinding] {
+        guard let shown = selected, let doc = shown.document else { return [] }
+        guard let ops = try Shapes.patch(doc, rows: rows) else { return [] }
+        return apply(ops, to: shown.name, base: doc.shortHash, actionName: "Declare Shapes")
+    }
+
+    private func apply(_ ops: [DocJSON], to name: String, base: String, actionName: String) -> [DocumentFinding] {
+        do {
+            let result = try patch(name, base: base, ops: ops, actionName: actionName)
+            return result.applied ? [] : result.findings
+        } catch {
+            return [.error(.patch, "", error.message)]
+        }
+    }
 
     var effectiveWording: String? {
         guard let w = wording, let doc = selected?.document, doc.wordings.contains(w) else { return nil }
@@ -168,7 +237,7 @@ public final class StudioModel {
         let old = player
         let area = old?.drawingArea
         var stepName: String?
-        if keepStep, let old, let k = old.currentStep, let e = old.explainer as? DocumentExplainer, e.resolved.steps.indices.contains(k) {
+        if keepStep, let old, let k = old.currentStep, let e = (old.explainer as? ShapedExplainer)?.shown, e.resolved.steps.indices.contains(k) {
             stepName = e.resolved.steps[k].name
         }
         old?.stop()
@@ -184,7 +253,9 @@ public final class StudioModel {
             let e = try DocumentExplainer(
                 document: doc, problem: problem(for: shown.name), wording: effectiveWording, locale: effectiveLocale,
                 playback: DocumentPlayback(control: control))
-            let p = ExplainerPlayer(explainer: e, voice: SilentVoice(), drivesItself: drivesPlayer)
+            var ratio: Double?
+            if case let .ratio(r) = shape { ratio = r }
+            let p = ExplainerPlayer(explainer: ShapedExplainer(e, ratio: ratio), voice: SilentVoice(), drivesItself: drivesPlayer)
             if let area { p.layOut(for: area) }
             if let stepName, let k = e.resolved.stepNames.firstIndex(of: stepName) { p.show(step: k) }
             player = p
@@ -197,12 +268,12 @@ public final class StudioModel {
 
     /// Applies a patch to a document and saves it (section 6.4 of the helper protocol). An
     /// accepted patch is shown at once and is one step of `undoManager`.
-    func patch(_ name: String, base: String, ops: [DocJSON]) throws(MethodError) -> PatchResult {
+    func patch(_ name: String, base: String, ops: [DocJSON], actionName: String = "Edit by Agent") throws(MethodError) -> PatchResult {
         let shown = try existing(name)
         guard let doc = shown.document else { throw MethodError.unreadable(shown) }
         let result = doc.patch(base: base, ops: ops)
         guard result.applied else { return result }
-        try replace(name, with: result.document.json, actionName: "Edit by Agent")
+        try replace(name, with: result.document.json, actionName: actionName)
         return result
     }
 
@@ -258,9 +329,10 @@ public final class StudioModel {
         }
         if selectedName != name {
             selectedName = name
+            shape = .window
         }
         rebuild(keepStep: false)
-        guard let player, let e = player.explainer as? DocumentExplainer else {
+        guard let player, let e = shaped?.shown else {
             throw MethodError(code: Studio.ErrorCode.failed,
                               "\(name) cannot be played for this problem: " + refusal.map(\.description).joined(separator: "; "))
         }

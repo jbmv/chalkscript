@@ -53,8 +53,8 @@ public enum HelperTools {
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"base":{"type":"string"},"ops":{"type":"array","items":{"type":"object"}}},"required":["doc","base","ops"],"additionalProperties":false}},
     {"name":"check","description":"List a document's errors and warnings, one per line, or only those under a JSON Pointer.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"pointer":{"type":"string"}},"required":["doc"],"additionalProperties":false}},
-    {"name":"show","description":"Play a step in the studio window for the person to watch: the first step without step, a sample problem without problem. Returns a picture of the step's end only if image is true.",
-     "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"step":{"type":"string"},"problem":{"type":"object"},"image":{"type":"boolean"}},"required":["doc"],"additionalProperties":false}},
+    {"name":"show","description":"Play a step in the studio window for the person to watch: the first step without step, a sample problem without problem. With image true, returns a picture of the step's end at ratio (width/height) or the window's shape.",
+     "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"step":{"type":"string"},"problem":{"type":"object"},"ratio":{"type":"number","exclusiveMinimum":0},"image":{"type":"boolean"}},"required":["doc"],"additionalProperties":false}},
     {"name":"guide","description":"Read the authoring guide to the explainer format and how to edit it. Without a topic, its list of topics.",
      "inputSchema":{"type":"object","properties":{"topic":{"type":"string"}},"additionalProperties":false}}
     ]
@@ -137,6 +137,12 @@ public enum HelperTools {
                     guard problem.object != nil else { throw ArgumentProblem(message: "The argument problem must be an object.") }
                     params["problem"] = problem
                 }
+                if let ratio = arguments["ratio"] {
+                    guard let r = ratio.double, r > 0, r.isFinite else {
+                        throw ArgumentProblem(message: "The argument ratio must be a number greater than 0, the area's width over its height.")
+                    }
+                    params["ratio"] = ratio
+                }
                 if let image = arguments["image"] {
                     guard image.bool != nil else { throw ArgumentProblem(message: "The argument image must be true or false.") }
                     params["image"] = image
@@ -186,6 +192,10 @@ public enum HelperTools {
             guard let step = result["step"]?.string else { return nil }
             var text = "showing \(step)"
             if let index = result["index"]?.int, let count = result["count"]?.int { text += " (\(index) of \(count))" }
+            if result["image"] != nil, case .number(let ratio)? = result["ratio"] {
+                text += "; the picture is at ratio \(ratio)"
+                if let layout = result["layout"]?.string { text += " in the layout \(layout)" }
+            }
             var content: [JSONValue] = [.object(["type": .string("text"), "text": .string(text)])]
             if let image = result["image"] {
                 guard let data = image["data"]?.string else { return nil }

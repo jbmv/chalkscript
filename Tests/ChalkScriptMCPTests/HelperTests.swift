@@ -184,6 +184,11 @@ struct ToolCallTests {
         #expect(content[1]["type"] == .string("image"))
         #expect(content[1]["mimeType"] == .string("image/png"))
         #expect(studio.studio.requests.last?.params["problem"] == problem)
+
+        let shaped = helper.tool("show", ["doc": .string("subtraction"), "step": .string("trade"),
+                                          "ratio": .number("0.6"), "image": .bool(true)])
+        #expect(studio.studio.requests.last?.params["ratio"] == .number("0.6"))
+        #expect(shaped.text == "showing trade (3 of 7); the picture is at ratio 0.6 in the layout tall")
     }
 
     @Test func guideIsFetchedFromTheStudio() throws {
@@ -223,6 +228,8 @@ struct ToolCallTests {
         ("edit", ["doc": .string("subtraction"), "base": .string("x"), "ops": .array([.int(1)])] as JSONObject,
          "Each operation in ops must be an object."),
         ("show", ["doc": .string("subtraction"), "image": .string("yes")] as JSONObject, "The argument image must be true or false."),
+        ("show", ["doc": .string("subtraction"), "ratio": .number("0")] as JSONObject,
+         "The argument ratio must be a number greater than 0, the area's width over its height."),
     ])
     func badArgumentsAreToolErrorsAndReachNoStudio(_ name: String, _ arguments: JSONObject, _ message: String) throws {
         let studio = try RunningStudio()
