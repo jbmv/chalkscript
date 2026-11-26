@@ -385,11 +385,12 @@ final class Resolver: EvaluationScope {
             // Paced, then moved later by the camera's lead; the step's line stays at 0.
             func shift(_ t: Double) -> Double { lead + pace * t }
             let retimed = actions.map { Self.retime($0, pace: pace, lead: lead) }
-            lines = lines.enumerated().map { k, l in
-                var x = l
-                if k > 0 { x.time = shift(l.time) }
-                return x
-            }.sorted { $0.time < $1.time }
+            // In time order; lines at the same moment keep the document's order.
+            for k in lines.indices where k > 0 { lines[k].time = shift(lines[k].time) }
+            let order = lines.indices.sorted { (a: Int, b: Int) -> Bool in
+                lines[a].time != lines[b].time ? lines[a].time < lines[b].time : a < b
+            }
+            lines = order.map { lines[$0] }
             waits = waits.map(shift)
             let t = pace * timeline
             let h = pace * hold

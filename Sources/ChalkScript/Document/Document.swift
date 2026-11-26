@@ -42,8 +42,9 @@ public struct ExplainerDocument: Sendable {
 
     /// The revision of the document for one wording and locale: the short hash of the document
     /// with `about` removed, `wording` reduced to that locale's `shared` section and that
-    /// wording, and `notes`, `maxLength` and `of` removed from every entry left. A change to
-    /// another language or wording, or to formatting, leaves it unchanged.
+    /// wording, and `notes`, `maxLength` and `of` removed from every entry left, an entry left
+    /// with only `text` being written as that text. A change to another language or wording, to
+    /// a translator's note, or to formatting leaves it unchanged.
     public func revision(wording: String, locale: String) -> String {
         Canonical.shortHash(.object(revisionForm(wording: wording, locale: locale)))
     }
@@ -61,7 +62,8 @@ public struct ExplainerDocument: Sendable {
                         e["notes"] = nil
                         e["maxLength"] = nil
                         e["of"] = nil
-                        kept[key] = .object(e)
+                        // An entry left with only its text is that text, as a string entry is.
+                        if e.keys == ["text"], let t = e["text"] { kept[key] = t } else { kept[key] = .object(e) }
                     } else {
                         kept[key] = entry
                     }
