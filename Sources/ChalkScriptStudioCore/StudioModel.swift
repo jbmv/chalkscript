@@ -213,45 +213,6 @@ public final class StudioModel {
         return apply(ops, to: shown.name, base: doc.shortHash, actionName: on ? "Made for \(preset.title)" : "Not made for \(preset.title)")
     }
 
-    /// The plan that makes the shown document made for the area shown, when it is not, and how
-    /// the status line's button names it.
-    private var addition: (plan: LayoutPlan, label: String)? {
-        guard let doc = selected?.document, doc.declaresAreas, let s = shaped, let use = s.shown.areaUse, !Shapes.fills(use),
-              let r = Shapes.ratio(use.given) else { return nil }
-        return LayoutPlan(doc).adding(ratio: r, layout: s.shown.resolved.layout)
-    }
-
-    /// The label of the status line's button that makes the document made for the area shown,
-    /// such as "Add Square" or "Add 0.40"; nil when there is nothing to add.
-    public var additionLabel: String? { addition?.label }
-
-    /// Makes the shown document made for the area shown, as one patch: the preset that holds
-    /// it, drawn in the layout it is drawn in now, or the nearest range widened to it. Returns
-    /// why it was refused, or nothing.
-    @discardableResult
-    public func addShownArea() -> [DocumentFinding] {
-        guard let shown = selected, let doc = shown.document, let addition else { return [] }
-        do {
-            guard let ops = try Shapes.patch(doc, plan: addition.plan, original: LayoutPlan(doc)) else { return [] }
-            return apply(ops, to: shown.name, base: doc.shortHash, actionName: addition.label)
-        } catch {
-            return [.error(.areas, "/areas", error.message)]
-        }
-    }
-
-    /// The plan the Layouts sheet starts from for the shown document.
-    public var layoutPlan: LayoutPlan? { selected?.document.map(LayoutPlan.init) }
-
-    /// Makes the shown document what `plan` says, as one patch through the patch engine, so that
-    /// it is checked, saved and one step of Undo. Returns why the patch was refused; throws when
-    /// the plan cannot be written.
-    @discardableResult
-    public func saveLayouts(_ plan: LayoutPlan) throws(ShapeError) -> [DocumentFinding] {
-        guard let shown = selected, let doc = shown.document else { return [] }
-        guard let ops = try Shapes.patch(doc, plan: plan, original: LayoutPlan(doc)) else { return [] }
-        return apply(ops, to: shown.name, base: doc.shortHash, actionName: "Layouts")
-    }
-
     private func apply(_ ops: [DocJSON], to name: String, base: String, actionName: String) -> [DocumentFinding] {
         do {
             let result = try patch(name, base: base, ops: ops, actionName: actionName)
