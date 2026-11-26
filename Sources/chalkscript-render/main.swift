@@ -25,6 +25,9 @@ let usage = """
       --count-pace NUMBER
       --area WIDTHxHEIGHT    the drawing area in points, from which the layout is chosen
                              (default: the stage, 1000x540)
+      --ratio NUMBER         the shape of the drawing area, its width over its height, with a
+                             longer side of 1000 points; the layout is the one the player would
+                             use at that shape. Not with --area.
       --scale NUMBER         pixels per point (default: 2)
       --dark                 draw in the style's dark palette
 
@@ -40,6 +43,7 @@ var wording: String?
 var locale: String?
 var playback = DocumentPlayback()
 var area: CGSize?
+var ratio: Double?
 var scale = 2.0
 var dark = false
 var arguments = CommandLine.arguments.dropFirst()
@@ -64,6 +68,9 @@ while let argument = arguments.popFirst() {
         let parts = value().split(separator: "x").compactMap { Double($0) }
         guard parts.count == 2, parts[0] > 0, parts[1] > 0 else { fail("--area is WIDTHxHEIGHT, such as 660x760") }
         area = CGSize(width: parts[0], height: parts[1])
+    case "--ratio":
+        guard let r = Double(value()), r > 0, r.isFinite else { fail("--ratio is a positive number, such as 0.75") }
+        ratio = r
     case "--scale":
         guard let s = Double(value()), s > 0 else { fail("--scale is a positive number") }
         scale = s
@@ -75,6 +82,10 @@ while let argument = arguments.popFirst() {
         if argument.hasPrefix("--") { fail("unknown option \(argument)\n\n\(usage)") }
         positional.append(argument)
     }
+}
+if let ratio {
+    guard area == nil else { fail("--ratio and --area are given together; give one") }
+    area = ratio >= 1 ? CGSize(width: 1000, height: 1000 / ratio) : CGSize(width: 1000 * ratio, height: 1000)
 }
 guard positional.count >= 2 else { fail("a document and an output directory are needed\n\n\(usage)") }
 
@@ -101,6 +112,11 @@ do {
     explainer = try DocumentExplainer(document: document, problem: problem, wording: wording, locale: locale, playback: playback, area: area)
 } catch {
     fail("the document cannot be played for this problem:\n\(error)", code: 65)
+}
+
+if let use = explainer.areaUse, !use.isGiven {
+    FileHandle.standardError.write(Data(
+        "note: the document does not declare this shape; laid out for \(Int(use.used.width.rounded())) by \(Int(use.used.height.rounded())) points inside \(Int(use.given.width.rounded())) by \(Int(use.given.height.rounded()))\n".utf8))
 }
 
 let directory = URL(fileURLWithPath: positional[1], isDirectory: true)
@@ -148,7 +164,7 @@ struct Still: View {
 @MainActor
 func render() {
     let palette = ExplainerStyle.standard.palette(dark: dark)
-    let width = area?.width ?? Scene.stage.width
+    let width = explainer.areaUse?.used.width ?? Scene.stage.width
     var pictures: [(String, Scene, Line)] = [("00-intro", explainer.still(after: -1), explainer.intro)]
     for k in 0..<explainer.stepCount {
         pictures.append((String(format: "%02d-%@", k + 1, explainer.resolved.steps[k].name), explainer.still(after: k), explainer.resolved.steps[k].line.line))

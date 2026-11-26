@@ -212,3 +212,22 @@ struct ScreenLayout<Header: View, Question: View, Drawing: View, LineBlock: View
             })
     }
 }
+
+/// What the engine's screen gives the drawing (EXP-17), for an app that wants to know before it
+/// lays anything out.
+public enum ExplainerScreen {
+    /// The drawing area the screen gives for a space of `size` points and the writing `hand`:
+    /// the space the drawing has beside the column, less its padding; the stage's shape where the
+    /// screen scrolls. Nil in the portrait arrangement, where it depends on the heights of the
+    /// header, the line and the controls.
+    public static func drawingArea(for size: CGSize, hand: WritingHand = .right) -> CGSize? {
+        switch ScreenArrangement.choose(for: size, hand: hand) {
+        case .scroll:
+            CGSize(width: size.width, height: size.width * Scene.stage.height / Scene.stage.width)
+        case .portrait:
+            nil
+        case let .column(width, _):
+            CGSize(width: size.width - width - 1.5 - 24, height: size.height - 24)
+        }
+    }
+}

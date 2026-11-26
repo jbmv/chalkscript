@@ -71,6 +71,9 @@ public final class ExplainerPlayer {
     @ObservationIgnored private let made: any Explainer
     /// The drawing area's size the explainer was last laid out for.
     public private(set) var drawingArea: CGSize?
+    /// The area the explainer is laid out for, and whether that is the area given (EXP-17); nil
+    /// before the first area. A host app may show it, log it or ignore it.
+    public var areaUse: AreaUse? { explainer.areaUse }
     public private(set) var phase: Phase = .ready
     /// The line shown under the drawing.
     public private(set) var caption: Line

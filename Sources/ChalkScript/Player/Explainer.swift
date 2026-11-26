@@ -92,8 +92,12 @@ public protocol Explainer: Sendable {
     /// The explainer laid out for a drawing area of `area` points (EXP-17), with its camera where
     /// it has one (EXP-18): the same problem, steps and lines. By default, itself.
     func laidOutExplainer(for area: CGSize) -> any Explainer
+    /// The area this explainer was laid out for and the one it was given, or nil when it has not
+    /// been laid out for an area (EXP-17). By default, nil.
+    var areaUse: AreaUse? { get }
 }
 
 extension Explainer {
     public func laidOutExplainer(for area: CGSize) -> any Explainer { self }
+    public var areaUse: AreaUse? { nil }
 }

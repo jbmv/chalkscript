@@ -15,13 +15,16 @@ public struct DocumentExplainer: Explainer {
     /// The document resolved for the problem and the layout it is drawn in.
     public let resolved: ResolvedExplainer
     let area: CGSize?
+    /// The area the document was laid out for and the one it was given; nil when no area was given.
+    public let areaUse: AreaUse?
     let film: DocumentFilm
 
     /// - Parameters:
     ///   - wording: nil takes the wording the document suggests for the playback's control, or
     ///     else its first.
     ///   - locale: nil is the document's source locale.
-    ///   - area: the drawing area, in points, from which the layout is chosen; nil is the stage.
+    ///   - area: the drawing area, in points; nil is the stage. A document that declares `areas` is
+    ///     laid out for the nearest declared shape that fits in it, which `areaUse` reports.
     /// - Throws: `DocumentRefusal` when the document has an error, the problem is outside its
     ///   parameters, the document is not sound for it, or it uses something this player does not
     ///   draw yet.
@@ -29,9 +32,11 @@ public struct DocumentExplainer: Explainer {
         document: ExplainerDocument, problem: [String: DocumentValue], wording: String? = nil, locale: String? = nil,
         playback: DocumentPlayback = DocumentPlayback(), area: CGSize? = nil
     ) throws(DocumentRefusal) {
-        let resolved = try document.resolve(problem: problem, wording: wording, locale: locale, playback: playback, area: area)
+        let use = area.map { document.areaUse(for: $0) }
+        let laidOutFor = use?.used
+        let resolved = try document.resolve(problem: problem, wording: wording, locale: locale, playback: playback, area: laidOutFor)
         let r = Resolver(
-            document, problem: problem, layout: resolved.layout, area: area, wording: resolved.wording, locale: resolved.locale, playback: playback)
+            document, problem: problem, layout: resolved.layout, area: laidOutFor, wording: resolved.wording, locale: resolved.locale, playback: playback)
         do {
             film = try DocumentFilm(resolved, resolver: r)
         } catch {
@@ -40,7 +45,8 @@ public struct DocumentExplainer: Explainer {
         self.document = document
         self.problem = problem
         self.resolved = resolved
-        self.area = area
+        self.area = laidOutFor
+        self.areaUse = use
     }
 
     public var playback: DocumentPlayback { resolved.playback }
