@@ -32,7 +32,9 @@ public final class StudioModel {
     public private(set) var refusal: [DocumentFinding] = []
     /// The last call the helper made, in a few words, for the window's status line.
     public private(set) var activity: String?
+    /// The socket the studio answers the helper on, or why it could not listen.
     public private(set) var listening: String?
+    public private(set) var listenFailure: String?
     public let guide: AuthoringGuide
     /// Each accepted patch is registered here as one step.
     public var undoManager: UndoManager?
@@ -277,6 +279,12 @@ public final class StudioModel {
         return (names[k], k, names.count)
     }
 
+    /// Plays the shown document's step of that name, if its problem has it.
+    public func play(stepNamed name: String) {
+        guard let player, let k = stepNames.firstIndex(of: name) else { return }
+        player.show(step: k)
+    }
+
     // MARK: the socket
 
     /// Starts answering the helper on the socket at `path`. Fails when another studio is
@@ -284,9 +292,15 @@ public final class StudioModel {
     public func startListening(path: String = StudioSocket.defaultPath) throws {
         stopListening()
         let l = StudioListener(path: path, app: Self.app, handler: StudioService(model: self))
-        try l.start()
+        do {
+            try l.start()
+        } catch {
+            listenFailure = "\(error)"
+            throw error
+        }
         listener = l
         listening = path
+        listenFailure = nil
     }
 
     public func stopListening() {

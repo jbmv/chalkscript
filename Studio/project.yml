@@ -1,0 +1,77 @@
+# ChalkScript Studio, the macOS app in which an explainer is made. Generate the Xcode project
+# with `xcodegen generate` in this folder, or build with ./build.sh. The generated project is not
+# committed.
+name: ChalkScriptStudio
+options:
+  deploymentTarget:
+    macOS: "27.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Studio.xcconfig
+  Release: Config/Studio.xcconfig
+packages:
+  ChalkScript:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_HARDENED_RUNTIME: YES
+    DEAD_CODE_STRIPPING: YES
+targets:
+  ChalkScriptStudio:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+      - path: ../docs/format/authoring-guide.md
+        buildPhase: resources
+      # The example documents, copied into a new project folder the first time the app runs.
+      - path: ../docs/format/examples
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: ChalkScript Studio
+        PRODUCT_BUNDLE_IDENTIFIER: $(STUDIO_BUNDLE_IDENTIFIER)
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: ChalkScript Studio
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.education
+        INFOPLIST_KEY_NSHumanReadableCopyright: "MIT licence"
+    dependencies:
+      - package: ChalkScript
+        product: ChalkScriptStudioCore
+      - package: ChalkScript
+        product: ChalkScript
+      - package: ChalkScript
+        product: ChalkScriptMCP
+      # The helper that Claude's desktop app and Claude Code launch (docs/studio/helper-protocol.md).
+      - target: chalkscript-mcp
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
+  chalkscript-mcp:
+    type: tool
+    platform: macOS
+    sources:
+      - path: ../Sources/chalkscript-mcp
+    dependencies:
+      - package: ChalkScript
+        product: ChalkScriptMCP
+    settings:
+      base:
+        PRODUCT_NAME: chalkscript-mcp
+        PRODUCT_BUNDLE_IDENTIFIER: $(STUDIO_BUNDLE_IDENTIFIER).helper
+        SKIP_INSTALL: YES
+schemes:
+  ChalkScriptStudio:
+    build:
+      targets:
+        ChalkScriptStudio: all
+    run:
+      config: Debug
+    archive:
+      config: Release

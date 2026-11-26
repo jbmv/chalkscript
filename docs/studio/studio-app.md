@@ -1,0 +1,77 @@
+# ChalkScript Studio, the app
+
+ChalkScript Studio is the macOS app in which an explainer is made. A person keeps it open beside
+Claude's desktop app or Claude Code, asks the agent for a change, and sees the change played in the
+studio's window. The agent reaches the studio through the helper, `chalkscript-mcp`, in the
+protocol of [helper-protocol.md](helper-protocol.md). This document says how the app is built,
+what it does and what it does not do yet.
+
+## Building
+
+XcodeGen and Xcode are needed. From a checkout of this repository:
+
+```
+Studio/build.sh
+```
+
+It generates `Studio/ChalkScriptStudio.xcodeproj` from `Studio/project.yml`, builds the app into
+`Studio/build/`, builds the desktop extension from the app's helper, and prints the paths of both.
+The generated project and `Studio/build/` are not committed. Run `xcodegen generate` in `Studio/`
+to open the project in Xcode instead.
+
+The script builds the Debug configuration by default. The Release configuration does not build
+with Swift 6.4.2, whose optimiser crashes on the engine (`swift build -c release` fails the same
+way).
+
+**Signing.** The signing team is read from `Studio/Config/Local.xcconfig`, which is not committed.
+Copy `Studio/Config/Local.xcconfig.template` to that name and give your team id. Without the file,
+the app is signed ad hoc and runs only on the Mac that built it.
+
+## Where things are
+
+| Path | Holds |
+|---|---|
+| `Sources/ChalkScriptStudioCore/` | Everything that is not user interface: the open project and its documents, checking, applying and saving an edit, watching the folder, and the studio's end of the helper protocol. `swift test` covers it. |
+| `Studio/Sources/` | The window, in SwiftUI. |
+| `Studio/Extension/` | The desktop extension's `manifest.json` and the script that packs it. |
+| `Studio/Scripts/drive-helper.py` | An MCP client that drives the helper over stdio, for testing the loop without Claude. |
+| `docs/format/authoring-guide.md` | The guide the helper's `guide` tool returns. |
+
+The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the example documents of
+`docs/format/examples/` as resources.
+
+## What it does
+
+- **A project folder.** The app opens a folder of `.explainer` documents, by default
+  `~/Documents/ChalkScript`. The first time, it makes the folder and copies the example documents
+  into it. File > Open Project Folder chooses another, and File > Add Example Documents copies any
+  example that is missing. A document is named by its path in the folder without `.explainer`.
+- **Playing.** The window plays the selected document's watched steps with the engine's player and
+  view (`ExplainerView`), for a problem chosen from the document's samples or typed within its
+  parameters, in a chosen wording and language, paced or skippable. Lines are shown, not spoken.
+- **Findings.** Below the player are the document's findings: the reader's, and what refuses any
+  sample in any wording when the document is played. Each shows its line in the file and its JSON
+  Pointer; clicking one on a step plays that step.
+- **The agent's edits.** An accepted patch is saved to the file at once, the window plays the step
+  it was on again, and the edit is one step of Edit > Undo. A file changed by another program is
+  read again within a moment. The status line under the window says what the agent last asked.
+- **Connecting.** The toolbar's link button shows how to install the extension in Claude's desktop
+  app and the command that adds the helper to Claude Code, with the path of the helper inside this
+  copy of the app.
+
+A saved document keeps its keys in their order. It is written with two-space indentation and an
+object or array kept on one line where it fits in 100 columns, so a file laid out by hand changes
+little after an edit.
+
+## Testing without Claude
+
+With the app running, `Studio/Scripts/drive-helper.py HELPER` launches the helper and speaks MCP
+to it as a client would: it lists the documents, reads and edits the equal-groups example, checks
+it and shows a step. In a Debug build, posting the distributed notification
+`org.chalkscript.studio.windowPicture` with a file path as its object makes the app write a
+picture of its window to that path, for a session that cannot capture the screen.
+
+## Not built yet
+
+Narration (lines are shown, not spoken), do it with me, What if? and try one, export to video, a
+timeline or inspector, editing in the window, a document's own palette, and notarisation.

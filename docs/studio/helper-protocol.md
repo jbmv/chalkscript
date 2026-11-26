@@ -382,6 +382,9 @@ In a checkout of this repository, `swift build --product chalkscript-mcp` builds
 `.build/debug/chalkscript-mcp`, which can be given in place of the app's copy.
 
 In Claude's desktop app, the helper is installed as a desktop extension: an `.mcpb` archive holding
-the signed and notarised `chalkscript-mcp` binary and a `manifest.json` that declares a `binary`
-server whose command is `${__dirname}/server/chalkscript-mcp`, the platform `darwin`, and the six
-tools by name and description. The extension is not built in this repository yet.
+the `chalkscript-mcp` binary and a `manifest.json` that declares a `binary` server whose command is
+`${__dirname}/server/chalkscript-mcp`, the platform `darwin`, and the six tools by name and
+description. The manifest is `Studio/Extension/manifest.json`, and
+`Studio/Extension/build-extension.sh` packs it with the helper from a built studio
+([studio-app.md](studio-app.md)). For distribution the binary is to be signed with a Developer ID and
+notarised; a development build carries the developer's own signature.

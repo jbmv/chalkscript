@@ -1,0 +1,10 @@
+// Settings for both of the studio's targets. Signing is read from Local.xcconfig beside this
+// file, which is not committed: copy Local.xcconfig.template to Local.xcconfig and give your
+// team there. Without it the app is signed ad hoc, which runs only on the Mac that built it.
+
+STUDIO_BUNDLE_IDENTIFIER = org.chalkscript.studio
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

@@ -444,3 +444,12 @@ struct CheckTimeTests {
         #expect(elapsed < .seconds(1))
     }
 }
+
+struct ConnectCommandTests {
+    @Test func theClaudeCodeCommandQuotesTheHelpersPath() {
+        let app = URL(fileURLWithPath: "/Applications/ChalkScript Studio.app")
+        #expect(ConnectCommand.claudeCode(helper: ConnectCommand.helper(inApp: app))
+                == "claude mcp add --transport stdio --scope user chalkscript -- '/Applications/ChalkScript Studio.app/Contents/Helpers/chalkscript-mcp'")
+        #expect(ConnectCommand.quoted("it's") == #"'it'\''s'"#)
+    }
+}
