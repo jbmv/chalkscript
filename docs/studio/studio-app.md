@@ -53,9 +53,10 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   the question, the line and the controls round the drawing belongs to the app that plays the
   document (EXP-17), and nothing the studio's view controls choose is saved in the document or
   has any bearing on an app that plays it. The options bar therefore keeps two kinds of control
-  apart: the Preview and Arrangement controls sit in a group marked "View only, not saved",
+  apart: the Preview and Arrangement controls sit in one group, with Preview labelled "not saved",
   and the ticks for the shapes the explainer is made for, which change the document, stand at
-  the end of the row.
+  the end of the row above the line "Saved to document — tells the player app which views it
+  can use."
 - **Presets.** The studio names three ranges of the drawing area's ratio of width to height:
   **Tall**, 0.6 to 0.9; **Square**, 0.9 to 1.35; **Wide**, 1.35 to 2.2. Each has a nominal ratio,
   0.75, 1.1 and 1.78, at which it is previewed and for which an agent arranges. Square is the

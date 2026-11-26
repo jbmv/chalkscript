@@ -191,7 +191,7 @@ layout with `camera: true`; the camera moves before the step's timeline begins, 
 outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
 `areaH`), `size`, `camera`, `band` and `let` replacements; the first that suits the window, by
 name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the
-pane gives the drawing, or from the ratio chosen in its Preview menu.
+pane gives the drawing, or from the shape chosen in its Preview control.
 
 The document holds the drawing and its words only. The question, the line and the controls round
 the drawing are arranged by the app that plays the document, which a document cannot know; the
@@ -206,6 +206,19 @@ inside a range the drawing is scaled and centred with margins, so a layout made 
 ratio is seen with margins at the range's ends. When the person is previewing a preset, arrange
 within the frame the window shows, and check the shape with `show` and `ratio` set to the
 preset's nominal ratio. The format has no presets; `areas` stores them as ranges.
+
+Make an explainer for Square first, in one layout, and let the camera do the framing: a shot
+that frames what a step is about serves most shapes. Add a layout for another shape only when
+the person asks for a different arrangement there, or when the drawing sets two things side by
+side or one above the other and one shape cannot hold both, as the subtraction example's `tall`
+layout does. When a person asks whether an explainer works on a phone held upright or on a wide
+screen, look at it with `show`, `ratio` and `image` at that preset's nominal ratio and say what
+you see. If it reads well, tell them to tick that shape under "Explainer is made for" in the
+studio's window, which saves it in the document; do not patch `areas` yourself unless they ask.
+If it does not, say what is wrong and offer the smaller change first: a shot, a size or a place,
+before a layout of its own. Tell a person who asks that Preview and App arrangement in the
+studio change only what they see there, and that the app which plays the explainer decides where
+the caption and the controls go.
 
 `areas` declares the shapes of drawing area the document is made for: a list of entries, each a
 `layout` (a layout's name, or `stage`) and a `ratio` `[min, max]`, the least and greatest ratio of

@@ -72,9 +72,6 @@ struct OptionsBar: View {
     /// The Preview menu and the arrangement, in one group marked as changing only the view.
     private var viewOnly: some View {
         HStack(spacing: 10) {
-            Text("View only, not saved:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             previewMenu
             arrangementPicker
         }
@@ -87,7 +84,7 @@ struct OptionsBar: View {
     /// (EXP-17). Every preset is offered, whether or not the document is made for it.
     private var previewMenu: some View {
         HStack(spacing: 6) {
-            Picker("Preview", selection: Binding(get: { previewedPreset }, set: { p in
+            Picker("Preview (not saved)", selection: Binding(get: { previewedPreset }, set: { p in
                 if let p { model.setPreview(.ratio(p.nominal)) }
             })) {
                 ForEach(Preset.allCases) { Text($0.title).tag(Preset?.some($0)) }
@@ -111,20 +108,24 @@ struct OptionsBar: View {
 
     /// The shapes the document is made for: the one control here that changes the document.
     private var madeFor: some View {
-        HStack(spacing: 8) {
-            Text("Explainer is made for:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ForEach(Preset.allCases) { preset in
-                Toggle(preset.title, isOn: Binding(get: { model.madeFor.contains(preset) }, set: { on in
-                    let refused = model.setMadeFor(preset, on)
-                    outside = refused.isEmpty ? nil : "The studio refused the change: " + refused.prefix(2).map(\.message).joined(separator: "; ")
-                }))
-                .toggleStyle(.checkbox)
+        VStack(alignment: .trailing, spacing: 2) {
+            HStack(spacing: 8) {
+                Text("Explainer is made for:")
+                ForEach(Preset.allCases) { preset in
+                    Toggle(preset.title, isOn: Binding(get: { model.madeFor.contains(preset) }, set: { on in
+                        let refused = model.setMadeFor(preset, on)
+                        outside = refused.isEmpty ? nil : "The studio refused the change: " + refused.prefix(2).map(\.message).joined(separator: "; ")
+                    }))
+                    .toggleStyle(.checkbox)
+                }
             }
+            Text("Saved to document — tells the player app which views it can use.")
+                .font(.caption)
+                .italic()
+                .foregroundStyle(.secondary)
         }
         .disabled(doc == nil)
-        .help("Tick the shapes of drawing area this explainer is meant to be shown in. Saved in the document; Edit > Undo takes a change back. In any other shape, a player shows it at the nearest ticked shape, scaled and centred.")
+        .help("Tick the shapes of drawing area this explainer is meant to be shown in. Edit > Undo takes a change back. In any other shape, a player shows it at the nearest ticked shape, scaled and centred.")
     }
 
     /// The arrangement is an app's choice, not the document's, so it is kept from one document to
