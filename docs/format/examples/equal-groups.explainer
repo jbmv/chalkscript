@@ -14,7 +14,9 @@
   "let": {
     "p": "a * b",
     "rows": "div(b + 1, 2)",
-    "gx": "500 - (a * 180 - 94) / 2"
+    "gx": "500 - (a * 180 - 94) / 2",
+    "ringTime": 0.3,
+    "dotGap": 0.12
   },
   "samples": [
     { "a": 2, "b": 2 }, { "a": 2, "b": 6 }, { "a": 3, "b": 4 }, { "a": 4, "b": 3 },
@@ -44,10 +46,10 @@
     "groups": {
       "shot": "whole", "say": "make", "hold": 0.4,
       "actions": {
-        "build": { "do": "each", "target": "ring", "gap": "0.3 + b * 0.12",
+        "build": { "do": "each", "target": "ring", "gap": "ringTime + b * dotGap",
                    "then": {
-                     "ring": { "do": "draw", "dur": 0.3 },
-                     "dots": { "do": "appear", "target": "slice(dot, i * b, b)", "at": 0.3, "dur": 0.2, "each": 0.12 }
+                     "ring": { "do": "draw", "dur": "ringTime" },
+                     "dots": { "do": "appear", "target": "slice(dot, i * b, b)", "at": "ringTime", "dur": 0.2, "each": "dotGap" }
                    } }
       }
     },

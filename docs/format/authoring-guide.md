@@ -153,6 +153,13 @@ seconds.
 
 A duration a person asks for ("slower", "hold longer") is usually `dur`, `each`, `gap` or `hold`.
 
+State a time once and derive the times that depend on it, so that a change is one patch. A
+`let` value (`"ringTime": 0.3`) may be named in a `dur`, `at`, `each` or `gap`; `end(action)`
+does the same for an action's `at` outside an `each`. In the equal-groups example the ring's
+`dur` is `"ringTime"`, the dots' `at` is `"ringTime"` and the `each` gap is
+`"ringTime + b * dotGap"`, so slowing the ring is
+`{"op": "replace", "path": "/let/ringTime", "value": 0.5}`.
+
 ## wording: lines, placeholders and languages
 
 `wording` maps a locale to sections: `shared`, and wordings named by the author (the examples

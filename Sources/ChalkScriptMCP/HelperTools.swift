@@ -26,7 +26,10 @@ public enum HelperTools {
     /// Server instructions, which Claude Code loads at session start even when it defers the tools.
     public static let instructions = """
         Make and edit explainers (.explainer documents) in ChalkScript Studio, which the person \
-        has open beside this conversation. Read the guide before a first edit.
+        has open beside this conversation. To change one: read the part to change by JSON Pointer, \
+        not the whole document; edit with a JSON Patch against the hash read (every operation \
+        applies or none; the new hash comes back, to use as the next base). Call guide only for \
+        what this does not cover.
         """
 
     /// The tools in the order `tools/list` gives them.
@@ -44,7 +47,7 @@ public enum HelperTools {
     [
     {"name":"list","description":"List the documents in the project open in ChalkScript Studio, with each one's hash and counts of errors and warnings.",
      "inputSchema":{"type":"object","additionalProperties":false}},
-    {"name":"read","description":"Read a document, or the part of it at a JSON Pointer such as /steps/trade. The first line of the result is the document's hash, which edit takes as its base.",
+    {"name":"read","description":"Read the part of a document to change, at a JSON Pointer such as /steps/trade, not the whole document. The first line of the result is the document's hash, which edit takes as its base.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"pointer":{"type":"string"}},"required":["doc"],"additionalProperties":false}},
     {"name":"edit","description":"Change a document by JSON Patch (RFC 6902) made against its current hash. Every operation applies or none does. Returns the new hash and counts of findings, or why the patch was refused.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"base":{"type":"string"},"ops":{"type":"array","items":{"type":"object"}}},"required":["doc","base","ops"],"additionalProperties":false}},

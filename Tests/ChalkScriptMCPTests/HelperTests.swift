@@ -26,6 +26,15 @@ struct InitialisationTests {
         #expect(list?["result"]?["resultType"] == nil)
     }
 
+    @Test func instructionsAndToolDefinitionsStayUnder3000Characters() {
+        let size = JSONValue.string(HelperTools.instructions).serialized.count
+            + JSONValue.array(HelperTools.definitions).serialized.count
+        #expect(size < 3000, "\(size) characters")
+        #expect(HelperTools.instructions.contains("JSON Pointer"))
+        #expect(HelperTools.definitions.first { $0["name"]?.string == "read" }?["description"]?.string?
+            .contains("not the whole document") == true)
+    }
+
     @Test func legacyInitializeOffersTheNewestLegacyRevisionForAnUnknownOne() throws {
         let helper = try HelperProcess(socket: temporarySocketPath())
         let reply = helper.request("initialize", ["protocolVersion": .string("2099-01-01"), "capabilities": .object([:])])
