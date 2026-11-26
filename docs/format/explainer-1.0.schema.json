@@ -1,0 +1,3052 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChalkScript explainer document, version 1.x",
+  "description": "The structure and types of an explainer document (docs/format/explainer-1.0.md). Expressions are strings; a reader parses them and resolves references, which this schema does not.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "chalkscript-explainer"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^1\\.(0|[1-9][0-9]*)$"
+    },
+    "requires": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"
+      }
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "about": {
+      "type": "object"
+    },
+    "sourceLocale": {
+      "$ref": "#/$defs/locale"
+    },
+    "params": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/param"
+      }
+    },
+    "let": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      }
+    },
+    "vars": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      }
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "propertyNames": {
+          "$ref": "#/$defs/name"
+        },
+        "additionalProperties": {
+          "type": [
+            "number",
+            "boolean",
+            "string"
+          ]
+        }
+      }
+    },
+    "kind": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/number"
+              },
+              {
+                "$ref": "#/$defs/number"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "same": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/truth"
+          }
+        },
+        "differ": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value"
+          }
+        },
+        "near": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "layouts": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "$ref": "#/$defs/point"
+          },
+          "suits": {
+            "$ref": "#/$defs/truth"
+          },
+          "camera": {
+            "type": "boolean"
+          },
+          "band": {
+            "$ref": "#/$defs/number"
+          },
+          "let": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "#/$defs/name"
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/value"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "elements": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/element"
+      }
+    },
+    "parts": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/selection"
+      }
+    },
+    "shots": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "frame": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/name"
+            }
+          },
+          "region": {
+            "$ref": "#/$defs/rect"
+          },
+          "margin": {
+            "$ref": "#/$defs/number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "opening": {
+      "$ref": "#/$defs/name"
+    },
+    "intro": {
+      "type": "object",
+      "properties": {
+        "watch": {
+          "$ref": "#/$defs/entryName"
+        },
+        "guided": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "watch"
+      ],
+      "additionalProperties": false
+    },
+    "sequence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/name"
+      }
+    },
+    "steps": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "try": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "$ref": "#/$defs/entryName"
+        },
+        "say": {
+          "$ref": "#/$defs/entryName"
+        },
+        "note": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "question",
+        "say"
+      ],
+      "additionalProperties": false
+    },
+    "whatIf": {
+      "type": "object",
+      "properties": {
+        "say": {
+          "$ref": "#/$defs/entryName"
+        },
+        "handle": {
+          "$ref": "#/$defs/selection"
+        },
+        "bind": {
+          "$ref": "#/$defs/name"
+        },
+        "range": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/number"
+            },
+            {
+              "$ref": "#/$defs/number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "axis": {
+          "enum": [
+            "x",
+            "y"
+          ]
+        },
+        "per": {
+          "$ref": "#/$defs/number"
+        },
+        "snap": {
+          "$ref": "#/$defs/number"
+        },
+        "goals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "when": {
+                "$ref": "#/$defs/truth"
+              },
+              "say": {
+                "$ref": "#/$defs/entryName"
+              },
+              "show": {
+                "$ref": "#/$defs/number"
+              }
+            },
+            "required": [
+              "when",
+              "say",
+              "show"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "done": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "say",
+        "handle",
+        "bind",
+        "range",
+        "axis",
+        "per",
+        "goals"
+      ],
+      "additionalProperties": false
+    },
+    "style": {
+      "$ref": "#/$defs/style"
+    },
+    "plays": {
+      "type": "object",
+      "properties": {
+        "paced": {
+          "$ref": "#/$defs/name"
+        },
+        "skippable": {
+          "$ref": "#/$defs/name"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wording": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/locale"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "shared"
+        ],
+        "propertyNames": {
+          "$ref": "#/$defs/name"
+        },
+        "additionalProperties": {
+          "$ref": "#/$defs/section"
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*\\.[A-Za-z0-9.-]+$"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "id",
+    "title",
+    "sourceLocale",
+    "params",
+    "samples",
+    "elements",
+    "sequence",
+    "steps",
+    "wording"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]{0,47}$"
+    },
+    "entryName": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)*$",
+      "maxLength": 64
+    },
+    "expression": {
+      "type": "string",
+      "minLength": 1
+    },
+    "number": {
+      "description": "A number, or an expression that gives one.",
+      "type": [
+        "number",
+        "string"
+      ],
+      "minLength": 1
+    },
+    "truth": {
+      "description": "A truth value, or an expression that gives one.",
+      "type": [
+        "boolean",
+        "string"
+      ],
+      "minLength": 1
+    },
+    "value": {
+      "description": "A number, a truth value, or an expression.",
+      "type": [
+        "number",
+        "boolean",
+        "string"
+      ],
+      "minLength": 1
+    },
+    "selection": {
+      "description": "An expression that gives a selection.",
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]{0,47}(\\.(fill|ink|soft))?$"
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/number"
+        },
+        {
+          "$ref": "#/$defs/number"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "rect": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/number"
+        },
+        {
+          "$ref": "#/$defs/number"
+        },
+        {
+          "$ref": "#/$defs/number"
+        },
+        {
+          "$ref": "#/$defs/number"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "pointOrSelection": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/point"
+        },
+        {
+          "$ref": "#/$defs/selection"
+        }
+      ]
+    },
+    "colour": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "look": {
+      "enum": [
+        "pencil",
+        "traded",
+        "counted"
+      ]
+    },
+    "element.text": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "text"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "at": {
+          "$ref": "#/$defs/point"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        },
+        "runs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "ink": {
+                "$ref": "#/$defs/role"
+              },
+              "text": {
+                "$ref": "#/$defs/entryName"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "style": {
+          "enum": [
+            "equation",
+            "total",
+            "label",
+            "note",
+            "body"
+          ]
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        },
+        "size": {
+          "$ref": "#/$defs/number"
+        },
+        "anchor": {
+          "enum": [
+            "start",
+            "middle",
+            "end"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "element.line": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "line"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "from": {
+          "$ref": "#/$defs/point"
+        },
+        "to": {
+          "$ref": "#/$defs/point"
+        },
+        "style": {
+          "enum": [
+            "rule",
+            "divider"
+          ]
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "kind",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "element.arrow": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "arrow"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "from": {
+          "$ref": "#/$defs/pointOrSelection"
+        },
+        "to": {
+          "$ref": "#/$defs/pointOrSelection"
+        },
+        "y": {
+          "$ref": "#/$defs/number"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "kind",
+        "from",
+        "to",
+        "ink"
+      ],
+      "additionalProperties": false
+    },
+    "element.outline": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "outline"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "around": {
+          "$ref": "#/$defs/selection"
+        },
+        "pad": {
+          "$ref": "#/$defs/number"
+        },
+        "style": {
+          "enum": [
+            "box",
+            "ring",
+            "hint",
+            "target"
+          ]
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "kind",
+        "style"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "rect"
+          ]
+        },
+        {
+          "required": [
+            "around"
+          ]
+        }
+      ]
+    },
+    "element.shape": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "shape"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "corner": {
+          "$ref": "#/$defs/number"
+        },
+        "ellipse": {
+          "$ref": "#/$defs/rect"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/point"
+          },
+          "minItems": 2
+        },
+        "closed": {
+          "type": "boolean"
+        },
+        "fill": {
+          "$ref": "#/$defs/role"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "rect"
+          ]
+        },
+        {
+          "required": [
+            "ellipse"
+          ]
+        },
+        {
+          "required": [
+            "points"
+          ]
+        }
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "fill"
+          ]
+        },
+        {
+          "required": [
+            "ink"
+          ]
+        }
+      ]
+    },
+    "element.ten": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ten"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "look": {
+          "$ref": "#/$defs/look"
+        }
+      },
+      "required": [
+        "kind",
+        "rect"
+      ],
+      "additionalProperties": false
+    },
+    "element.one": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "one"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "look": {
+          "$ref": "#/$defs/look"
+        }
+      },
+      "required": [
+        "kind",
+        "rect"
+      ],
+      "additionalProperties": false
+    },
+    "element.stick": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "stick"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "look": {
+          "$ref": "#/$defs/look"
+        }
+      },
+      "required": [
+        "kind",
+        "rect"
+      ],
+      "additionalProperties": false
+    },
+    "element.circle": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "circle"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            },
+            "progress": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "look": {
+          "$ref": "#/$defs/look"
+        }
+      },
+      "required": [
+        "kind",
+        "rect"
+      ],
+      "additionalProperties": false
+    },
+    "element": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "text",
+            "line",
+            "arrow",
+            "outline",
+            "shape",
+            "ten",
+            "one",
+            "stick",
+            "circle"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "text"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.text"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "line"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.line"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "arrow"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.arrow"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "outline"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.outline"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "shape"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.shape"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ten"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.ten"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "one"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.one"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "stick"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.stick"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "circle"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.circle"
+          }
+        }
+      ]
+    },
+    "action.appear": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "appear"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "rise": {
+          "$ref": "#/$defs/number"
+        },
+        "grow": {
+          "$ref": "#/$defs/number"
+        },
+        "place": {
+          "$ref": "#/$defs/expression"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "action.fade": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "fade"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "to": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "do",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "action.draw": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "draw"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "action.cross": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "cross"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "fade": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "action.tint": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "tint"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "do",
+        "ink"
+      ],
+      "additionalProperties": false
+    },
+    "action.move": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "move"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "to": {
+          "$ref": "#/$defs/point"
+        },
+        "via": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1
+              },
+              {
+                "$ref": "#/$defs/number"
+              },
+              {
+                "$ref": "#/$defs/number"
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3
+          }
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "action.gather": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "gather"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "from": {
+          "$ref": "#/$defs/selection"
+        }
+      },
+      "required": [
+        "do",
+        "from"
+      ],
+      "additionalProperties": false
+    },
+    "action.look": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "look"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/look"
+        }
+      },
+      "required": [
+        "do",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "action.set": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "set"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "do",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "action.tag": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "tag"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "do",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "action.pulse": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "pulse"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "action.say": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "say"
+        },
+        "line": {
+          "$ref": "#/$defs/entryName"
+        },
+        "count": {
+          "type": "boolean"
+        },
+        "caption": {
+          "type": "boolean"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "wait": {
+          "const": "voice"
+        }
+      },
+      "required": [
+        "do",
+        "line"
+      ],
+      "additionalProperties": false
+    },
+    "action.each": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "each"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "gap": {
+          "$ref": "#/$defs/number"
+        },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
+        "then": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/innerAction"
+          }
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        }
+      },
+      "required": [
+        "do",
+        "target",
+        "gap",
+        "then"
+      ],
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "do"
+      ],
+      "properties": {
+        "do": {
+          "enum": [
+            "appear",
+            "fade",
+            "draw",
+            "cross",
+            "tint",
+            "move",
+            "gather",
+            "look",
+            "set",
+            "tag",
+            "pulse",
+            "say",
+            "each"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "appear"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.appear"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "fade"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.fade"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "draw"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.draw"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "cross"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.cross"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "tint"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.tint"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "move"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.move"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "gather"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.gather"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "look"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.look"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "set"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.set"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "tag"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.tag"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "pulse"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.pulse"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "say"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.say"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "each"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.each"
+          }
+        }
+      ]
+    },
+    "innerAction.appear": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "appear"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "rise": {
+          "$ref": "#/$defs/number"
+        },
+        "grow": {
+          "$ref": "#/$defs/number"
+        },
+        "place": {
+          "$ref": "#/$defs/expression"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.fade": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "fade"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "to": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "do",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.draw": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "draw"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.cross": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "cross"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "fade": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.tint": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "tint"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "do",
+        "ink"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.move": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "move"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "to": {
+          "$ref": "#/$defs/point"
+        },
+        "via": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1
+              },
+              {
+                "$ref": "#/$defs/number"
+              },
+              {
+                "$ref": "#/$defs/number"
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3
+          }
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.gather": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "gather"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "from": {
+          "$ref": "#/$defs/selection"
+        }
+      },
+      "required": [
+        "do",
+        "from"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.look": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "look"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/look"
+        }
+      },
+      "required": [
+        "do",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.set": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "set"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "do",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.tag": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "tag"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "text": {
+          "$ref": "#/$defs/entryName"
+        }
+      },
+      "required": [
+        "do",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.pulse": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "pulse"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction.say": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "say"
+        },
+        "line": {
+          "$ref": "#/$defs/entryName"
+        },
+        "count": {
+          "type": "boolean"
+        },
+        "caption": {
+          "type": "boolean"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "do",
+        "line"
+      ],
+      "additionalProperties": false
+    },
+    "innerAction": {
+      "type": "object",
+      "required": [
+        "do"
+      ],
+      "properties": {
+        "do": {
+          "enum": [
+            "appear",
+            "fade",
+            "draw",
+            "cross",
+            "tint",
+            "move",
+            "gather",
+            "look",
+            "set",
+            "tag",
+            "pulse",
+            "say"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "appear"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.appear"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "fade"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.fade"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "draw"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.draw"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "cross"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.cross"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "tint"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.tint"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "move"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.move"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "gather"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.gather"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "look"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.look"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "set"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.set"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "tag"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.tag"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "pulse"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.pulse"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "say"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.say"
+          }
+        }
+      ]
+    },
+    "act": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "enum": [
+            "stroke",
+            "tap"
+          ]
+        },
+        "say": {
+          "$ref": "#/$defs/entryName"
+        },
+        "targets": {
+          "$ref": "#/$defs/selection"
+        },
+        "need": {
+          "$ref": "#/$defs/number"
+        },
+        "many": {
+          "type": "boolean"
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selection"
+          },
+          "minItems": 1
+        },
+        "bind": {
+          "$ref": "#/$defs/name"
+        },
+        "keep": {
+          "type": "boolean"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
+        },
+        "tally": {
+          "$ref": "#/$defs/role"
+        },
+        "pad": {
+          "$ref": "#/$defs/number"
+        },
+        "begin": {
+          "$ref": "#/$defs/name"
+        },
+        "then": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/name"
+            },
+            {
+              "$ref": "#/$defs/innerAction"
+            }
+          ]
+        },
+        "done": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/entryName"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              },
+              "minItems": 1
+            }
+          ]
+        },
+        "interrupts": {
+          "type": "boolean"
+        },
+        "misses": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/entryName"
+          }
+        }
+      },
+      "required": [
+        "input",
+        "targets"
+      ],
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "shot": {
+          "$ref": "#/$defs/name"
+        },
+        "doShot": {
+          "$ref": "#/$defs/name"
+        },
+        "say": {
+          "$ref": "#/$defs/entryName"
+        },
+        "actions": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "duration": {
+          "$ref": "#/$defs/number"
+        },
+        "hold": {
+          "$ref": "#/$defs/number"
+        },
+        "counts": {
+          "type": "boolean"
+        },
+        "like": {
+          "$ref": "#/$defs/name"
+        },
+        "act": {
+          "$ref": "#/$defs/act"
+        },
+        "why": {
+          "type": "object",
+          "properties": {
+            "say": {
+              "$ref": "#/$defs/entryName"
+            },
+            "actions": {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "#/$defs/name"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/action"
+              }
+            },
+            "hold": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "required": [
+            "say"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "param": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "int",
+            "number",
+            "bool",
+            "choice"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "int",
+                  "number"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "type": {},
+              "min": {
+                "$ref": "#/$defs/number"
+              },
+              "max": {
+                "$ref": "#/$defs/number"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "bool"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "type": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "choice"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "type": {},
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "values"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "entry": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "forms": {
+              "type": "object",
+              "properties": {
+                "zero": {
+                  "type": "string"
+                },
+                "one": {
+                  "type": "string"
+                },
+                "two": {
+                  "type": "string"
+                },
+                "few": {
+                  "type": "string"
+                },
+                "many": {
+                  "type": "string"
+                },
+                "other": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "other"
+              ],
+              "additionalProperties": false
+            },
+            "select": {
+              "$ref": "#/$defs/expression"
+            },
+            "cases": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "spoken": {
+              "type": "string"
+            },
+            "visual": {
+              "type": "boolean"
+            },
+            "emphasis": {
+              "$ref": "#/$defs/name"
+            },
+            "pronunciation": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "notes": {
+              "type": "string"
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "of": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}$"
+            }
+          },
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "text"
+              ]
+            },
+            {
+              "required": [
+                "forms"
+              ]
+            },
+            {
+              "required": [
+                "select",
+                "cases"
+              ]
+            }
+          ],
+          "dependentRequired": {
+            "select": [
+              "cases"
+            ],
+            "cases": [
+              "select"
+            ]
+          }
+        }
+      ]
+    },
+    "section": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/entryName"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$"
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "palette": {
+          "type": "object",
+          "properties": {
+            "light": {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "#/$defs/name"
+              },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/colour"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "fill": {
+                        "$ref": "#/$defs/colour"
+                      },
+                      "ink": {
+                        "$ref": "#/$defs/colour"
+                      },
+                      "soft": {
+                        "$ref": "#/$defs/colour"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "dark": {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "#/$defs/name"
+              },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/colour"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "fill": {
+                        "$ref": "#/$defs/colour"
+                      },
+                      "ink": {
+                        "$ref": "#/$defs/colour"
+                      },
+                      "soft": {
+                        "$ref": "#/$defs/colour"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "easings": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "motion": {
+          "type": "object",
+          "properties": {
+            "durations": {
+              "type": "object",
+              "properties": {
+                "appear": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "draw": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "fade": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "travel": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "lag": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "hold": {
+                  "$ref": "#/$defs/seconds"
+                }
+              },
+              "additionalProperties": false
+            },
+            "easings": {
+              "type": "object",
+              "properties": {
+                "appear": {
+                  "$ref": "#/$defs/name"
+                },
+                "draw": {
+                  "$ref": "#/$defs/name"
+                },
+                "fade": {
+                  "$ref": "#/$defs/name"
+                },
+                "travel": {
+                  "$ref": "#/$defs/name"
+                }
+              },
+              "additionalProperties": false
+            },
+            "camera": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "duration": {
+                  "$ref": "#/$defs/seconds"
+                },
+                "easing": {
+                  "$ref": "#/$defs/name"
+                },
+                "margin": {
+                  "type": "number"
+                },
+                "dim": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

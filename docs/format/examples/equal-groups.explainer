@@ -1,0 +1,116 @@
+{
+  "format": "chalkscript-explainer",
+  "version": "1.0",
+  "requires": ["components.arithmetic"],
+  "id": "multiply-equal-groups",
+  "title": "Multiplying as equal groups",
+  "about": { "licence": "CC-BY-4.0" },
+  "sourceLocale": "en-US",
+
+  "params": {
+    "a": { "type": "int", "min": 2, "max": 5 },
+    "b": { "type": "int", "min": 2, "max": 6 }
+  },
+  "let": {
+    "p": "a * b",
+    "rows": "div(b + 1, 2)",
+    "gx": "500 - (a * 180 - 94) / 2"
+  },
+  "samples": [
+    { "a": 2, "b": 2 }, { "a": 2, "b": 6 }, { "a": 3, "b": 4 }, { "a": 4, "b": 3 },
+    { "a": 5, "b": 2 }, { "a": 5, "b": 5 }, { "a": 5, "b": 6 }
+  ],
+  "kind": { "same": ["a == b"], "differ": ["a", "b", "p"] },
+
+  "layouts": { "stage": { "size": [1000, 540] } },
+  "elements": {
+    "equation": { "kind": "text", "style": "equation", "at": [500, 70], "text": "equation",
+                  "runs": { "ans": { "ink": "result", "text": "unknown" } } },
+    "ring": { "kind": "outline", "style": "ring", "repeat": "a", "ink": "multiply",
+              "rect": ["gx + i * 180", 170, 86, "32 + (rows - 1) * 34 + 20"], "start": { "progress": 0 } },
+    "dot": { "kind": "circle", "repeat": "a * b",
+             "rect": ["gx + div(i, b) * 180 + 16 + mod(mod(i, b), 2) * 34", "186 + div(mod(i, b), 2) * 34", 20, 20],
+             "start": { "opacity": 0 } },
+    "hint": { "kind": "outline", "style": "hint", "around": "slice(dot, 0, b)", "start": { "progress": 0 } },
+    "total": { "kind": "text", "style": "total", "at": [500, 470] }
+  },
+  "parts": { "groups": "ring + dot", "count": "ring + dot + total" },
+  "shots": { "whole": { "frame": ["count"] } },
+  "opening": "whole",
+
+  "intro": { "watch": "intro", "guided": "do.intro" },
+  "sequence": ["groups", "same", "skip"],
+  "steps": {
+    "groups": {
+      "shot": "whole", "say": "make", "hold": 0.4,
+      "actions": {
+        "build": { "do": "each", "target": "ring", "gap": "0.3 + b * 0.12",
+                   "then": {
+                     "ring": { "do": "draw", "dur": 0.3 },
+                     "dots": { "do": "appear", "target": "slice(dot, i * b, b)", "at": 0.3, "dur": 0.2, "each": 0.12 }
+                   } }
+      }
+    },
+    "same": {
+      "shot": "whole", "say": "same", "hold": 0.5,
+      "actions": {
+        "mark": { "do": "tint", "target": "equation.b", "ink": "multiply", "dur": 0.35, "mark": true },
+        "loop": { "do": "draw", "target": "hint", "dur": 0.9, "mark": true }
+      }
+    },
+    "skip": {
+      "shot": "whole", "say": "skip", "counts": true,
+      "actions": {
+        "count": { "do": "each", "target": "ring", "at": 0, "gap": 0.9, "wait": "voice",
+                   "let": { "n": "(i + 1) * b" },
+                   "then": {
+                     "look": { "do": "look", "target": "slice(dot, i * b, b)", "value": "counted" },
+                     "tag": { "do": "tag", "text": "tick", "dur": 0.8 },
+                     "say": { "do": "say", "line": "tick", "count": true },
+                     "total": { "do": "set", "target": "total", "text": "tick" }
+                   } },
+        "pulse": { "do": "pulse", "target": "total", "at": "end(count) + 0.25", "dur": 0.5 },
+        "answer": { "do": "appear", "target": "equation.ans", "text": "answerTotal", "at": "end(pulse)", "dur": 0.4, "wait": "voice" },
+        "said": { "do": "say", "line": "answer", "at": "end(answer)", "wait": "voice" }
+      },
+      "act": {
+        "input": "tap", "say": "do.skip", "targets": "ring", "pad": 12,
+        "then": "count", "interrupts": true, "done": ["pulse", "answer", "said"],
+        "misses": { "stroke": "do.touchGroup", "nothing": "do.touchGroup" }
+      }
+    }
+  },
+  "try": { "question": "question", "say": "do.tryIntro", "note": "do.tryNote" },
+
+  "wording": {
+    "en-US": {
+      "shared": {
+        "equation": { "text": "{a} × {b} = {ans}", "visual": true },
+        "unknown": { "text": "?", "visual": true },
+        "question": { "text": "{a} × {b} =", "visual": true },
+        "tick": "{n}",
+        "answerTotal": { "text": "{p}", "visual": true },
+        "groups": { "forms": { "one": "{n} group", "other": "{n} groups" } }
+      },
+      "everyday": {
+        "intro": "{a} times {b}. Let's see how!",
+        "make": "Make {groups:a}, with {b} in each.",
+        "same": "Every group has {b}. The groups are the same size.",
+        "skip": "Count on {b} for each group.",
+        "answer": { "text": "{a} times {b} is {p}!", "emphasis": "p" },
+        "do.intro": "Now let's do one together: {a} times {b}.",
+        "do.skip": "Touch each group to count on {b}.",
+        "do.touchGroup": "Touch a group to count it.",
+        "do.tryIntro": "Now you try one: {a} times {b}.",
+        "do.tryNote": { "text": "Your turn. Draw the groups and count.", "visual": true }
+      },
+      "formal": {
+        "intro": "{a} times {b}: {groups:a} of {b}.",
+        "make": "{a} equal groups of {b}.",
+        "same": "Each group has {b}, so the groups are equal.",
+        "skip": "Skip-count by {b}, once for each group.",
+        "answer": { "text": "{a} times {b} is {p}.", "emphasis": "p" }
+      }
+    }
+  }
+}
