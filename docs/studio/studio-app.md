@@ -49,12 +49,35 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
 - **Playing.** The window plays the selected document's watched steps with the engine's player and
   view (`ExplainerView`), for a problem chosen from the document's samples or typed within its
   parameters, in a chosen wording and language, paced or skippable. Lines are shown, not spoken.
+- **Shapes.** The Shape menu in the options chooses the shape of drawing area the document is
+  shown at (EXP-17). **Window**, the default, uses whatever area the pane gives the drawing. For a
+  document that declares the shapes it is made for (`areas`, the format reference, section 8.2),
+  the menu also lists each declared range's two ends and the ratio midway between them in ln r,
+  in increasing order and each once, labelled with its ratio and the layout chosen there, such as
+  "0.90 · tall". **Other Ratio…** previews a ratio typed in. A preview lays the player out for
+  the largest area of that ratio inside the pane, centred, and changes nothing in the document;
+  choosing another document returns to Window.
+- **Undeclared shapes.** When the window's shape, or a ratio previewed, is not one the document
+  declares, the document is shown as a player lays it out, at the nearest declared shape, and the
+  status line says so: "Window 0.45 is not a declared shape; shown as 0.60". Wherever the area
+  used does not fill the pane, it is framed with a thin line in the `line` role, so that the
+  margin is seen. **Declare This Shape** then widens the nearest range to include the shape, by
+  moving its nearest end, rounded outward to two decimals.
+- **Declare Shapes.** **Declare Shapes…** in the Shape menu opens a sheet with one row per
+  declared range: a menu of `stage` and the document's layouts, and fields for the least and
+  greatest ratio, with buttons to add and remove a row. For a document without a declaration the
+  rows start from a suggestion: one range for each run of ratios from 0.5 to 2.5, in steps of
+  0.05, at which the layout rule chooses the same layout for the first sample. Saving writes the
+  whole declaration as one patch through the same path as an agent's edit, so it is checked,
+  saved at once and one step of Edit > Undo; a patch that is refused leaves the sheet open with
+  the reason. Saving with no rows removes the declaration.
 - **Findings.** Below the player are the document's findings: the reader's, and what refuses any
   sample in any wording when the document is played. Each shows its line in the file and its JSON
   Pointer; clicking one on a step plays that step.
 - **The agent's edits.** An accepted patch is saved to the file at once, the window plays the step
   it was on again, and the edit is one step of Edit > Undo. A file changed by another program is
-  read again within a moment. The status line under the window says what the agent last asked.
+  read again within a moment. The status line under the window says what the agent last asked, and
+on its right the shape shown when it is a preview or is not declared.
 - **Connecting.** The toolbar's link button shows how to install the extension in Claude's desktop
   app and the command that adds the helper to Claude Code, with the path of the helper inside this
   copy of the app.
@@ -74,4 +97,5 @@ picture of its window to that path, for a session that cannot capture the screen
 ## Not built yet
 
 Narration (lines are shown, not spoken), do it with me, What if? and try one, export to video, a
-timeline or inspector, editing in the window, a document's own palette, and notarisation.
+timeline or inspector, editing in the window other than the Declare Shapes sheet, a document's own
+palette, and notarisation.

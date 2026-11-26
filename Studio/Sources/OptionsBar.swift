@@ -3,12 +3,15 @@ import ChalkScriptStudioCore
 import SwiftUI
 
 /// The problem the document is played with, chosen from its samples or typed within its
-/// parameters, and the wording, language and playback.
+/// parameters, and the wording, language, playback and the shape of drawing area it is shown at.
 struct OptionsBar: View {
     let model: StudioModel
     let document: StudioDocument
     @State private var drafts: [String: String] = [:]
     @State private var outside: String?
+    @State private var asksRatio = false
+    @State private var ratioText = ""
+    @State private var declaring = false
 
     private var doc: ExplainerDocument? { document.document }
 
@@ -42,6 +45,7 @@ struct OptionsBar: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .help("Paced plays as a learner sees it; skippable lets you jump to any step with the dots.")
+                shapeMenu
                 Spacer(minLength: 0)
             }
         }
@@ -50,6 +54,63 @@ struct OptionsBar: View {
         .padding(.vertical, 8)
         .onAppear(perform: resetDrafts)
         .onChange(of: model.playerSerial) { resetDrafts() }
+        .alert("Preview Another Ratio", isPresented: $asksRatio) {
+            TextField("Ratio", text: $ratioText)
+            Button("Preview") { previewTypedRatio() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The drawing area's width over its height, such as 0.75. The preview is not saved in the document.")
+        }
+        .sheet(isPresented: $declaring) { DeclareShapesSheet(model: model) }
+    }
+
+    /// Window, the shapes the document declares, another ratio, and declaring (EXP-17).
+    private var shapeMenu: some View {
+        Menu {
+            Toggle("Window", isOn: Binding(get: { model.shape == .window }, set: { _ in model.setShape(.window) }))
+            let previews = model.previewShapes
+            if !previews.isEmpty {
+                Divider()
+                ForEach(previews) { p in
+                    Toggle(p.label, isOn: Binding(get: { model.shape == .ratio(p.ratio) }, set: { _ in model.setShape(.ratio(p.ratio)) }))
+                }
+            }
+            Divider()
+            Button("Other Ratio…") {
+                ratioText = model.shownRatio.map(Shapes.text) ?? ""
+                asksRatio = true
+            }
+            Divider()
+            if model.canDeclareShownShape {
+                Button("Declare This Shape") { report(model.declareShownShape()) }
+            }
+            Button("Declare Shapes…") { declaring = true }
+                .disabled(doc == nil)
+        } label: {
+            Text(shapeTitle)
+        }
+        .fixedSize()
+        .help("The shape of drawing area the document is shown at: the window's, or a shape to preview")
+    }
+
+    private var shapeTitle: String {
+        switch model.shape {
+        case .window: "Shape: Window"
+        case let .ratio(r): "Shape: \(Shapes.text(r))"
+        }
+    }
+
+    private func previewTypedRatio() {
+        guard let r = Double(ratioText.trimmingCharacters(in: .whitespaces)), r > 0, r.isFinite else {
+            outside = "A ratio is a number greater than 0, such as 0.75."
+            return
+        }
+        outside = nil
+        model.setShape(.ratio(r))
+    }
+
+    private func report(_ refused: [DocumentFinding]) {
+        outside = refused.isEmpty ? nil : refused.prefix(3).map(\.message).joined(separator: "; ")
     }
 
     private var problem: [String: DocumentValue] { model.problem(for: document.name) }

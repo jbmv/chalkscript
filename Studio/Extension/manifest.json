@@ -37,7 +37,7 @@
     },
     {
       "name": "show",
-      "description": "Play a step in the studio window for the person to watch: the first step without step, a sample problem without problem. Returns a picture of the step's end only if image is true."
+      "description": "Play a step in the studio window for the person to watch: the first step without step, a sample problem without problem. With image true, returns a picture of the step's end at ratio (width/height) or the window's shape."
     },
     {
       "name": "guide",

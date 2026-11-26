@@ -262,17 +262,25 @@ document if it is not already shown, and answers once the step has started, not 
 | `doc` | yes | A name from `documents.list`. |
 | `step` | no | A step's name; without it, the first step of the problem. |
 | `problem` | no | The values of the document's `params`; without it, the studio's current problem for the document, or its first sample. |
+| `ratio` | no | A number greater than 0: the width over the height of the drawing area the picture is laid out for. Without it, the shape the window is showing. It changes only the picture, not the window. |
 | `image` | no | `true` to return a picture of the step's still (the format reference, section 18). |
 
 | Result | Required | Holds |
 |---|---|---|
 | `step` | yes | The name of the step shown. |
 | `index`, `count` | no | Its place among the problem's steps, from 1, and their number. |
-| `image` | no | Present only when asked for: `{"data": "<base64>", "mimeType": "image/png"}`. It should be small, about 480 by 260 points, because it is sent to a model. |
+| `image` | no | Present only when asked for: `{"data": "<base64>", "mimeType": "image/png"}`. It is small, because it is sent to a model: laid out for the area of the shape asked for whose longer side is 480 points, so never more than 480 by 480, at one pixel per point. |
+| `ratio`, `layout` | no | Present with `image`: the ratio of the area the picture was laid out for, to two decimals, and the layout drawn there. |
+
+A document that declares the shapes of area it is made for (the format reference, section 8.2) is
+pictured as a player lays it out: for a shape it does not declare, the picture is the largest area
+of the nearest declared shape inside the area asked for, and `ratio` is that shape's. Without
+`ratio` and before the window has given the drawing an area, the picture has the stage's shape.
+A `ratio` that is not a number greater than 0 is error `-32602`.
 
 A step that the problem does not have (its `when` is false) is error `5`, whose message names the
 steps the problem has. A problem outside the parameters' ranges is error `6`. Errors: `2`, `3`,
-`5`, `6`.
+`5`, `6`, `-32602`.
 
 ### 6.7 `guide.read`
 

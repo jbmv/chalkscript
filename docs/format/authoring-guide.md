@@ -23,9 +23,10 @@ redraws as soon as an edit is saved, so an image is rarely needed.
   next base without reading again.
 - `check {doc, pointer?}`: the findings, one per line. Counts include problems found by playing
   each sample, so an edit can be accepted and still report an error for some sample.
-- `show {doc, step?, problem?, image?}`: plays a step in the window. `problem` is an object of
-  parameter values, such as `{"a": 54, "b": 26}`. Ask for `image` only when the person cannot
-  see the window.
+- `show {doc, step?, problem?, ratio?, image?}`: plays a step in the window. `problem` is an
+  object of parameter values, such as `{"a": 54, "b": 26}`. Ask for `image` only when the person
+  cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
+  picture is laid out for, with a longer side of 480 points; without it, the window's shape.
 - `guide {topic?}`: this guide.
 
 Practice:
@@ -189,7 +190,8 @@ To change what a step says, edit its entry in the wording being played: for exam
 layout with `camera: true`; the camera moves before the step's timeline begins, and what lies
 outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
 `areaH`), `size`, `camera`, `band` and `let` replacements; the first that suits the window, by
-name, is used, and otherwise `stage`. The studio's window chooses the layout from its size.
+name, is used, and otherwise `stage`. The studio's window chooses the layout from its size, or
+from the shape chosen in its Shape menu.
 
 `areas` declares the shapes of drawing area the document is made for: a list of entries, each a
 `layout` (a layout's name, or `stage`) and a `ratio` `[min, max]`, the least and greatest ratio of
@@ -210,7 +212,10 @@ boundary as its range, and declare `stage` for the shapes it is scaled to fit. A
 The first declares for the first time, the second adds a range, the third widens one, the fourth
 removes one and the fifth removes the declaration. Removing the last entry with `remove /areas/0`
 leaves an empty `areas`, which is a `schema` error; remove `/areas` instead. A range that
-disagrees with the layouts is accepted with an `areas` warning.
+disagrees with the layouts is accepted with an `areas` warning, which means a declared range and
+a layout's `suits` disagree. The window previews each range at its two ends and its middle, and
+shows a window of another shape at the nearest declared shape. To see a shape, `show` with
+`ratio` and `image`.
 
 ## findings: what the codes mean
 

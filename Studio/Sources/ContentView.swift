@@ -116,7 +116,8 @@ struct RefusalView: View {
     }
 }
 
-/// What the agent last asked of the studio, and whether the studio can be reached.
+/// What the agent last asked of the studio, whether the studio can be reached, and the shape the
+/// document is shown at when it is a preview or is not one the document declares.
 struct StatusLine: View {
     let model: StudioModel
 
@@ -127,6 +128,9 @@ struct StatusLine: View {
                 .frame(width: 7, height: 7)
             Text(status).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 0)
+            if let shape = model.shapeStatus {
+                Text(shape).lineLimit(1).truncationMode(.head)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
