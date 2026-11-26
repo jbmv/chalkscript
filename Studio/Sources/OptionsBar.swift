@@ -49,10 +49,18 @@ struct OptionsBar: View {
                 .help("Paced plays as a learner sees it; skippable lets you jump to any step with the dots.")
                 Spacer(minLength: 0)
             }
-            HStack(spacing: 10) {
-                viewOnly
-                Spacer(minLength: 0)
-                madeFor
+            // One row where the window is wide enough; otherwise the ticks take a row of their
+            // own, so that nothing is squeezed or wrapped.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    viewOnly
+                    Spacer(minLength: 10)
+                    madeFor(alignment: .trailing)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    viewOnly
+                    madeFor(alignment: .leading)
+                }
             }
         }
         .controlSize(.small)
@@ -75,6 +83,7 @@ struct OptionsBar: View {
             previewMenu
             arrangementPicker
         }
+        .fixedSize()
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
         .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.5)))
@@ -107,8 +116,8 @@ struct OptionsBar: View {
     }
 
     /// The shapes the document is made for: the one control here that changes the document.
-    private var madeFor: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+    private func madeFor(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
             HStack(spacing: 8) {
                 Text("Explainer is made for:")
                 ForEach(Preset.allCases) { preset in
@@ -124,6 +133,7 @@ struct OptionsBar: View {
                 .italic()
                 .foregroundStyle(.secondary)
         }
+        .fixedSize()
         .disabled(doc == nil)
         .help("Tick the shapes of drawing area this explainer is meant to be shown in. Edit > Undo takes a change back. In any other shape, a player shows it at the nearest ticked shape, scaled and centred.")
     }
