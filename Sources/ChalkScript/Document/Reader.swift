@@ -245,7 +245,7 @@ final class DocumentChecker {
             error(.schema, p, "'\(base)' is a neutral role, which has no \(parts[1])")
             return
         }
-        if Self.arithmeticRoles.contains(base) && !roles.contains(base) { used.append(("components.arithmetic", p)) }
+        if Self.arithmeticRoles.contains(base) { used.append(("components.arithmetic", p)) }
         if !roles.contains(base) && !Self.arithmeticRoles.contains(base) { error(.ref, p, "there is no role '\(base)'") }
     }
 
@@ -350,15 +350,18 @@ final class DocumentChecker {
         let x = Array(a)
         let y = Array(b)
         if abs(x.count - y.count) > 1 { return 2 }
-        var prev = Array(0...y.count)
-        for i in x.indices {
-            var row = [i + 1] + Array(repeating: 0, count: y.count)
-            for j in y.indices {
-                row[j + 1] = min(prev[j + 1] + 1, row[j] + 1, prev[j] + (x[i] == y[j] ? 0 : 1))
+        // Optimal string alignment: an edit, or two neighbouring letters swapped, counts 1.
+        var d = Array(repeating: Array(repeating: 0, count: y.count + 1), count: x.count + 1)
+        for i in 0...x.count { d[i][0] = i }
+        for j in 0...y.count { d[0][j] = j }
+        for i in stride(from: 1, through: x.count, by: 1) {
+            for j in stride(from: 1, through: y.count, by: 1) {
+                let cost = x[i - 1] == y[j - 1] ? 0 : 1
+                d[i][j] = min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost)
+                if i > 1, j > 1, x[i - 1] == y[j - 2], x[i - 2] == y[j - 1] { d[i][j] = min(d[i][j], d[i - 2][j - 2] + 1) }
             }
-            prev = row
         }
-        return prev[y.count]
+        return d[x.count][y.count]
     }
 
     func checkNames(_ n: ExpressionNode, _ path: String, _ scope: SlotScope) {

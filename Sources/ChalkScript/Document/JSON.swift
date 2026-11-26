@@ -213,7 +213,8 @@ private struct JSONParser {
         }
         while true {
             skipSpace()
-            guard i < bytes.count, bytes[i] == UInt8(ascii: "\"") else { throw fail("expected a key in double quotes") }
+            guard i < bytes.count else { throw fail("the text ends inside an object") }
+            guard bytes[i] == UInt8(ascii: "\"") else { throw fail("expected a key in double quotes") }
             let keyAt = i
             let key = try string()
             if o[key] != nil { throw fail("duplicate key \"\(key)\"", at: keyAt, path: path) }
