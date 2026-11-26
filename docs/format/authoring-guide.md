@@ -190,8 +190,22 @@ To change what a step says, edit its entry in the wording being played: for exam
 layout with `camera: true`; the camera moves before the step's timeline begins, and what lies
 outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
 `areaH`), `size`, `camera`, `band` and `let` replacements; the first that suits the window, by
-name, is used, and otherwise `stage`. The studio's window chooses the layout from its size, or
-from the shape chosen in its Shape menu.
+name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the
+pane gives the drawing, or from the ratio chosen in its Preview menu.
+
+The document holds the drawing and its words only. The question, the line and the controls round
+the drawing are arranged by the app that plays the document, which a document cannot know; the
+studio's Arrangement menu only previews what an app might do. Arrange a drawing within the area
+it is laid out for, and assume nothing about what lies outside it.
+
+The studio names three ranges of shape, its presets, each with the ratio it previews and that you
+arrange for: **Tall**, 0.6 to 0.9, previewed at 0.75; **Square**, 0.9 to 1.35, at 1.1; **Wide**,
+1.35 to 2.2, at 1.78. Square is the common case, since an app that puts the caption beside or
+below the drawing leaves an area about as wide as it is high. A player never crops or stretches:
+inside a range the drawing is scaled and centred with margins, so a layout made at the nominal
+ratio is seen with margins at the range's ends. When the person is previewing a preset, arrange
+within the frame the window shows, and check the shape with `show` and `ratio` set to the
+preset's nominal ratio. The format has no presets; `areas` stores them as ranges.
 
 `areas` declares the shapes of drawing area the document is made for: a list of entries, each a
 `layout` (a layout's name, or `stage`) and a `ratio` `[min, max]`, the least and greatest ratio of
@@ -213,9 +227,13 @@ The first declares for the first time, the second adds a range, the third widens
 removes one and the fifth removes the declaration. Removing the last entry with `remove /areas/0`
 leaves an empty `areas`, which is a `schema` error; remove `/areas` instead. A range that
 disagrees with the layouts is accepted with an `areas` warning, which means a declared range and
-a layout's `suits` disagree. The window previews each range at its two ends and its middle, and
-shows a window of another shape at the nearest declared shape. To see a shape, `show` with
-`ratio` and `image`.
+a layout's `suits` disagree; when you change a range, change the `suits` of the layouts on each
+side of it in the same patch. A preset given a layout of its own needs a new entry in `layouts`,
+usually a copy of the layout it was drawn in, and its range in `areas`. The person can do all of
+this in the studio's Layouts sheet, which writes `areas`, the new layout and each `suits` as one
+patch; after it, the new layout is the same as the one it was copied from until you change it.
+The window shows an area of a shape the document is not made for at the nearest declared shape.
+To see a shape, `show` with `ratio` and `image`.
 
 ## findings: what the codes mean
 
