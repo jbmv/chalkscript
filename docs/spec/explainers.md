@@ -14,6 +14,8 @@ ChalkScript makes step-by-step visual explanations, called explainers. This docu
 
 - **Explainer:** a sequence of steps that shows a method or an idea on one problem.
 - **Template:** an explainer written once and filled from a problem's values (EXP-2).
+- **Document:** one file that holds an explainer in the explainer document format (EXP-19).
+- **Wording:** what an explainer shows and says, as text. A document may hold several wordings, each in several languages (EXP-10, EXP-19).
 - **Style:** a set of design values that every explainer shares and that can be replaced as a whole: colours, easing curves, default durations, and the camera's defaults, including how strongly the rest of the picture is dimmed (EXP-6, EXP-19). A style is not a template.
 - **Step:** one change to the picture, with one spoken line.
 - **Learner:** the person the explainer is for.
@@ -288,7 +290,7 @@ An explainer is a vector drawing, rendered and animated on the device from the t
 
 Export of an explainer to a video file is not built.
 
-## EXP-19. Motion and style are data, in one documented format
+## EXP-19. An explainer is a document in one documented format
 
 status: draft
 governs: docs/format/explainer-1.0.md, docs/format/explainer-1.0.schema.json, Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScriptExplainers/Resources/subtraction-motion.json

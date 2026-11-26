@@ -4,3 +4,4 @@
 xcuserdata/
 DerivedData/
 .kyosei-report.json
+__pycache__/
