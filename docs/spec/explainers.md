@@ -301,7 +301,7 @@ An explainer is a document in one documented format, the explainer document form
 
 A document is read strictly. An unknown key is listed with its path and ignored. A missing required key, a value of the wrong type, an unknown verb or kind, and a reference to nothing are errors, listed with their paths, and a document with an error is not played. A player refuses a document that requires a capability it does not implement, and names the capability.
 
-The package does not yet read documents. Today it reads two kinds of JSON file: the style file, which is also the format's standard style, and a motion file for one explainer. In these two files every value is optional. A missing value takes its default, an unknown key is ignored, and an unreadable value takes its default. Each such case is listed with its path, and none stops the file from being read.
+The package reads a document, resolves it for a problem's values, applies a patch to it and plays its watched steps; it does not yet play the parts a viewer takes part in. It also reads two kinds of JSON file that predate documents: the style file, which is also the format's standard style, and a motion file for one explainer. In these two files every value is optional. A missing value takes its default, an unknown key is ignored, and an unreadable value takes its default. Each such case is listed with its path, and none stops the file from being read.
 
 The style file (`style.json`):
 
@@ -332,7 +332,7 @@ A document holds what a motion file holds, so motion files are not part of the f
 - A missing, unknown or unreadable value is listed with its path.
 - The bundled files name nothing unknown and nothing unreadable.
 
-*In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue` read the style and motion files. `ExplainerMotion.bundled` reads a motion file from the bundle of the target that holds the explainer. `ChalkScript` bundles `style.json`, and `ChalkScriptExplainers` bundles `subtraction-motion.json`, the only motion file; the other explainers hold their timings in code. No reader or player of documents is built yet.
+*In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue` read the style and motion files. `ExplainerMotion.bundled` reads a motion file from the bundle of the target that holds the explainer. `ChalkScript` bundles `style.json`, and `ChalkScriptExplainers` bundles `subtraction-motion.json`, the only motion file; the other explainers hold their timings in code. `ExplainerDocument` reads and resolves a document and applies a patch to it, `DocumentExplainer` plays its watched steps in the existing players, and `chalkscript-render` writes a document's still pictures to PNG files.
 
 ## EXP-1. An explainer has a revision, which changes when what it shows changes
 
