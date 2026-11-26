@@ -57,6 +57,14 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   "0.90 · tall". **Other Ratio…** previews a ratio typed in. A preview lays the player out for
   the largest area of that ratio inside the pane, centred, and changes nothing in the document;
   choosing another document returns to Window.
+- **Arrangement.** The Arrangement menu beside the Shape menu chooses how the engine's screen is
+  arranged round the drawing, as an app that plays the document would choose it (EXP-17):
+  **Automatic**, the default, puts the caption and controls below the drawing in a pane taller
+  than wide and in a column beside it in a wider one; **Caption Below** and **Caption Beside**
+  keep that arrangement whatever the pane's shape. The drawing area changes with it, so a
+  document that lays itself out for its area is laid out again, and the Shape menu's preview is
+  taken inside the new area. The arrangement is not part of the document and is kept when another
+  document is chosen.
 - **Undeclared shapes.** When the window's shape, or a ratio previewed, is not one the document
   declares, the document is shown as a player lays it out, at the nearest declared shape, and the
   status line says so: "Window 0.45 is not a declared shape; shown as 0.60". Wherever the area

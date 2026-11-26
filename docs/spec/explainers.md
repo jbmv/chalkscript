@@ -264,18 +264,19 @@ An explainer may have a version for a person helping the learner. It uses the sa
 status: draft
 governs: Sources/ChalkScript/Player/ScreenLayout.swift, Sources/ChalkScript/Player/GuidedView.swift
 
-The screen is arranged by the space it is given, not by the device. In a tall space the question is at the top, the drawing in the middle, and the line and controls at the bottom. In a wide space one column holds the question, line and controls, on the side that the writing hand covers. The drawing takes the remaining space, and its size is given to the explainer.
+The arrangement of the question, line and controls round the drawing is the app's choice, not the document's. There are three. With the caption below, the question is at the top, the drawing in the middle, and the line and controls at the bottom. With the caption beside, one column holds the question, line and controls, on the side that the writing hand covers. Automatic, the default, is chosen by the space given, not by the device: the caption below in a tall space and beside in a wide one. The drawing takes the remaining space, and its size is given to the explainer.
 
-**Why:** the drawing is where the learner works, so it gets the space. A resting palm must not press a control.
+**Why:** the drawing is where the learner works, so it gets the space. A resting palm must not press a control. How the screen sits among an app's own controls is for the app to decide, and a document cannot know it.
 
 **Acceptance:**
-- The arrangement is chosen from the space given. Both arrangements fit without scrolling.
+- Automatic is chosen from the space given. Each arrangement fits without scrolling unless the space is too short for the drawing, and then scrolls.
+- The drawing area the screen gives for a space and an arrangement can be known before the screen is laid out.
 - A drawing not laid out for its area is scaled to fit and centred. It is never cropped or stretched.
-- A document may declare the shapes of area it is made for; in another area it is laid out for the nearest declared shape, scaled and centred.
+- A document may declare the shapes of area it is made for; in another area it is laid out for the nearest declared shape, and drawn within that shape, scaled and centred.
 - Handedness is right or left, and right by default.
 - While a touch is on the drawing, and for one second after, the column's controls ignore presses.
 
-*In the package:* `ScreenLayout`, `WritingHand` and `PalmGuard`. Subtraction is laid out again for a tall area; the other explainers are scaled to fit.
+*In the package:* `ScreenLayout`, `ScreenArrangement` (`automatic`, `captionBelow`, `captionBeside`), `ExplainerScreen.drawingArea`, `WritingHand` and `PalmGuard`. Subtraction is laid out again for a tall area; the other explainers are scaled to fit.
 
 ## EXP-12. Explainers are drawn at run time from the template's model
 

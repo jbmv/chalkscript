@@ -3,10 +3,12 @@ import ChalkScriptStudioCore
 import SwiftUI
 
 /// The problem the document is played with, chosen from its samples or typed within its
-/// parameters, and the wording, language, playback and the shape of drawing area it is shown at.
+/// parameters, and the wording, language, playback, the shape of drawing area it is shown at and
+/// the arrangement of the screen round the drawing.
 struct OptionsBar: View {
     let model: StudioModel
     let document: StudioDocument
+    @Binding var arrangement: ScreenArrangement
     @State private var drafts: [String: String] = [:]
     @State private var outside: String?
     @State private var asksRatio = false
@@ -46,6 +48,7 @@ struct OptionsBar: View {
                 .fixedSize()
                 .help("Paced plays as a learner sees it; skippable lets you jump to any step with the dots.")
                 shapeMenu
+                arrangementPicker
                 Spacer(minLength: 0)
             }
         }
@@ -91,6 +94,18 @@ struct OptionsBar: View {
         }
         .fixedSize()
         .help("The shape of drawing area the document is shown at: the window's, or a shape to preview")
+    }
+
+    /// The arrangement is the app's, not the document's, so it is kept from one document to the
+    /// next (EXP-17).
+    private var arrangementPicker: some View {
+        Picker("Arrangement", selection: $arrangement) {
+            Text("Automatic").tag(ScreenArrangement.automatic)
+            Text("Caption Below").tag(ScreenArrangement.captionBelow)
+            Text("Caption Beside").tag(ScreenArrangement.captionBeside)
+        }
+        .fixedSize()
+        .help("How the screen is arranged round the drawing, as an app that plays the document chooses it")
     }
 
     private var shapeTitle: String {

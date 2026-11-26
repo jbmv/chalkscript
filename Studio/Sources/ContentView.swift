@@ -72,14 +72,15 @@ struct DocumentList: View {
 /// The shown document: its options, its player and its findings.
 struct DocumentPane: View {
     let model: StudioModel
+    @State private var arrangement: ScreenArrangement = .automatic
 
     var body: some View {
         VStack(spacing: 0) {
             if let shown = model.selected {
-                OptionsBar(model: model, document: shown)
+                OptionsBar(model: model, document: shown, arrangement: $arrangement)
                 Divider()
                 if let player = model.player {
-                    ExplainerView(player: player, labels: .studio)
+                    ExplainerView(player: player, labels: .studio, arrangement: arrangement)
                         .id(model.playerSerial)
                         .padding(16)
                 } else {
