@@ -167,11 +167,11 @@ struct ColourVisionTests {
             for b in shown[(i + 1)...] {
                 let c = Self.closest(Self.shown(a, p), Self.shown(b, p))
                 #expect(c.distance >= Self.minimum,
-                    "\(a.token) \(c.pair.0) and \(b.token) \(c.pair.1) are \(c.distance) apart with \(c.seenWith) (\(dark ? "dark" : "light"))")
+                    "\(a) \(c.pair.0) and \(b) \(c.pair.1) are \(c.distance) apart with \(c.seenWith) (\(dark ? "dark" : "light"))")
             }
             let neutral = Self.closest(Self.shown(a, p), [p.pencil, p.ink])
             #expect(neutral.distance >= Self.minimum,
-                "\(a.token) \(neutral.pair.0) and the pencil or text \(neutral.pair.1) are \(neutral.distance) apart with \(neutral.seenWith) (\(dark ? "dark" : "light"))")
+                "\(a) \(neutral.pair.0) and the pencil or text \(neutral.pair.1) are \(neutral.distance) apart with \(neutral.seenWith) (\(dark ? "dark" : "light"))")
         }
     }
 
@@ -187,7 +187,7 @@ struct ColourVisionTests {
         #expect(c.distance >= Self.minimum)
         for op in ops {
             let neutral = Self.closest(Self.shown(op, p), [p.pencil, p.ink])
-            #expect(neutral.distance >= Self.minimum, "\(op.token) and the pencil or text are \(neutral.distance) apart")
+            #expect(neutral.distance >= Self.minimum, "\(op) and the pencil or text are \(neutral.distance) apart")
         }
     }
 
@@ -201,11 +201,11 @@ struct ColourVisionTests {
             for b in all[(i + 1)...] {
                 let c = Self.closest(Self.shown(a, p), Self.shown(b, p))
                 #expect(c.distance >= Self.minimum,
-                    "\(a.token) \(c.pair.0) and \(b.token) \(c.pair.1) are \(c.distance) apart with \(c.seenWith) (\(dark ? "dark" : "light"))")
+                    "\(a) \(c.pair.0) and \(b) \(c.pair.1) are \(c.distance) apart with \(c.seenWith) (\(dark ? "dark" : "light"))")
             }
             let neutral = Self.closest(Self.shown(a, p), [p.pencil, p.ink])
             #expect(neutral.distance >= Self.minimum,
-                "\(a.token) and the pencil or text are \(neutral.distance) apart with \(neutral.seenWith) (\(dark ? "dark" : "light"))")
+                "\(a) and the pencil or text are \(neutral.distance) apart with \(neutral.seenWith) (\(dark ? "dark" : "light"))")
         }
     }
 }

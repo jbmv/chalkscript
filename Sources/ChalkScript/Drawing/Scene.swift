@@ -52,7 +52,7 @@ public struct Scene: Equatable, Sendable {
     /// How many things are marked at this moment, to hold EXP-5's limit (at most two, three when
     /// a step compares two amounts): the marked or ringed digit; a cross-out being drawn; a
     /// trade's arrow or box being drawn; the counted pieces and their counts. A finished
-    /// cross-out, arrow or box is the page's record, as on the child's own paper, and no longer a
+    /// cross-out, arrow or box is the page's record, as on the learner's own paper, and no longer a
     /// mark.
     public var markedCount: Int {
         var digit = false
@@ -157,7 +157,7 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
         case text(String, at: CGPoint, style: DrawingText)
         /// A ruled line of a chart drawn on the worksheet, in pencil.
         case rule(from: CGPoint, to: CGPoint)
-        /// A line the child drew (EXP-14), through `points`: in the colour of the action it was
+        /// A line the learner drew (EXP-14), through `points`: in the colour of the action it was
         /// read as (a cross-out in take-away's, a broken ten in the trade's), or in pencil while
         /// it is being drawn (`op` nil).
         case ink([CGPoint], op: ExplainerOperation?)
@@ -178,18 +178,18 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
 public enum DrawingText: Equatable, Sendable {
     /// A place's name under the drawing ("tens", "ones"): small, in the label colour.
     case label
-    /// A chart's heading ("Tens", "Ones"): the child's face, bold, in the text colour.
+    /// A chart's heading ("Tens", "Ones"): the display face, bold, in the text colour.
     case heading
-    /// A worked form under the total ("40 + 7" under 47): the child's face, in the label colour.
+    /// A worked form under the total ("40 + 7" under 47): the display face, in the label colour.
     case worked
-    /// A problem written large for the child to try (try one): the child's face, bold.
+    /// A problem written large for the learner to try (try one): the display face, bold.
     case problem
-    /// A note under a problem to try: the child's face, in the label colour.
+    /// A note under a problem to try: the display face, in the label colour.
     case note
 }
 
 /// A number written large across the top, one digit at a time (the tens-and-ones explainers):
-/// each digit is set centred on its own x, as the child writes the number, with its digits
+/// each digit is set centred on its own x, as the learner writes the number, with its digits
 /// together. A digit to be written has a dashed slot; the digit a step reads or writes is ringed
 /// in pencil with its place's name under the ring. The ring is centred on the digit's ink as
 /// drawn, not on the box the face reserves for it, or on the slot when the digit is to be

@@ -5,13 +5,13 @@ import Testing
 
 // The explainer screen (EXP-17). Its arrangement in the space it is given,
 // the question apart from the drawing, the drawing area given to the explainer, and the palm
-// rule. The sizes are the explainer's space in a preview app (the screen less the status
-// bar, the navigation bar, the preview's Jump to and its margins) on the iPad mini (744 by 1133
+// rule. The sizes are the explainer's space in an authoring app (the screen less the status
+// bar, the navigation bar, the authoring app's Jump to and its margins) on the iPad mini (744 by 1133
 // points) and the 13-inch iPad Pro (1032 by 1376).
 
 @MainActor
 struct ScreenTests {
-    /// The explainer's space in the preview on a screen of `w` by `h` points: 16-point margins,
+    /// The explainer's space in the authoring app on a screen of `w` by `h` points: 16-point margins,
     /// a 24-point status bar, a 50-point navigation bar and the 44-point Jump to row.
     static func space(_ w: CGFloat, _ h: CGFloat) -> CGSize { CGSize(width: w - 32, height: h - 24 - 50 - 44 - 32) }
 

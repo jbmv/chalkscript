@@ -261,9 +261,9 @@ struct SubtractionMotionTests {
         #expect(parent.events.filter { if case .say = $0.action { true } else { false } }.count == 3)
     }
 
-    /// The parent's count, at every edge of the range, takes at most half the child's
+    /// The parent's count, at every edge of the range, takes at most half the learner's
     /// time, from the first copy to the answer, and every gap between counts is at most half the
-    /// child's; it still ends on its still picture and starts from the step before (EXP-11).
+    /// learner's; it still ends on its still picture and starts from the step before (EXP-11).
     @Test(arguments: Fixture.edges) func theParentsCountIsAtLeastTwiceAsFast(a: Int, b: Int) {
         let child = Fixture.explainer(a, b, .child)
         let parent = Fixture.explainer(a, b, .parent)

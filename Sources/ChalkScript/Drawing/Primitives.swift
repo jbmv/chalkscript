@@ -77,7 +77,7 @@ public struct Typeset: Equatable, Sendable {
     public var at: CGPoint
     public var size: Double
     public var ink: Ink
-    /// The child face (true) or the body face.
+    /// The display face (true) or the body face.
     public var display: Bool
     public var anchor: Anchor
 

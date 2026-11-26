@@ -43,7 +43,7 @@ struct StyleAndMotionFileTests {
     }
 
     /// Subtraction's pictures, on the stage and laid out with the camera: every step's still and
-    /// the middle of each step's motion, child and parent, with and without a trade.
+    /// the middle of each step's motion, learner and parent, with and without a trade.
     static func subtractionScenes() -> [Scene] {
         var out: [Scene] = []
         for (a, b) in [(54, 26), (83, 12), (90, 89)] {
@@ -57,7 +57,7 @@ struct StyleAndMotionFileTests {
                     }
                 }
             }
-            // A line the child drew, in do it with me.
+            // A line the learner drew, in do it with me.
             let e = SubtractionExplainer(problem: try! SubtractionProblem(a, minus: b), version: .child, wording: Fixture.guidedWording())
             let k = e.steps.firstIndex(of: .takeTens) ?? e.steps.firstIndex(of: .count)!
             let s = e.state(after: k - 1)

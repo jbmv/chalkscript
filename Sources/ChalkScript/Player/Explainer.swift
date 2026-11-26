@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 /// The child or the parent version of an explainer (EXP-1, EXP-9): the same template and steps,
-/// with the child's or the parent's wording. The parent can skip ahead: the progress dots are
+/// with the learner's or the parent's wording. The parent can skip ahead: the progress dots are
 /// controls, and Next finishes a step that is playing. The child's version is paced (EXP-8).
 public enum ExplainerVersion: String, CaseIterable, Sendable {
     case child
@@ -12,12 +12,12 @@ public enum ExplainerVersion: String, CaseIterable, Sendable {
     public var dotsAreControls: Bool { self == .parent }
 
     /// EXP-9: in the parent version Next stays available while a step plays and finishes it at
-    /// once; in the child's no step is cut short (EXP-8).
+    /// once; in the learner's no step is cut short (EXP-8).
     public var nextFinishesStep: Bool { self == .parent }
 }
 
-/// One line, shown under the drawing and spoken (EXP-10): a string-library entry filled with the
-/// step's values. `key` names the entry, so a recorded clip of it can be found later.
+/// One line, shown under the drawing and spoken (EXP-10): a wording entry filled with the
+/// step's values. `key` names the entry, the wording entry the line was filled from.
 public struct Line: Equatable, Sendable {
     public var key: String
     public var display: String

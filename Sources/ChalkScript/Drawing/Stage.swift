@@ -1,9 +1,9 @@
 import CoreText
 import SwiftUI
 
-/// The faces an explainer is set in (EXP-13): the app's child face for the problem, counts and
-/// lines, its body face for small labels. The app passes its own (Andika); the defaults are the
-/// system's rounded face, for tests and previews. `displayFace` is the child face as a Core Text
+/// The faces an explainer is set in (EXP-13): the display face for the problem, counts and
+/// lines, its body face for small labels. The app passes its own; the defaults are the
+/// system's rounded face, for tests and previews. `displayFace` is the display face as a Core Text
 /// font, for a number written large (`Numeral`), which is drawn as the face's outlines so that
 /// the ring round a digit can be centred on the digit's ink.
 public struct ExplainerFonts: Sendable {

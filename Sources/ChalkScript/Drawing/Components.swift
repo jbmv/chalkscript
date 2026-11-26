@@ -61,9 +61,9 @@ public enum Components {
     public static let headingSize: Double = 24
     public static let workedSize: Double = 28
 
-    // MARK: the child's marks (EXP-14) and try one
+    // MARK: the learner's marks (EXP-14) and try one
 
-    /// The child's own lines: kept in an action's colour, or in pencil while drawn.
+    /// The learner's own lines: kept in an action's colour, or in pencil while drawn.
     public static let inkWidth: CGFloat = 3.2
     public static let liveInkWidth: CGFloat = 3.2
     /// How long a line that was not read as a mark takes to fade away.
@@ -164,7 +164,7 @@ public enum Components {
     }
 
     /// The cross-out over `piece`: one line from below its left edge to above its right edge,
-    /// reaching `pad` past it, as a child crosses out on paper.
+    /// reaching `pad` past it, as a learner crosses out on paper.
     public static func crossOut(over piece: CGRect, pad: CGFloat) -> (from: CGPoint, to: CGPoint) {
         (CGPoint(x: piece.minX - pad, y: piece.maxY + pad), CGPoint(x: piece.maxX + pad, y: piece.minY - pad))
     }

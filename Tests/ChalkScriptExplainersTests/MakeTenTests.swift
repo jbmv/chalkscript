@@ -84,7 +84,7 @@ struct MakeTenTests {
     }
 
     /// EXP-3: the other two problems are the same kind (bigger number first or second as the
-    /// child's), never the child's problem or its total, and the two differ in total.
+    /// learner's), never the learner's problem or its total, and the two differ in total.
     @Test func theOtherProblemsAreOfTheSameKind() {
         for p in MakeTenProblem.all {
             let (one, two) = (p.isomorph(1), p.isomorph(2))
@@ -222,7 +222,7 @@ struct MakeTenTests {
         #expect(e.begin(k, s).tally == Tally(0, of: 2, op: .add))
         // A drag that starts on no dot moves nothing.
         #expect(e.read(.began(CGPoint(x: 800, y: 300)), step: k, s).state.dragging == nil)
-        // The first dot, not the last: whichever the child takes.
+        // The first dot, not the last: whichever the learner takes.
         let start = MT.center(top: false, 0)
         s = e.read(.began(start), step: k, s).state
         #expect(s.dragging?.dot == 0)
@@ -251,7 +251,7 @@ struct MakeTenTests {
         guard case let .say(made, true)? = last.motion?.script.events.last?.action else { Issue.record("no line at the end"); return }
         #expect(made.display == "8 and 2 make 10!")
         #expect(e.picture(last.state, marking: k).element("work.1")!.opacity == 1)
-        // The count then counts the dots the child left, in the order touched.
+        // The count then counts the dots the learner left, in the order touched.
         let c = step(e, .count)
         var t = last.state
         #expect(e.read(touch(MT.center(top: false, 1)), step: c, t).note == .miss(e.doLine(.tenFirst)))
@@ -272,7 +272,7 @@ struct MakeTenTests {
         #expect(t.countedOnes == [5, 1, 2, 3, 4])
     }
 
-    /// The child's whole do it with me through the player, with a finger's drags, then try one.
+    /// The learner's whole do it with me through the player, with a finger's drags, then try one.
     @MainActor @Test func thePlayerRunsWatchDoItWithMeAndTryOne() {
         let voice = RecordingVoice()
         let lesson = MakeTenExplainer.lesson(watching: try! MakeTenProblem(8, plus: 7), wording: MakeTenFixture.wording())
@@ -364,7 +364,7 @@ struct MakeTenTests {
         #expect(c.distance >= ColourVisionTests.minimum)
         for op in ops {
             let neutral = ColourVisionTests.closest(ColourVisionTests.shown(op, p), [p.pencil, p.ink])
-            #expect(neutral.distance >= ColourVisionTests.minimum, "\(op.token) and the pencil or text are \(neutral.distance) apart")
+            #expect(neutral.distance >= ColourVisionTests.minimum, "\(op) and the pencil or text are \(neutral.distance) apart")
         }
     }
 

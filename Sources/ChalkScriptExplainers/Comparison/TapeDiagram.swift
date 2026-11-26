@@ -18,7 +18,7 @@ public struct TapeDiagramProblem: Equatable, Hashable, Sendable {
     public let a: Int
     public let b: Int
     /// Which story and which pair of names tell it: indices the wording takes from its own lists
-    /// (string-library entries), wrapping round.
+    /// (wording entries), wrapping round.
     public let story: Int
     public let names: Int
     public let word: CompareWord
@@ -80,7 +80,7 @@ public struct TapeDiagramProblem: Equatable, Hashable, Sendable {
     }
 }
 
-/// The tape diagram's lines (EXP-10), each a string-library entry the app fills with the
+/// The tape diagram's lines (EXP-10), each a wording entry the app fills with the
 /// problem's amounts, names and story.
 public enum TapeLine: Equatable, Hashable, Sendable {
     /// Before the first step of watch, and of do it with me.
@@ -92,11 +92,11 @@ public enum TapeLine: Equatable, Hashable, Sendable {
     case compare
     case equation
     case count
-    /// Do it with me: what the child is asked to do.
+    /// Do it with me: what the learner is asked to do.
     case doCompare
     case doEquation
     case doCount
-    /// Said once the child has drawn the shorter bar on, and once the take-away card is chosen.
+    /// Said once the learner has drawn the shorter bar on, and once the take-away card is chosen.
     case compared
     case chose
     /// A number reached, counting on (spoken only).
@@ -125,7 +125,7 @@ public enum TapeLine: Equatable, Hashable, Sendable {
     case goalExactlyMet(Int)
     case goalFlip(CompareWord)
     case goalFlipMet(CompareWord)
-    /// Try one: the story the child tries alone.
+    /// Try one: the story the learner tries alone.
     case tryIntro
 
     /// Every line a problem's explainer can say, for the app's checks.
@@ -144,7 +144,7 @@ public enum TapeLine: Equatable, Hashable, Sendable {
     }
 }
 
-/// Text the tape diagram draws, as the app fills it from the string library.
+/// Text the tape diagram draws, as the app fills it from its wording.
 public enum TapeText: Equatable, Sendable {
     /// The story's two sentences across the top.
     case story
@@ -166,7 +166,7 @@ public enum TapeText: Equatable, Sendable {
     case tryNote(Int)
 }
 
-/// The tape diagram's wording, from the string library.
+/// The tape diagram's wording.
 public struct TapeDiagramWording: Sendable {
     public var line: @Sendable (TapeLine, TapeDiagramProblem) -> Line
     public var text: @Sendable (TapeText, TapeDiagramProblem) -> String
@@ -185,7 +185,7 @@ public struct TapeDiagramWording: Sendable {
 }
 
 /// The tape diagram's picture: what is drawn, and for the child version, the cards and the
-/// number line the child works on.
+/// number line the learner works on.
 public struct TapeState: Equatable, Sendable {
     public var bars = false
     public var gap = false
@@ -287,7 +287,7 @@ public struct TapeDiagramExplainer: Sendable {
     }
 
     /// The compare step's phases, from where the dashed line is drawn (watched) or already there
-    /// (the child drew it on).
+    /// (the learner drew it on).
     struct GapTimes {
         let grow: Double
         var brace: Double { grow + T.gapGrow }
@@ -310,7 +310,7 @@ public struct TapeDiagramExplainer: Sendable {
             end = fill + T.pulse
         }
 
-        /// One jump the child makes with a touch; the last also finishes the count.
+        /// One jump the learner makes with a touch; the last also finishes the count.
         init(oneHop last: Bool, joins: Bool) {
             hops = [0]
             if last {

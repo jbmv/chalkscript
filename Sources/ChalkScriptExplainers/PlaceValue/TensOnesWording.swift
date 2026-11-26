@@ -3,7 +3,7 @@ import Foundation
 
 /// The lines of a tens-and-ones explainer (EXP-10), one per step plus the counts, the digits
 /// written, the tens and ones put together, and the answer. The app turns each into its
-/// string-library entry, filled with the question's values; which entry depends on the question
+/// wording entry, filled with the question's values; which entry depends on the question
 /// (reading a number, or writing one) and the version.
 public enum TensOnesLine: Equatable, Hashable, Sendable {
     /// Before the first step: "47. Let's find its tens and ones!" or "What number do these make?"
@@ -51,7 +51,7 @@ public enum TensOnesLine: Equatable, Hashable, Sendable {
     }
 }
 
-/// A tens-and-ones explainer's wording, from the string library, for one version (child or
+/// A tens-and-ones explainer's wording, for one version (child or
 /// parent).
 public struct TensOnesWording: Sendable {
     public var line: @Sendable (TensOnesLine, TensOnesQuestion) -> Line

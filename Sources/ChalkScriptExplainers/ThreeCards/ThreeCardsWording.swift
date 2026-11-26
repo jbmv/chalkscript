@@ -3,7 +3,7 @@ import Foundation
 
 /// The watched lines of the three-cards explainer (EXP-10), one per step, the total said as each
 /// card goes up or down, the answer, and Why?'s lines (EXP-16). The app turns each into its
-/// string-library entry, filled with the problem's values; which wording a step takes (two cards
+/// wording entry, filled with the problem's values; which wording a step takes (two cards
 /// make exactly how many too many, or only come closest) is the app's to choose from the problem.
 public enum ThreeCardsLine: Equatable, Hashable, Sendable {
     /// Before the first watched step: "Let's find three cards."
@@ -115,8 +115,8 @@ public enum ThreeCardsText: Equatable, Hashable, Sendable, CaseIterable {
     case equals
 }
 
-/// The three-cards explainer's wording, from the string library. There is one version, the
-/// child's.
+/// The three-cards explainer's wording. There is one version, the
+/// learner's.
 public struct ThreeCardsWording: Sendable {
     public var line: @Sendable (ThreeCardsLine, ThreeCardsProblem) -> Line
     public var doLine: @Sendable (ThreeCardsDoLine, ThreeCardsProblem) -> Line

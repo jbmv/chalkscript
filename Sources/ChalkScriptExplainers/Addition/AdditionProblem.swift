@@ -72,7 +72,7 @@ public struct AdditionProblem: Equatable, Hashable, Sendable, CustomStringConver
     }
 
     /// The steps of the watched problem (`doing` false) or of do it with me (true), where the
-    /// separate check step is left out: the child has just counted the ones on, so the adding
+    /// separate check step is left out: the learner has just counted the ones on, so the adding
     /// step ends with the loop round them and how many there are.
     public func steps(doing: Bool = false) -> [Step] {
         var out: [Step] = [.show]

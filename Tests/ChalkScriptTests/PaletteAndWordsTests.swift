@@ -16,12 +16,11 @@ struct PaletteTests {
             (.divide, "#3937A2", "#3937A2", "#6A72D8"),
         ]
         for (op, fill, ink, darkValue) in table {
-            #expect(light.colors(op).fill.hex == fill, "\(op.token) light fill")
-            #expect(light.colors(op).ink.hex == ink, "\(op.token) light ink")
-            #expect(dark.colors(op).fill.hex == darkValue, "\(op.token) dark")
-            #expect(dark.colors(op).ink.hex == darkValue, "\(op.token) dark")
+            #expect(light.colors(op).fill.hex == fill, "\(op) light fill")
+            #expect(light.colors(op).ink.hex == ink, "\(op) light ink")
+            #expect(dark.colors(op).fill.hex == darkValue, "\(op) dark")
+            #expect(dark.colors(op).ink.hex == darkValue, "\(op) dark")
         }
-        #expect(Set(ExplainerOperation.allCases.map(\.token)) == ["--op-sub", "--op-trade", "--op-result", "--op-add", "--op-mul", "--op-div"])
     }
 
     /// Thin strokes and text use the ink value, at least 3:1 with the sheet (EXP-6), in light
@@ -30,13 +29,13 @@ struct PaletteTests {
         let p = ExplainerPalette.for(dark: dark)
         for op in ExplainerOperation.allCases {
             let c = p.colors(op).ink.contrast(with: p.sheet)
-            #expect(c >= 3, "\(op.token) ink is \(c):1 on the \(dark ? "dark" : "light") sheet")
+            #expect(c >= 3, "\(op) ink is \(c):1 on the \(dark ? "dark" : "light") sheet")
         }
         #expect(p.pencil.contrast(with: p.sheet) >= 4.5)
         #expect(p.ink.contrast(with: p.sheet) >= 4.5)
         // The marked digit sits on its operation's tint.
         for op in ExplainerOperation.allCases {
-            #expect(p.colors(op).ink.contrast(with: p.colors(op).soft) >= 3, "\(op.token) ink on its tint")
+            #expect(p.colors(op).ink.contrast(with: p.colors(op).soft) >= 3, "\(op) ink on its tint")
         }
         // The answer's ink on its count-area fill, and the Watch control's label on its fill.
         #expect(p.onResult.contrast(with: p.colors(.result).fill) >= 3)

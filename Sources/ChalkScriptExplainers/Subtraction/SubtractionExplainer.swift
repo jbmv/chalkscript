@@ -29,8 +29,8 @@ import Foundation
 /// each piece is large enough to touch. The problem stays fixed above the camera. A step whose
 /// shot differs from the last moves the camera first, while its line is said, and then plays.
 ///
-/// Every picture is drawn from a `SubtractionState`, so the child's own choices in do it with me
-/// (which ten is broken, which ones are crossed out, with the child's own lines) are drawn as
+/// Every picture is drawn from a `SubtractionState`, so the learner's own choices in do it with me
+/// (which ten is broken, which ones are crossed out, with the learner's own lines) are drawn as
 /// they were made, and Show me plays a step from them (SubtractionGuided.swift).
 public struct SubtractionExplainer: Explainer {
     public typealias Step = SubtractionProblem.Step
@@ -75,12 +75,12 @@ public struct SubtractionExplainer: Explainer {
 
     public var stepCount: Int { steps.count }
     public var intro: Line { line(.intro) }
-    /// The child hears each count; the parent sees the counts and hears the step's line and the
+    /// The learner hears each count; the parent sees the counts and hears the step's line and the
     /// total.
     public var speaksCounts: Bool { version == .child }
 
-    /// How long the count step's motions take against the child's: an adult needs no time to
-    /// follow each count (EXP-9). The child's pace is the motion file's (EXP-8).
+    /// How long the count step's motions take against the learner's: an adult needs no time to
+    /// follow each count (EXP-9). The learner's pace is the motion file's (EXP-8).
     public static func countPace(_ version: ExplainerVersion) -> Double { version == .child ? 1 : 0.4 }
 
     var countTimes: CountTimes { CountTimes(self, pace: Self.countPace(version)) }
@@ -122,7 +122,7 @@ public struct SubtractionExplainer: Explainer {
     }
 
     /// When the count step's phases start, at `pace` times the motion file's durations (1 for the
-    /// child, less for the parent).
+    /// learner, less for the parent).
     struct CountTimes {
         let pace: Double
         let copyEnd: Double
@@ -414,7 +414,7 @@ public struct SubtractionExplainer: Explainer {
     }
 
     /// Ten `traded` breaks into ten ones that travel along the arrow into the box. With `drawn`,
-    /// the child has already drawn the line through it (do it with me), so no cross-out is drawn.
+    /// the learner has already drawn the line through it (do it with me), so no cross-out is drawn.
     func animateTrade(_ p: inout Picture, _ t: Double, ten traded: Int, drawn: Bool) {
         guard problem.regroups else { return }
         let s = Step.trade
@@ -508,7 +508,7 @@ public enum SubtractionPiece: Hashable, Sendable {
 }
 
 /// Everything a subtraction picture can show (EXP-2): what has been drawn, broken, crossed out,
-/// gathered and counted, and the child's own lines (EXP-14).
+/// gathered and counted, and the learner's own lines (EXP-14).
 public struct SubtractionState: Equatable, Sendable {
     /// The number is drawn as tens and ones.
     public var shown = false
@@ -524,7 +524,7 @@ public struct SubtractionState: Equatable, Sendable {
     public var counted: Set<Int> = []
     /// The answer is written.
     public var answered = false
-    /// The child's own lines, by piece, drawn in place of the cross-out; empty for a piece crossed
+    /// The learner's own lines, by piece, drawn in place of the cross-out; empty for a piece crossed
     /// by a line drawn over another.
     public var own: [SubtractionPiece: [CGPoint]] = [:]
     /// The shot the camera holds on (EXP-18), as the motion file names it; nil before the first
@@ -547,7 +547,7 @@ struct Picture {
         var opacity = 0.0
         var cross = 0.0
         var crossOpacity = 1.0
-        /// The child's own line over the piece, drawn in place of the cross-out; empty when a
+        /// The learner's own line over the piece, drawn in place of the cross-out; empty when a
         /// line drawn over another crossed it too.
         var own: [CGPoint]?
 
@@ -631,7 +631,7 @@ struct Picture {
             out.append(SceneElement(id, ten ? .ten(piece.frame, piece.style) : .one(piece.frame, piece.style), opacity: piece.opacity))
             let opacity = piece.opacity > 0 ? piece.crossOpacity : 0
             if let own = piece.own {
-                // The child's own line, in the colour of what it did (EXP-14).
+                // The learner's own line, in the colour of what it did (EXP-14).
                 out.append(SceneElement(id + ".cross", .ink(own, op: op), opacity: piece.cross > 0 ? opacity : 0))
             } else {
                 let x = Components.crossOut(over: piece.frame, pad: piece.crossPad)

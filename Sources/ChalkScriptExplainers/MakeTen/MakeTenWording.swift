@@ -2,7 +2,7 @@ import ChalkScript
 import Foundation
 
 /// The lines of the make-a-ten explainer's watched steps (EXP-10), one per step plus the counts
-/// and the answer. The app turns each into its string-library entry, filled with the problem's
+/// and the answer. The app turns each into its wording entry, filled with the problem's
 /// values.
 public enum MakeTenLine: Equatable, Hashable, Sendable {
     /// Before the first step: the problem, read with its operation's name ("8 plus 7").
@@ -34,7 +34,7 @@ public enum MakeTenLine: Equatable, Hashable, Sendable {
 
 /// The child version's lines for do it with me and try one (EXP-14): the instructions that are
 /// not the watched step's own line, what is said once a step is done, and the kind lines met by a
-/// mark the step cannot use. The app turns each into its string-library entry.
+/// mark the step cannot use. The app turns each into its wording entry.
 public enum MakeTenDoLine: Equatable, Hashable, Sendable {
     /// Before the first step: "Now let's do one together: 8 plus 7."
     case intro
@@ -67,7 +67,7 @@ public enum MakeTenDoLine: Equatable, Hashable, Sendable {
     }
 }
 
-/// The make-a-ten explainer's wording, from the string library. It has the child version only:
+/// The make-a-ten explainer's wording. It has the child version only:
 /// parent wording is a later piece of work (EXP-9).
 public struct MakeTenWording: Sendable {
     public var line: @Sendable (MakeTenLine, MakeTenProblem) -> Line

@@ -8,7 +8,7 @@ import Testing
 // landscape. A step names a shot and the drawing eases to it with its motion file's duration and
 // easing; what is out of shot is dimmed by the style's amount; touches are read through the
 // camera, so a framed piece is a larger target; Reduce Motion cuts. A move runs while a line is
-// said, lands before the child is asked to act, and never moves while the child draws.
+// said, lands before the learner is asked to act, and never moves while the learner draws.
 
 @MainActor
 struct CameraTests {
@@ -113,7 +113,7 @@ struct CameraTests {
         p.primary()
         #expect(p.phase == .playing(1))
         #expect(p.scene.camera == e.frame!.plan.camera("ones"), "the shot at once, while the line is said")
-        // In do it with me, the step the child does is framed at once as its instruction is said.
+        // In do it with me, the step the learner does is framed at once as its instruction is said.
         p.jump(to: .doWithMe)
         let k = step(e, .takeTens)
         p.jump(toStep: k)
@@ -138,7 +138,7 @@ struct CameraTests {
         p.settle(v)
         #expect(p.phase == .paused(k) && p.scene.camera == e.frame!.plan.camera("ones"))
 
-        // A step the child does: the camera moves while its instruction is said.
+        // A step the learner does: the camera moves while its instruction is said.
         p.jump(to: .doWithMe)
         let t = step(e, .takeTens)
         p.jump(toStep: t)
@@ -148,8 +148,8 @@ struct CameraTests {
     }
 
     /// The child version of 54 - 26, every step of do it with me the child's: at every moment
-    /// the child can first mark, the camera has landed on the step's shot; while each of the
-    /// child's lines is drawn and while a touch rests on the drawing, the camera does not move.
+    /// the learner can first mark, the camera has landed on the step's shot; while each of the
+    /// learner's lines is drawn and while a touch rests on the drawing, the camera does not move.
     @Test func theCameraLandsBeforeTheChildActsAndNeverMovesWhileSheDraws() {
         let (p, v, e) = Self.doWithMe(fading: .max)
         let plan = e.frame!.plan
@@ -168,13 +168,13 @@ struct CameraTests {
             let st = e.steps[k]
             if !acted.contains(st) {
                 acted.insert(st)
-                // Framed, and landed, before the child is asked to act.
+                // Framed, and landed, before the learner is asked to act.
                 let expected = st == .count ? (e.motion.steps["count"]?.doShot ?? e.shot(st)) : e.shot(st)
                 #expect(p.scene.camera == plan.camera(expected), "\(st): the camera has not landed on \(expected ?? "-")")
                 if st != .show { s = e.state(after: k - 1) }
                 if st == .count { s.gathered = true }
             }
-            // The child's next mark, drawn where the piece is on screen.
+            // The learner's next mark, drawn where the piece is on screen.
             let (mark, next) = Self.nextMark(e, k, s)
             s = next
             let r = p.scene.screenRect(mark, in: Self.area)
@@ -185,7 +185,7 @@ struct CameraTests {
     }
 
     @Test func aTouchRestingOnTheDrawingHoldsTheCamera() {
-        // The child does only the count; the steps before it play on by themselves.
+        // The learner does only the count; the steps before it play on by themselves.
         let (p, v, e) = Self.doWithMe(fading: 1)
         let plan = e.frame!.plan
         p.primary()
@@ -226,7 +226,7 @@ struct CameraTests {
         return (p, v, lesson.doWithMe.laidOut(for: area))
     }
 
-    /// The piece the child marks next on step `k` from `s`, and the state after it.
+    /// The piece the learner marks next on step `k` from `s`, and the state after it.
     static func nextMark(_ e: SubtractionExplainer, _ k: Int, _ s: SubtractionState) -> (CGRect, SubtractionState) {
         var n = s
         switch e.steps[k] {

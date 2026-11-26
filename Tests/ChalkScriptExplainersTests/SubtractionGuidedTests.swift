@@ -7,7 +7,7 @@ import Testing
 // Subtraction's do-it-with-me steps:
 // break any ten, cross out the ones and the tens, touch each piece to count, tens first.
 
-/// A line across a piece, from below its left edge to above its right edge, as a child crosses
+/// A line across a piece, from below its left edge to above its right edge, as a learner crosses
 /// out.
 func across(_ r: CGRect) -> Mark {
     .stroke([CGPoint(x: r.minX - 6, y: r.maxY + 6), CGPoint(x: r.midX, y: r.midY), CGPoint(x: r.maxX + 6, y: r.minY - 6)])
@@ -58,7 +58,7 @@ struct SubtractionGuidedTests {
         #expect(one.note == .miss(e.doLine(.tradeOnOne)))
         let none = e.read(across(CGRect(x: 400, y: 450, width: 30, height: 30)), step: k, s)
         #expect(none.note == .miss(e.doLine(.tradeMissed)))
-        // The second ten, not the last: whichever the child chooses.
+        // The second ten, not the last: whichever the learner chooses.
         let r = e.read(across(e.layout.tens[1]), step: k, s)
         #expect(r.finished && r.keepsStroke && r.state.tradedTen == 1)
         s = r.state
@@ -106,7 +106,7 @@ struct SubtractionGuidedTests {
         let whole = (0..<9).filter { $0 != broken }
         let a = whole[3], g = whole[2]
         // Down one ten and hooking into its lower neighbour: only the ten run through is crossed,
-        // and the child's line is on it (this took the neighbour first, or both and a hint).
+        // and the learner's line is on it (this took the neighbour first, or both and a hint).
         let points = hook(e, down: a, into: g)
         #expect(MarkGeometry.crosses(points, e.layout.tens[g]) && g < a)
         let r = e.read(.stroke(points), step: k, s)
@@ -236,7 +236,7 @@ struct SubtractionGuidedTests {
         #expect(t.scene.element("try.answer") != nil)
     }
 
-    /// The whole do it with me on 54 − 26's own isomorph, through the player, the child making
+    /// The whole do it with me on 54 − 26's own isomorph, through the player, the learner making
     /// every mark.
     @Test @MainActor func theChildDoesEveryStepThroughThePlayer() {
         let voice = RecordingVoice()
@@ -246,7 +246,7 @@ struct SubtractionGuidedTests {
         let e = lesson.doWithMe
         let L = e.layout
         #expect(p.caption.display == "Now let's do one together: \(e.problem.minuend) minus \(e.problem.subtrahend).")
-        // Start: the first two steps are watched and run on into the child's.
+        // Start: the first two steps are watched and run on into the learner's.
         p.primary()
         p.settle(voice)
         // Break the first ten.

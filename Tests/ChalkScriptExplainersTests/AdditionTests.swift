@@ -70,7 +70,7 @@ enum AdditionFixture {
     ]
 }
 
-/// A loop round `rect`, grown by 6, as a child draws one: round and back to where it began.
+/// A loop round `rect`, grown by 6, as a learner draws one: round and back to where it began.
 func loop(around rect: CGRect) -> Mark {
     let r = rect.insetBy(dx: -6, dy: -6)
     return .stroke([
@@ -359,7 +359,7 @@ struct AdditionTests {
         #expect(voice.said.contains { $0.display == "38 plus 25 is 63!" })
         let e = lesson.doWithMe
         #expect(player.doSet == Set([1, 2, 3, 4]))
-        // Step 0 is watched and runs on into the child's first step.
+        // Step 0 is watched and runs on into the learner's first step.
         player.primary()
         player.settle(voice)
         // Add the ones.

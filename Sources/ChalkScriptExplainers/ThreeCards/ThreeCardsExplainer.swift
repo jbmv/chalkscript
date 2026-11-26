@@ -24,7 +24,7 @@ import Foundation
 /// line names it); the chosen three and the equation above them take the answer's colour (second
 /// cue: the equals sign, and the answer line).
 ///
-/// Every picture is drawn from a `ThreeCardsState`, so the child's own taps in do it with me are
+/// Every picture is drawn from a `ThreeCardsState`, so the learner's own taps in do it with me are
 /// drawn as made (ThreeCardsGuided.swift).
 public struct ThreeCardsExplainer: Sendable {
     public typealias Step = ThreeCardsProblem.Step
@@ -425,7 +425,7 @@ public struct ThreeCardsState: Equatable, Sendable {
     public var work = 0
     /// The three are chosen: they and the equation above them take the answer's colour.
     public var done = false
-    /// The child put down the three answer cards, and they swapped with the other two.
+    /// The learner put down the three answer cards, and they swapped with the other two.
     public var swapped = false
 
     public init() {}

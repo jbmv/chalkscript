@@ -361,7 +361,7 @@ struct TensOnesMotionTests {
     }
 
     /// The parent version plays the same steps; its dots skip ahead, Next finishes a
-    /// step at once; its counts are shown and not said, at most half the child's time.
+    /// step at once; its counts are shown and not said, at most half the learner's time.
     @Test func theParentVersionSkipsAheadAndCountsFaster() {
         for (child, parent) in [(F.reading(47), F.reading(47, .blocks, .parent)), (F.writing(3, 13), F.writing(3, 13, .blocks, .parent)),
             (F.reading(99, .chart), F.reading(99, .chart, .parent))]
@@ -384,7 +384,7 @@ struct TensOnesMotionTests {
             #expect(player.phase == .paused(parent.stepCount - 1))
             #expect(player.caption == parent.line(.answer))
             #expect(player.scene == parent.still(after: parent.stepCount - 1))
-            // The child's dots are not controls.
+            // The learner's dots are not controls.
             let childPlayer = ExplainerPlayer(explainer: child, voice: RecordingVoice(), drivesItself: false)
             childPlayer.jump(to: 1)
             #expect(childPlayer.phase == .ready)

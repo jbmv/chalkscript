@@ -171,14 +171,14 @@ struct CountPaceTests {
         #expect(waited == 4, "two, three, five and seven are longer than a one's pace")
     }
 
-    /// The paced player plays the child's count by the same rule: the runner is shared.
+    /// The paced player plays the learner's count by the same rule: the runner is shared.
     @Test func thePacedPlayerKeepsTheSameRule() throws {
         let problem = try SubtractionProblem(54, minus: 26)
         let e = SubtractionExplainer(problem: problem, version: .child, wording: Fixture.wording())
         let v = voice(["ten": 0.5, "twenty": 0.6, "one": 0.9, "two": 0.4], lead: 0)
         let player = ExplainerPlayer(explainer: e, voice: v, drivesItself: false)
         let step = try #require(e.steps.firstIndex(of: .count))
-        // The child's dots are not controls: Watch, then Next after each step, up to the count.
+        // The learner's dots are not controls: Watch, then Next after each step, up to the count.
         var t = 0.0
         player.primary()
         while player.currentStep != step, t < 600 {

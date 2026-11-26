@@ -8,7 +8,7 @@ public struct Motion: Sendable {
     public var script: StepScript
     public var picture: @Sendable (Double) -> Scene
     /// When, on its clock, the picture's camera moves (EXP-18). The player never runs the clock
-    /// into or through one of these while the child's Pencil or finger is on the drawing, so the
+    /// into or through one of these while the learner's Pencil or finger is on the drawing, so the
     /// camera never moves under a mark being made.
     public var cameraMoves: [ClosedRange<Double>]
 

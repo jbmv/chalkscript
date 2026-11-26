@@ -20,7 +20,7 @@ struct PlayerTests {
         #expect(!p.againEnabled)
         #expect(p.dots == Array(repeating: .upcoming, count: 6))
         #expect(voice.said.isEmpty, "nothing is said before Watch")
-        // No step starts until the child asks (EXP-8).
+        // No step starts until the learner asks (EXP-8).
         p.advance(by: 30)
         #expect(p.phase == .ready)
     }
@@ -110,7 +110,7 @@ struct PlayerTests {
         #expect(p.phase == .playing(0))
     }
 
-    /// The child's dots are not controls; the parent's are (EXP-9).
+    /// The learner's dots are not controls; the parent's are (EXP-9).
     @Test func onlyTheParentsDotsAreControls() {
         let child = player(.child)
         child.jump(to: 3)
@@ -256,14 +256,14 @@ struct PlayerTests {
         #expect(p.scene == p.explainer.still(after: 3))
     }
 
-    /// The parent's count runs at least twice as fast as the child's, and its counts
+    /// The parent's count runs at least twice as fast as the learner's, and its counts
     /// are shown, not said; nothing waits on them.
     @Test func theParentsCountIsFasterAndNotSpoken() {
         func count(_ version: ExplainerVersion) -> (frames: Int, said: [String]) {
             let v = RecordingVoice()
             v.instant = true
             let p = ExplainerPlayer(explainer: Fixture.explainer(54, 26, version), voice: v, drivesItself: false)
-            // The child's dots are not controls, so the child's count is reached step by step.
+            // The learner's dots are not controls, so the learner's count is reached step by step.
             if version == .child {
                 for _ in 0..<5 {
                     p.primary()

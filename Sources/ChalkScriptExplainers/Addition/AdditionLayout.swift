@@ -53,7 +53,7 @@ public struct AdditionLayout: Equatable, Sendable {
 
     /// Roughly where run `run` of `runs`, the problem across the top, is drawn: the middle of its
     /// width and the bottom of its digits. Each piece comes down from its digit;
-    /// the stage measures the problem only as it draws it, so this estimates it from the child
+    /// the stage measures the problem only as it draws it, so this estimates it from the learner
     /// face's advances (a digit about 0.58 of the size, a space about 0.26).
     func digitBottom(_ runs: [String], run: Int, size: Double) -> CGPoint {
         func width(_ s: String) -> CGFloat { s.reduce(0) { $0 + ($1 == " " ? 0.26 : 0.58) } * CGFloat(size) }

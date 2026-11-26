@@ -1,14 +1,14 @@
 import Foundation
 
 /// The spoken form of a number (EXP-10): "twenty-eight" for 28. A spoken line says each number
-/// as words, so that the words a recorded or generated clip says are fixed by the string library
-/// rather than left to a voice's reading of digits; the app's tests check every spoken line
-/// against its shown numbers with `replacingNumerals(in:)`.
+/// as words, so that the words a voice says are fixed by the wording rather than left to the
+/// voice's reading of digits; a consuming app can check every spoken line against its shown
+/// numbers with `replacingNumerals(in:)`.
 ///
 /// The words come from the system's spell-out rules (`NumberFormatter.Style.spellOut`) for US
-/// English, the app's one language, so no number word is typed into code.
+/// English, so no number word is typed into code.
 public enum NumberWords {
-    /// The locale the app speaks in.
+    /// The locale the numbers are spelled in.
     public static let locale = Locale(identifier: "en_US")
 
     private static let formatter: NumberFormatter = {

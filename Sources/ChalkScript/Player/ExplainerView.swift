@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The player's control names, from the string library.
+/// The player's control names.
 public struct ExplainerLabels: Sendable {
     public var watch: String
     public var next: String
@@ -50,8 +50,8 @@ public struct ExplainerView: View {
     @GestureState private var touchLive = false
 
     /// `forceStill` shows the still pictures whatever the system's Reduce Motion setting is (for
-    /// a preview app). `debugState` adds an invisible element whose accessibility value
-    /// is `ExplainerPlayer.stateSummary`, for UI tests. `hand` is the hand the child writes with;
+    /// an authoring app). `debugState` adds an invisible element whose accessibility value
+    /// is `ExplainerPlayer.stateSummary`, for UI tests. `hand` is the hand the learner writes with;
     /// right by default.
     public init(
         player: ExplainerPlayer, labels: ExplainerLabels, forceStill: Bool = false, debugState: Bool = false,
@@ -292,7 +292,7 @@ extension Scene {
         func pieces(_ name: String, _ prefix: String) {
             let shown = visible.filter { $0.id.hasPrefix(prefix) && !$0.id.hasSuffix(".cross") }
             let ghosts = shown.filter { abs($0.opacity - Components.ghostOpacity) < 0.001 }
-            // A cross-out drawn whole, or the child's own line over the piece.
+            // A cross-out drawn whole, or the learner's own line over the piece.
             let crossed = visible.filter {
                 guard $0.id.hasPrefix(prefix), $0.id.hasSuffix(".cross") else { return false }
                 switch $0.kind {

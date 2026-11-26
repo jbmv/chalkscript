@@ -2,7 +2,7 @@ import ChalkScript
 import Foundation
 
 /// The watched lines of the addition explainer (EXP-10), one per step plus the counts, the
-/// joining of tens and ones, and the answer. The app turns each into its string-library entry,
+/// joining of tens and ones, and the answer. The app turns each into its wording entry,
 /// filled with the problem's values.
 public enum AdditionLine: Equatable, Hashable, Sendable {
     /// Before the first step: the problem, read with its operation's name ("38 plus 25").
@@ -49,7 +49,7 @@ public enum AdditionLine: Equatable, Hashable, Sendable {
 
 /// The lines of do it with me and try one (EXP-14): the instructions, what is said once a step is
 /// done, and the kind lines met by a mark the step cannot use. The app turns each into its
-/// string-library entry.
+/// wording entry.
 public enum AdditionDoLine: Equatable, Hashable, Sendable {
     /// Before the first step: "Now let's do one together: 38 plus 25."
     case intro
@@ -93,7 +93,7 @@ public enum AdditionDoLine: Equatable, Hashable, Sendable {
     }
 }
 
-/// An addition explainer's wording, from the string library. The explainer has a child version
+/// An addition explainer's wording. The explainer has a child version
 /// only: watch, do it with me and try one.
 public struct AdditionWording: Sendable {
     public var line: @Sendable (AdditionLine, AdditionProblem) -> Line

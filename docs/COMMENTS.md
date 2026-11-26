@@ -31,7 +31,7 @@ An inline comment gives the reason for the code, not a restatement of it.
 // Set the dim amount to the style's value.
 
 // After
-// What is out of shot is dimmed, not cropped, so the child keeps the whole picture (EXP-18).
+// What is out of shot is dimmed, not cropped, so the learner keeps the whole picture (EXP-18).
 ```
 
 ## No history and no dates

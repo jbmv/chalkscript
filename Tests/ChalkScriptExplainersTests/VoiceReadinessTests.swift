@@ -43,8 +43,8 @@ final class MakingVoice: ExplainerVoice {
 
 @MainActor
 struct SubtractionVoiceReadinessTests {
-    /// The main path of do it with me: a step the child does says its instruction, then what
-    /// the child's right marks bring; Show me's lines are not expected for it.
+    /// The main path of do it with me: a step the learner does says its instruction, then what
+    /// the learner's right marks bring; Show me's lines are not expected for it.
     @Test func doItWithMeExpectsTheInstructionThenTheChildsLines() throws {
         let problem = try SubtractionProblem(54, minus: 26)
         let lesson = SubtractionExplainer.lesson(watching: problem, wording: Fixture.guidedWording())

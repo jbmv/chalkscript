@@ -14,7 +14,7 @@ public protocol ExplainerVoice: AnyObject {
     func say(_ line: Line, onFinish: @escaping @MainActor () -> Void)
     func stop()
     /// The lines the player expects to say from now on, in the order it will say them (the
-    /// main path: what a child who does each step right hears). Replaces any earlier list.
+    /// main path: what a learner who does each step right hears). Replaces any earlier list.
     func expect(_ lines: [Line])
     /// Calls `then` once `line` would start at once when said: now, for a voice with nothing to
     /// make.
@@ -52,7 +52,7 @@ public final class ExplainerPlayer {
         /// Before the first step: the Watch control.
         case ready
         case playing(Int)
-        /// A step's motion and lines are done; nothing happens until the child asks (EXP-8).
+        /// A step's motion and lines are done; nothing happens until the learner asks (EXP-8).
         case paused(Int)
     }
 
@@ -208,7 +208,7 @@ public final class ExplainerPlayer {
     }
 
     /// Plays step `step` from the picture before it. Only the parent version's dots do this
-    /// (EXP-9); the child's are not controls, so it is ignored there.
+    /// (EXP-9); the learner's are not controls, so it is ignored there.
     public func jump(to step: Int) {
         guard explainer.version.dotsAreControls, (0..<explainer.stepCount).contains(step) else { return }
         play(step)

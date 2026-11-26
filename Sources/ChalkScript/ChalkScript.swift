@@ -14,10 +14,9 @@
 /// at the top of Player/GuidedExplainer.swift.
 /// The parent version plays the watched steps in `ExplainerPlayer`.
 ///
-/// The package owns no strings. A template is given its wording by the app, which reads it from
-/// the string library; the package fills in only numbers, and the spoken form of each number
-/// comes from `NumberWords`.
+/// The package owns no strings. A template is given its wording by the app; the package fills in
+/// only numbers, and the spoken form of each number comes from `NumberWords`.
 public enum ChalkScript {
     /// Bumped when the package's public surface changes shape.
-    public static let moduleVersion = 4
+    public static let moduleVersion = 5
 }

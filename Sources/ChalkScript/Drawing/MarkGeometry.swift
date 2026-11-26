@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// Reading the child's marks against the drawing (EXP-14): whether a stroke crosses a piece and
+/// Reading the learner's marks against the drawing (EXP-14): whether a stroke crosses a piece and
 /// whether a touch lands on one. Nothing is recognised as handwriting; a mark is only geometry
 /// compared with what is drawn, in scene units.
 public enum MarkGeometry {

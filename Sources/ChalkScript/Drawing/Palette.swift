@@ -3,30 +3,18 @@ import Foundation
 /// An operation or a process a mark can stand for (EXP-6). Each has one colour, the same in every
 /// explainer.
 public enum ExplainerOperation: String, CaseIterable, Sendable {
-    /// Subtract, take away: `--op-sub`. Second cue: the cross-out line, the minus sign.
+    /// Subtract, take away. Second cue: the cross-out line, the minus sign.
     case subtract
-    /// Trade, regroup: `--op-trade`. Second cue: the arrow and the box.
+    /// Trade, regroup. Second cue: the arrow and the box.
     case trade
-    /// What is left, the answer: `--op-result`. Second cue: the count area, the equals sign.
+    /// What is left, the answer. Second cue: the count area, the equals sign.
     case result
-    /// Add, join: `--op-add`. Second cue: a joining motion, the plus sign.
+    /// Add, join. Second cue: a joining motion, the plus sign.
     case add
-    /// Multiply, groups of: `--op-mul`. Second cue: rings around equal groups.
+    /// Multiply, groups of. Second cue: rings around equal groups.
     case multiply
-    /// Divide, share: `--op-div`. Second cue: dealing into equal groups.
+    /// Divide, share. Second cue: dealing into equal groups.
     case divide
-
-    /// The token's name in EXP-6.
-    public var token: String {
-        switch self {
-        case .subtract: "--op-sub"
-        case .trade: "--op-trade"
-        case .result: "--op-result"
-        case .add: "--op-add"
-        case .multiply: "--op-mul"
-        case .divide: "--op-div"
-        }
-    }
 }
 
 /// A colour as sRGB components, 0 to 1. Plain values, so the palette can be checked without a

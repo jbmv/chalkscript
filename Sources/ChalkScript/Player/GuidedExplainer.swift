@@ -7,18 +7,18 @@
 // add one.
 //
 // 1. A value filled with one problem (EXP-2), with a `State`: everything its picture can show,
-//    including the child's own marks. `start` is the state before the first step.
-// 2. `guidedSteps`: an id per step, whether the child can do it (`doable`), whether it counts aloud
-//    (the player then says its line before it moves, EXP-10), and how the child's Pencil is read
+//    including the learner's own marks. `start` is the state before the first step.
+// 2. `guidedSteps`: an id per step, whether the learner can do it (`doable`), whether it counts aloud
+//    (the player then says its line before it moves, EXP-10), and how the learner's Pencil is read
 //    on it (`input`: marks, or drags).
 // 3. `picture(_:marking:)`: the still picture of a state, with the digit a step acts on marked
 //    (EXP-5). `watch(_:from:)`: a step played from a state, as a `Motion` (its `StepScript` of
 //    lines and timings and the picture at any moment) and the state it ends in. The watch part
-//    plays these from `start`; do it with me plays them for the steps the child watches, and
-//    Show me plays one from the state the child's step began in.
-// 4. Do it with me: `instruction(_:_:)` is said before the child can act, while `approach(_:_:)`
+//    plays these from `start`; do it with me plays them for the steps the learner watches, and
+//    Show me plays one from the state the learner's step began in.
+// 4. Do it with me: `instruction(_:_:)` is said before the learner can act, while `approach(_:_:)`
 //    moves the camera to the step's shot where it has one (EXP-18); `begin(_:_:)` runs as the
-//    step opens (a tally, a motion such as gathering pieces to count, which the child's marks
+//    step opens (a tally, a motion such as gathering pieces to count, which the learner's marks
 //    wait for); `read(_:step:_:)` is
 //    called with each mark (`Mark.tap` or `Mark.stroke`, in scene units) or drag (`Drag`) and
 //    returns a `Reaction`: the new state, a motion to play with any lines (a count said in
@@ -26,13 +26,13 @@
 //    was kept in the drawing (`keepsStroke`; otherwise the player fades it), a haptic, and
 //    whether the step is done. A miss is always a kind line; after a second the player
 //    offers Show me. `MarkGeometry` reads strokes and touches against the pieces.
-//    `doneLines(_:_:)` lists what the step says when the child's marks are right, in order
+//    `doneLines(_:_:)` lists what the step says when the learner's marks are right, in order
 //    (by default what the watched step says), so a voice that makes lines ahead makes those first.
 // 5. Optional: `why(_:_:)` returns a motion played over the drawing (EXP-16); `whatIf` and its
-//    functions run What if? goals on a dragged picture (EXP-15), each settled when the child
-//    lets go, snapping and Show me included; `tryOne` is the problem and line the child tries.
+//    functions run What if? goals on a dragged picture (EXP-15), each settled when the learner
+//    lets go, snapping and Show me included; `tryOne` is the problem and line the learner tries.
 // 6. The problems: the player is given three of the explainer's values, one each for watch, do
-//    it with me and try one (`GuidedLesson`), which the explainer makes from the child's problem
+//    it with me and try one (`GuidedLesson`), which the explainer makes from the learner's problem
 //    as isomorphs (EXP-3). What if? starts from the do-it-with-me problem.
 //
 // 7. Drawing: a picture is a `Scene` of `SceneElement`s. Use the shared components (pieces,
@@ -40,7 +40,7 @@
 //    a dashed part, a brace, a card, a ten frame), `.shape(Outline, Paint)` and `.words(_, Typeset)`
 //    draw in palette roles (`Ink`), so the colour rules hold in light and dark (EXP-6). An
 //    element's `transform` scales or moves it (a comparison's joined bars shrinking part of the
-//    picture). `.ink` draws the child's own kept line; `.hint` loops pieces a step looks at.
+//    picture). `.ink` draws the learner's own kept line; `.hint` loops pieces a step looks at.
 //
 // 8. The screen (EXP-17): `question` is the problem's question, shown above the drawing in
 //    portrait and at the top of the column in landscape; nil (the default) keeps it in the
@@ -52,9 +52,9 @@
 // 9. The camera (EXP-18): a laid-out explainer may give its scenes a `Camera` that frames a shot
 //    per step, with its shots and timings in its motion file (EXP-19). A
 //    motion that moves the camera lists when in `cameraMoves`, so the player can hold it while
-//    the child's Pencil is down; marks are read in the drawing's units, through the camera.
+//    the learner's Pencil is down; marks are read in the drawing's units, through the camera.
 //
-// Lines are `Line`s from the explainer's wording, which the app fills from the string library;
+// Lines are `Line`s from the explainer's wording, which the app fills;
 // the package owns no strings. The player's own controls come from `GuidedLabels`.
 
 import CoreGraphics
@@ -68,7 +68,7 @@ public enum GuidedPart: String, CaseIterable, Sendable {
     case tryOne
 }
 
-/// A mark the child makes on the drawing with the Pencil or a finger (EXP-14), in scene units:
+/// A mark the learner makes on the drawing with the Pencil or a finger (EXP-14), in scene units:
 /// a touch, or a line once it is lifted. No handwriting is recognised; the explainer reads a mark
 /// against what is drawn (`MarkGeometry`).
 public enum Mark: Equatable, Sendable {
@@ -98,7 +98,7 @@ public enum Drag: Equatable, Sendable {
     }
 }
 
-/// How the child's Pencil is read on a step the child does.
+/// How the learner's Pencil is read on a step the learner does.
 public enum GuidedInput: Equatable, Sendable {
     /// Taps and lines, shown in pencil as they are drawn.
     case marks
@@ -110,7 +110,7 @@ public enum GuidedInput: Equatable, Sendable {
 public struct GuidedStep: Equatable, Sendable {
     /// The step's name, for tests and the explainer's own use.
     public var id: String
-    /// Whether the child can make this step's marks in do it with me (EXP-14).
+    /// Whether the learner can make this step's marks in do it with me (EXP-14).
     public var doable: Bool
     /// Whether the step counts aloud: the player says its first line before it moves (EXP-10).
     public var countsAloud: Bool
@@ -124,7 +124,7 @@ public struct GuidedStep: Equatable, Sendable {
     }
 }
 
-/// A line under the caption while the child does a step.
+/// A line under the caption while the learner does a step.
 public enum Note: Equatable, Sendable {
     /// Clears the line.
     case clear
@@ -149,7 +149,7 @@ public struct Tally: Equatable, Sendable {
     }
 }
 
-/// What an explainer does with a mark, a drag, or the start of a step the child does.
+/// What an explainer does with a mark, a drag, or the start of a step the learner does.
 public struct Reaction<State: Sendable>: Sendable {
     /// The state after it: the picture shows it once `motion` has played.
     public var state: State
@@ -189,7 +189,7 @@ public struct Reaction<State: Sendable>: Sendable {
     public static func ignored(_ state: State) -> Reaction { Reaction(state) }
 }
 
-/// Where a What if? picture settles when the child lets go, or when Show me moves it (EXP-15).
+/// Where a What if? picture settles when the learner lets go, or when Show me moves it (EXP-15).
 public struct Settle<Tinker: Sendable>: Sendable {
     public var state: Tinker
     /// How the picture moves there (a snap, Show me's slide); nil shows `state` at once.
@@ -209,7 +209,7 @@ public struct Settle<Tinker: Sendable>: Sendable {
 /// this file for how one plugs in.
 public protocol GuidedExplainer: Sendable {
     associatedtype State: Sendable
-    /// What if?'s state: the picture the child changes. `Never` when there is no What if?.
+    /// What if?'s state: the picture the learner changes. `Never` when there is no What if?.
     associatedtype Tinker: Sendable = Never
 
     /// The steps, in order (named so as not to clash with an explainer's own `steps`).
@@ -224,17 +224,17 @@ public protocol GuidedExplainer: Sendable {
 
     // MARK: do it with me (EXP-14)
 
-    /// What the child is asked to do on step `step`; it is said before the child can act.
+    /// What the learner is asked to do on step `step`; it is said before the learner can act.
     func instruction(_ step: Int, _ state: State) -> Line
-    /// Frames step `step` for the child before they are asked to act (EXP-18): the camera's move
+    /// Frames step `step` for the learner before they are asked to act (EXP-18): the camera's move
     /// from `state` to the step's shot, played while the instruction is said, and the state it
     /// leaves (the same, framed). Nil when the camera stays where it is.
     func approach(_ step: Int, _ state: State) -> (state: State, motion: Motion)?
-    /// The step opens for the child's marks, once its instruction has been said.
+    /// The step opens for the learner's marks, once its instruction has been said.
     func begin(_ step: Int, _ state: State) -> Reaction<State>
     func read(_ mark: Mark, step: Int, _ state: State) -> Reaction<State>
     func read(_ drag: Drag, step: Int, _ state: State) -> Reaction<State>
-    /// The lines step `step` says, after its instruction and what `begin` says, when the child's
+    /// The lines step `step` says, after its instruction and what `begin` says, when the learner's
     /// marks are right, in order: the main path, which a voice that makes its lines on the
     /// device makes first. By default the lines the watched step says.
     func doneLines(_ step: Int, _ state: State) -> [Line]
@@ -252,15 +252,15 @@ public protocol GuidedExplainer: Sendable {
     /// something about the picture as it opens).
     func goal(_ goal: Int, _ state: Tinker) -> (line: Line, state: Tinker)
     func picture(whatIf state: Tinker) -> Scene
-    /// The child drags while goal `goal` is open: the picture follows at once.
+    /// The learner drags while goal `goal` is open: the picture follows at once.
     func drag(_ drag: Drag, goal: Int, _ state: Tinker) -> Tinker
-    /// The child lets go (`showMe` false), or taps Show me (true): where the picture settles and
+    /// The learner lets go (`showMe` false), or taps Show me (true): where the picture settles and
     /// whether the goal is met. Show me always meets it.
     func settle(goal: Int, _ state: Tinker, showMe: Bool) -> Settle<Tinker>
 
     // MARK: try one
 
-    /// The problem the child tries alone, and the line said with it.
+    /// The problem the learner tries alone, and the line said with it.
     var tryOne: (line: Line, scene: Scene) { get }
 
     // MARK: the screen (EXP-17)
@@ -303,7 +303,7 @@ extension GuidedExplainer where Tinker == Never {
 }
 
 /// The three problems of a child version (EXP-3, EXP-14): the method watched on one, done with
-/// the child on a second, and tried alone on a third, all of the same kind and none the child's
+/// the learner on a second, and tried alone on a third, all of the same kind and none the learner's
 /// own.
 public struct GuidedLesson<E: GuidedExplainer>: Sendable {
     public var watch: E

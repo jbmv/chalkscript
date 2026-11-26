@@ -7,7 +7,7 @@ import Foundation
 // Both find a difference the same way: the shorter bar is drawn on, dashed, until it is as long as
 // the longer one, and the dashed part is the difference. Here are the parts both use:
 // the question with its comparison words tinted, the dashed part and its brace, reading the
-// child's draw-on line, the two equation cards and the adding card's join, and
+// learner's draw-on line, the two equation cards and the adding card's join, and
 // What if?'s dragged bar with its goals, snapping and Show me (EXP-15).
 
 /// The word a comparing question asks with: "How many fewer ...", "How many more ...". It
@@ -125,7 +125,7 @@ enum Look {
     /// A card to choose, and the card chosen.
     static let card = Paint(fill: .sheet, stroke: .line, width: 2)
     static let chosenCard = Paint(fill: .soft(.result), stroke: .ink(.result), width: 2.6)
-    /// What if?'s handle on the end of the bar the child drags.
+    /// What if?'s handle on the end of the bar the learner drags.
     static let handle = Paint(fill: .sheet, stroke: .ink(.result), width: 2.6)
     static let handleGrip = Paint(stroke: .ink(.result), width: 2)
 
@@ -172,7 +172,7 @@ func equationRuns(_ format: String, first: String, second: String, answer: Strin
     return ([head + first, sign, second, equals, answer + tail], 1, 4)
 }
 
-// MARK: the child's draw-on line
+// MARK: the learner's draw-on line
 
 /// How a line meant to draw the shorter bar on reads: from its end (`xs`) to where the longer bar
 /// ends (`xb`), within `tolerance`, on either bar or along the scale. It is read along, not
@@ -328,7 +328,7 @@ struct Join: Sendable {
 
 // MARK: What if? (EXP-15)
 
-/// What if?'s picture in both explainers: the first-named amount, which the child drags by its
+/// What if?'s picture in both explainers: the first-named amount, which the learner drags by its
 /// bar's end, and the question's word, which follows it. The other amount stays still (variation
 /// theory: one amount changes, the rest holds).
 public struct DraggedBar: Equatable, Sendable {

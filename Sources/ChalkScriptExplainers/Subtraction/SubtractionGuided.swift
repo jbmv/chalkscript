@@ -4,17 +4,17 @@ import Foundation
 
 /// Subtraction's child version (EXP-14): watch, do it with me, try one.
 ///
-/// The child does four steps, the last ones first as fading runs backward:
+/// The learner does four steps, the last ones first as fading runs backward:
 /// - trade: a line through any whole ten breaks it; the ten's ones then travel into the box.
 /// - take ones, take tens: a line across a piece crosses it out, and one line may cross several,
-///   up to the number still to take away; the child's own line stays, in take-away's colour.
+///   up to the number still to take away; the learner's own line stays, in take-away's colour.
 /// - count: what is left is gathered to the count area, then each piece is touched, tens first,
 ///   and its count is said at once, cutting off the one before.
 /// Each mark it cannot use is met with a kind line saying what to do instead.
 extension SubtractionExplainer: GuidedExplainer {
     public typealias State = SubtractionState
 
-    /// The steps the child can do.
+    /// The steps the learner can do.
     static let doable: Set<Step> = [.trade, .takeOnes, .takeTens, .count]
 
     public var guidedSteps: [GuidedStep] {
@@ -44,7 +44,7 @@ extension SubtractionExplainer: GuidedExplainer {
     }
 
     /// The camera eases to the step's shot while its instruction is said (EXP-18), so the pieces
-    /// to mark are framed, and large, before the child can mark them.
+    /// to mark are framed, and large, before the learner can mark them.
     public func approach(_ step: Int, _ state: SubtractionState) -> (state: SubtractionState, motion: Motion)? {
         let s = steps[step]
         let lead = lead(step, from: state.shot)
@@ -84,7 +84,7 @@ extension SubtractionExplainer: GuidedExplainer {
         case .count:
             // What is left is gathered to the count area before it is touched; then the camera
             // comes in close on it, where the step says so, so each piece is large enough to touch
-            // (EXP-18). The child's touches wait for both.
+            // (EXP-18). The learner's touches wait for both.
             var s1 = state
             s1.gathered = true
             if countCount == 0 {
@@ -142,7 +142,7 @@ extension SubtractionExplainer: GuidedExplainer {
         return miss(s, .tradeMissed)
     }
 
-    /// The broken ten's ones travel into the box; the child's line stays on it.
+    /// The broken ten's ones travel into the box; the learner's line stays on it.
     func tradeMotion(_ step: Int, from s0: SubtractionState, to s1: SubtractionState, ten i: Int) -> Motion {
         let duration = tradeTimes.end
         let e = self
@@ -169,7 +169,7 @@ extension SubtractionExplainer: GuidedExplainer {
         if !hit.isEmpty && hit.count <= need - done {
             var s1 = s
             for (j, r) in hit.enumerated() {
-                // The child's line is drawn on the piece it crossed most; the others are crossed
+                // The learner's line is drawn on the piece it crossed most; the others are crossed
                 // by it too.
                 s1.own[r] = j == 0 ? points : []
                 if case let .ten(i) = r { s1.tensGone.append(i) } else { s1.onesGone.append(r) }
@@ -188,7 +188,7 @@ extension SubtractionExplainer: GuidedExplainer {
         return miss(s, .crossMissed(ones: ones))
     }
 
-    /// The pieces just crossed out fade to ghosts with the child's line on them; `saying` is said
+    /// The pieces just crossed out fade to ghosts with the learner's line on them; `saying` is said
     /// once they have.
     func crossMotion(_ step: Int, from s0: SubtractionState, to s1: SubtractionState, saying: Line?) -> Motion {
         let gone = s1.onesGone.filter { !s0.onesGone.contains($0) } + s1.tensGone.filter { !s0.tensGone.contains($0) }.map(Ref.ten)
@@ -341,7 +341,7 @@ extension SubtractionExplainer: GuidedExplainer {
     // MARK: the three problems
 
     /// The child version on `problem` and two other problems of its kind (EXP-3): `problem` is
-    /// watched, the first other is done with the child, the second tried alone.
+    /// watched, the first other is done with the learner, the second tried alone.
     public static func lesson(watching problem: SubtractionProblem, wording: SubtractionWording) -> GuidedLesson<SubtractionExplainer> {
         let make = { SubtractionExplainer(problem: $0, version: .child, wording: wording) }
         return GuidedLesson(watch: make(problem), doWithMe: make(problem.isomorph(1)), tryOne: make(problem.isomorph(2)))

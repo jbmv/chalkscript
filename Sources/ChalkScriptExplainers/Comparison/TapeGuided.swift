@@ -4,9 +4,9 @@ import Foundation
 
 /// The tape diagram's child version (EXP-14, EXP-15): watch, do it with me, What if? and try one.
 ///
-/// The child does the last three steps:
+/// The learner does the last three steps:
 /// - compare: a line drawn along from the shorter bar's end to where the longer one ends, on
-///   either bar; the shorter bar is then drawn on, dashed. The child's line fades.
+///   either bar; the shorter bar is then drawn on, dashed. The learner's line fades.
 /// - equation: two cards, adding the amounts or taking the shorter from the longer. The adding
 ///   card shows what adding would mean, the two bars joined end to end with their sum, and is
 ///   then greyed out; the take-away card is the step.
@@ -18,7 +18,7 @@ extension TapeDiagramExplainer: GuidedExplainer {
     public typealias State = TapeState
     public typealias Tinker = DraggedBar
 
-    /// The steps the child can do.
+    /// The steps the learner can do.
     static let doable: Set<Step> = [.compare, .equation, .count]
 
     /// How far a draw-on line may start or end from the bars' ends, and how far it may rise or fall.
@@ -241,7 +241,7 @@ extension TapeDiagramExplainer: GuidedExplainer {
     // MARK: the three problems
 
     /// The child version on `problem` and two other problems of its kind (EXP-3): `problem` is
-    /// watched, the first other is done with the child (and What if? starts from it), the second
+    /// watched, the first other is done with the learner (and What if? starts from it), the second
     /// tried alone.
     public static func lesson(watching problem: TapeDiagramProblem, wording: TapeDiagramWording) -> GuidedLesson<TapeDiagramExplainer> {
         let make = { TapeDiagramExplainer(problem: $0, wording: wording) }

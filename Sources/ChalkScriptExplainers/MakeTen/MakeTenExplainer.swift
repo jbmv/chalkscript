@@ -22,7 +22,7 @@ import Foundation
 ///   itself, the worked line running "10", "10 + 1" until it becomes "10 + 5 = 15"; the answer
 ///   replaces the question mark, and the last line says the whole problem.
 ///
-/// Every picture is drawn from a `MakeTenState`, so the child's own choices in do it with me
+/// Every picture is drawn from a `MakeTenState`, so the learner's own choices in do it with me
 /// (which boxes were touched, which dots were dragged where, the order the dots were counted in)
 /// are drawn as they were made, and Show me plays a step from them (MakeTenGuided.swift).
 public struct MakeTenExplainer: Sendable {
@@ -52,7 +52,7 @@ public struct MakeTenExplainer: Sendable {
         static let bondFade = 0.6, loopDraw = 0.8, splitTail = 0.4, digitMark = 0.35
         static let travel = 0.9, travelGap = 0.15, workFade = 0.4
         static let tenTag = 1.4, tenHold = 0.6, oneEvery = 0.56, oneTag = 1.0, beforeAnswer = 0.5, answerFade = 0.4
-        /// The child's own marks: a box's circle drawn, a dot settling, and the pause before the
+        /// The learner's own marks: a box's circle drawn, a dot settling, and the pause before the
         /// line said once a step is done.
         static let tapMark = 0.3, settle = 0.22, afterDone = 0.4
         /// The count starts just after the step's line, which a step that counts aloud says
@@ -296,7 +296,7 @@ public struct MakeTenMove: Equatable, Hashable, Sendable {
     }
 }
 
-/// A dot the child is dragging, and where it is now, in scene units.
+/// A dot the learner is dragging, and where it is now, in scene units.
 public struct MakeTenDrag: Equatable, Sendable {
     public var dot: Int
     public var at: CGPoint
@@ -308,7 +308,7 @@ public struct MakeTenDrag: Equatable, Sendable {
 }
 
 /// Everything a make-a-ten picture can show (EXP-2): what has been drawn, touched, split, moved
-/// and counted, including the child's own choices (EXP-14).
+/// and counted, including the learner's own choices (EXP-14).
 public struct MakeTenState: Equatable, Sendable {
     /// The two numbers are drawn in the frames.
     public var shown = false
@@ -324,7 +324,7 @@ public struct MakeTenState: Equatable, Sendable {
     public var countedOnes: [Int] = []
     /// The answer is written.
     public var answered = false
-    /// The dot being dragged, while the child drags one.
+    /// The dot being dragged, while the learner drags one.
     public var dragging: MakeTenDrag?
 
     public init() {}

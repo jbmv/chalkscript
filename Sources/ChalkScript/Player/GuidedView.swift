@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The child version on screen (EXP-8, EXP-14, EXP-17): the parts strip and progress dots, the
 /// problem's question where the explainer gives it apart from the drawing, the drawing, which
-/// takes the child's Pencil or finger while a step waits for marks, the line with a hint or miss
+/// takes the learner's Pencil or finger while a step waits for marks, the line with a hint or miss
 /// and a tally, and the controls: Again; Why?, Show me and the large control. A tap on the drawing
 /// does what the large control does while it waits.
 ///
@@ -13,7 +13,7 @@ import SwiftUI
 /// to the player, which lays the explainer out for it (`GuidedPlayer.layOut`). While a touch is on
 /// the drawing and just after, presses on the controls do nothing (`GuidedPlayer.press`).
 ///
-/// The child's dots only show where the child is (EXP-8). With `dotsJump`, which only a preview
+/// The learner's dots only show where the learner is (EXP-8). With `dotsJump`, which only an authoring
 /// app sets, each dot is a control that plays its step.
 public struct GuidedView: View {
     private let player: GuidedPlayer
@@ -31,7 +31,7 @@ public struct GuidedView: View {
     /// as well as when it ends, which `onEnded` is not called for.
     @GestureState private var gestureLive = false
 
-    /// `hand` is the hand the child writes with, from the child's profile; right by default.
+    /// `hand` is the hand the learner writes with; right by default.
     public init(
         player: GuidedPlayer, forceStill: Bool = false, debugState: Bool = false, dotsJump: Bool = false,
         hand: WritingHand = .right
@@ -212,7 +212,7 @@ public struct GuidedView: View {
     @ViewBuilder private var dots: some View {
         let states = player.dots
         if dotsJump {
-            // For a preview app: each dot plays its step.
+            // For an authoring app: each dot plays its step.
             HStack(spacing: 0) {
                 ForEach(Array(states.enumerated()), id: \.offset) { i, state in
                     Button { player.jump(toStep: i) } label: {
@@ -240,7 +240,7 @@ public struct GuidedView: View {
             .fill((dot.state == .done ? palette.ink : dot.state == .current ? palette.colors(.result).fill : palette.line).color)
             .frame(width: 12, height: 12)
             .overlay {
-                if dot.childDoes {
+                if dot.learnerDoes {
                     Circle().stroke(palette.colors(.result).ink.color, lineWidth: 2).frame(width: 18, height: 18)
                 }
             }

@@ -61,7 +61,7 @@ public struct CameraMove: Equatable, Sendable {
     public func fraction(at t: Double) -> Double { progress(t, start: at, duration: duration, easing) }
 }
 
-/// One step's motion, resolved: the shot it plays in, the shot the child acts in where that
+/// One step's motion, resolved: the shot it plays in, the shot the learner acts in where that
 /// differs (do it with me, EXP-14), how the camera moves, and its timed values.
 public struct StepMotion: Equatable, Sendable {
     public var shot: String?

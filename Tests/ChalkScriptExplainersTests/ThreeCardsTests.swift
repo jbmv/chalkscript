@@ -147,7 +147,7 @@ struct ThreeCardsModelTests {
     }
 
     /// EXP-3: do it with me and try one are other problems of the same kind: exact when the
-    /// child's is exact, one closest pair, never the child's total, and different from each other.
+    /// learner's is exact, one closest pair, never the learner's total, and different from each other.
     @Test func theOtherProblemsAreOfTheSameKind() throws {
         for (cards, target) in ThreeCardsFixture.edges {
             let p = try ThreeCardsProblem(cards, target: target)
@@ -375,7 +375,7 @@ struct ThreeCardsDoTests {
         let actions = motion.script.events.map(\.action)
         #expect(actions.contains(.say(found, caption: false)))
         #expect(actions.last == .say(e.doLine(.swapped(2, 5)), caption: true))
-        // While what the child found is said, the cards stand as the child left them.
+        // While what the learner found is said, the cards stand as the learner left them.
         guard let at = motion.script.events.first(where: { $0.action == .waitForVoice })?.time else { return }
         let held = motion.picture(at)
         #expect(cardPaint(held, 3)?.fill == .soft(.subtract) && cardPaint(held, 1)?.stroke == .ink(.add))
@@ -429,7 +429,7 @@ struct ThreeCardsPlayerTests {
         p.primary()
         #expect(p.caption.display == "Now let's do one together.")
         let d = lesson.doWithMe
-        // Do it with me runs on by itself: read is watched, then the child's step.
+        // Do it with me runs on by itself: read is watched, then the learner's step.
         p.primary()
         p.settle(voice)
         #expect(p.phase == .doing(1) && p.readsMarks && p.tally == Tally(0, of: 5, op: .add))
@@ -437,7 +437,7 @@ struct ThreeCardsPlayerTests {
             let r = ThreeCardsLayout.card(i, lift: 0)
             p.mark(.tap(CGPoint(x: r.midX, y: r.midY)))
         }
-        // Over is watched, and then the child's step.
+        // Over is watched, and then the learner's step.
         p.settle(voice)
         #expect(p.phase == .doing(3) && p.readsMarks)
         #expect(!p.whyOffered, "do it with me offers no Why?: it runs on")

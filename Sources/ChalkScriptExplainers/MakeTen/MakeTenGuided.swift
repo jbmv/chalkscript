@@ -4,9 +4,9 @@ import Foundation
 
 /// Make a ten's child version (EXP-14): watch, do it with me, try one.
 ///
-/// The child does three steps, the last ones first as fading runs backward:
+/// The learner does three steps, the last ones first as fading runs backward:
 /// - need: a touch on each empty box of the top frame circles it and counts it aloud.
-/// - move: the child drags a dot of the bottom frame up; let go anywhere over the top frame, it
+/// - move: the learner drags a dot of the bottom frame up; let go anywhere over the top frame, it
 ///   drops into the nearest empty box, and the top frame's new count is said ("nine, ten");
 ///   let go anywhere else, it goes back. No ghost is left where it was.
 /// - count: a touch on the full top frame counts it as ten, then a touch on each dot left counts
@@ -15,7 +15,7 @@ import Foundation
 extension MakeTenExplainer: GuidedExplainer {
     public typealias State = MakeTenState
 
-    /// The steps the child can do.
+    /// The steps the learner can do.
     static let doable: Set<Step> = [.need, .move, .count]
 
     public var guidedSteps: [GuidedStep] {
@@ -236,7 +236,7 @@ extension MakeTenExplainer: GuidedExplainer {
     // MARK: the three problems
 
     /// The child version on `problem` and two other problems of its kind (EXP-3): `problem` is
-    /// watched, the first other is done with the child, the second tried alone.
+    /// watched, the first other is done with the learner, the second tried alone.
     public static func lesson(watching problem: MakeTenProblem, wording: MakeTenWording) -> GuidedLesson<MakeTenExplainer> {
         let make = { MakeTenExplainer(problem: $0, wording: wording) }
         return GuidedLesson(watch: make(problem), doWithMe: make(problem.isomorph(1)), tryOne: make(problem.isomorph(2)))

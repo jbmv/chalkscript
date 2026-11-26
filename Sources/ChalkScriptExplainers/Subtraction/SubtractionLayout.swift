@@ -3,7 +3,7 @@ import CoreGraphics
 import Foundation
 
 /// Where each piece of a subtraction stands. On the stage, the
-/// worksheet is on the left, as the child draws it (tens, loose ones in columns of five, the box
+/// worksheet is on the left, as the learner draws it (tens, loose ones in columns of five, the box
 /// for a traded ten's ones in two columns), and the count area right of the divider. Laid out for
 /// a tall drawing area (`stacked`, EXP-17), the worksheet is the same and the count area is under
 /// it, below a level divider, with the total under what is counted; the camera then frames the

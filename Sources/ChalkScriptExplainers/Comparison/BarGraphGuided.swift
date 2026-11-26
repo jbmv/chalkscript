@@ -4,9 +4,9 @@ import Foundation
 
 /// The bar graph's child version (EXP-14, EXP-15): watch, do it with me, What if? and try one.
 ///
-/// The child does four steps:
+/// The learner does four steps:
 /// - bars: touching each bar's number at the bottom reads it, the first-named bar first; touching
-///   the bar's end drops its line to the scale, and the number is still the child's to touch.
+///   the bar's end drops its line to the scale, and the number is still the learner's to touch.
 /// - compare: a line drawn along from the shorter bar's end to the longer bar's end, on either
 ///   bar's row or along the numbers.
 /// - equation: the two cards, as the tape diagram (the adding card's join, then greyed out).
@@ -85,14 +85,14 @@ extension BarGraphExplainer: GuidedExplainer {
         let value = problem.bars[i]
         let p = mark.at
         let y = Self.rowY(i)
-        // Touching the bar's end drops the line to the scale; the number is still hers to read.
+        // Touching the bar's end drops the line to the scale; the number is still the learner's to read.
         if abs(p.x - Self.x(value)) <= L.unit * 0.6 && p.y >= y - 12 && p.y <= y + L.barHeight + 12 {
             var s1 = s
             if !s1.dropped.contains(i) { s1.dropped.append(i) }
             return Reaction(s1, motion: dropMotion(from: s, to: s1, bar: i, full: false, saying: line(.lands)), note: .clear)
         }
         // Once the line has dropped, a miss points at the number it lands on, not at the bar's end
-        // the child has already touched.
+        // the learner has already touched.
         let landed = s.dropped.contains(i)
         if p.y < L.axisY - 10 || p.y > L.axisY + 50 { return miss(s, landed ? .landedMissed : .barMissed(bar: i)) }
         let v = min(BarGraphProblem.scaleMax, max(0, Int(((p.x - L.x0) / L.unit).rounded())))

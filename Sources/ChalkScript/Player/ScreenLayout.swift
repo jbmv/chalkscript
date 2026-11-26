@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The hand a child writes with (EXP-17). It chooses the side of the column in landscape: the
+/// The hand a learner writes with (EXP-17). It chooses the side of the column in landscape: the
 /// side the writing hand's palm covers while it writes on the drawing. Right by default. The app
-/// passes the child's profile setting; the player's views take it as `hand`.
+/// passes the learner's setting; the player's views take it as `hand`.
 public enum WritingHand: String, CaseIterable, Sendable {
     case right
     case left
@@ -86,7 +86,7 @@ enum ScreenArrangement: Equatable {
     /// line and the controls at the bottom.
     case portrait
     /// Wider than tall: one column of `width` on the writing hand's side (`onLeft` for a
-    /// left-handed child) holds the parts and dots, the question, the line and the controls; the
+    /// left-handed learner) holds the parts and dots, the question, the line and the controls; the
     /// drawing has the rest of the width at full height.
     case column(width: CGFloat, onLeft: Bool)
     /// Too little height for the drawing (a phone in landscape): the portrait arrangement, which

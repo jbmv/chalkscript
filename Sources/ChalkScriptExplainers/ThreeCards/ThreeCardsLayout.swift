@@ -52,7 +52,7 @@ public enum ThreeCardsLayout {
 
     /// The room a number or a sign takes in a written line. Each is set centred in its own room,
     /// so each number can take its colour (EXP-6) without measuring the face: a digit's room is a
-    /// little wider than the child face's figures, and a sign's includes the space either side.
+    /// little wider than the display face's figures, and a sign's includes the space either side.
     public static func room(_ text: String, sign: Bool, size: Double) -> CGFloat {
         sign ? CGFloat(size) * 1.05 : CGFloat(text.count) * CGFloat(size) * 0.62
     }

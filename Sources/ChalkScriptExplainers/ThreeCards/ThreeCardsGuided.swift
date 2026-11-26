@@ -5,7 +5,7 @@ import Foundation
 /// Three cards' child version (EXP-14, EXP-16): watch, do it with me, try one, with Why? on the
 /// too-many step.
 ///
-/// The child does two steps, the last first as fading runs backward:
+/// The learner does two steps, the last first as fading runs backward:
 /// - add: a tap lifts a card that is down and lowers one that is up; the equation above follows
 ///   every tap and the new total is said, cutting off the one before (EXP-10). Once all five are
 ///   up, the first written line is written.
@@ -18,7 +18,7 @@ import Foundation
 extension ThreeCardsExplainer: GuidedExplainer {
     public typealias State = ThreeCardsState
 
-    /// The steps the child can do.
+    /// The steps the learner can do.
     static let doable: Set<Step> = [.add, .drop]
 
     public var guidedSteps: [GuidedStep] {
@@ -163,7 +163,7 @@ extension ThreeCardsExplainer: GuidedExplainer {
             script: StepScript(duration: end, events: events),
             picture: { t in
                 if t >= end { return e.drawing(swapped) }
-                // While what the child found is said, the cards stand as the child left them.
+                // While what the learner found is said, the cards stand as the learner left them.
                 if t <= swapAt {
                     var q = e.pose(s1)
                     e.lift(&q, [move], at: t)
@@ -213,7 +213,7 @@ extension ThreeCardsExplainer: GuidedExplainer {
     // MARK: the three problems
 
     /// The child version on `problem` and two other problems of its kind (EXP-3): `problem` is
-    /// watched, the first other is done with the child, the second tried alone.
+    /// watched, the first other is done with the learner, the second tried alone.
     public static func lesson(watching problem: ThreeCardsProblem, wording: ThreeCardsWording) -> GuidedLesson<ThreeCardsExplainer> {
         let make = { ThreeCardsExplainer(problem: $0, wording: wording) }
         return GuidedLesson(watch: make(problem), doWithMe: make(problem.isomorph(1)), tryOne: make(problem.isomorph(2)))

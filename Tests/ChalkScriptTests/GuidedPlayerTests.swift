@@ -52,7 +52,7 @@ struct GuidedPlayerTests {
         #expect(p.scene.element("label")?.opacity == 1)
         watchAll(p, v)
         #expect(p.phase == .paused(3) && p.primaryControl == .doWithMe)
-        #expect(p.dots.allSatisfy { !$0.childDoes }, "nothing is the child's in watch")
+        #expect(p.dots.allSatisfy { !$0.learnerDoes }, "nothing is the child's in watch")
     }
 
     @Test func againReplaysOrGoesBackInWatch() {
@@ -91,7 +91,7 @@ struct GuidedPlayerTests {
         watchAll(p, v)
         p.primary()
         #expect(p.part == .doWithMe && p.phase == .ready && p.primaryControl == .start)
-        #expect(p.dots.map(\.childDoes) == [false, true, true, true])
+        #expect(p.dots.map(\.learnerDoes) == [false, true, true, true])
         p.primary()
         runOn(p, v, to: .paused(0))  // step 0 is watched
         // No Next in do it with me: a beat, then the next step by itself; Again stays.
@@ -212,7 +212,7 @@ struct GuidedPlayerTests {
         p.settle(v)
         #expect(p.phase == .paused(3) && p.scene.element("counted") != nil)
         #expect(p.primaryControl == .whatIf)
-        // Again on a step the child does starts its marks again.
+        // Again on a step the learner does starts its marks again.
         p.again()
         #expect(p.phase == .doing(3) && p.listening)
     }
@@ -251,7 +251,7 @@ struct GuidedPlayerTests {
         #expect(!p.whyShown && p.phase == .playing(0))
     }
 
-    /// Plays to What if?, the child doing nothing but Show me.
+    /// Plays to What if?, the learner doing nothing but Show me.
     func toWhatIf(_ p: GuidedPlayer, _ v: RecordingVoice) {
         watchAll(p, v)
         p.primary()
@@ -272,7 +272,7 @@ struct GuidedPlayerTests {
         #expect(p.part == .whatIf && p.phase == .whatIf(goal: 0, met: false))
         #expect(p.caption.display == "Make it 10." && p.showMeOffered && p.primaryControl == nil)
         #expect(p.dots.isEmpty)
-        // Dragging changes the picture at once; nothing is checked until the child lets go.
+        // Dragging changes the picture at once; nothing is checked until the learner lets go.
         p.touchBegan(at: CGPoint(x: 60, y: 300))
         p.touchMoved(to: CGPoint(x: 100, y: 300))
         guard case let .total(shown, _, _) = p.scene.element("bar")?.kind else { Issue.record("no bar"); return }
@@ -322,7 +322,7 @@ struct GuidedPlayerTests {
         #expect(p.primaryControl == .tryOne)
     }
 
-    // A preview app jumps to any part and any step.
+    // An authoring app jumps to any part and any step.
 
     @Test func aStepJumpInWatchBuildsTheStepsBeforeItAndForgetsThoseAfter() {
         let (p, v) = make()
@@ -361,7 +361,7 @@ struct GuidedPlayerTests {
         p.mark(.tap(CGPoint(x: 500, y: 300)))
         p.settle(v)
         #expect(p.phase == .paused(3) && p.scene.element("counted") != nil)
-        // A step the child does, jumped back to: the child's marks again, on the picture before it.
+        // A step the learner does, jumped back to: the learner's marks again, on the picture before it.
         p.jump(toStep: 1)
         #expect(p.phase == .doing(1) && p.scene.element("grown") == nil)
         v.finish()

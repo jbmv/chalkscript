@@ -1,8 +1,8 @@
 import ChalkScript
 import Foundation
 
-/// How the child's assignment draws tens and ones. The explainer draws in the style of the
-/// child's own page, so the problem names it (EXP-7).
+/// How the learner's assignment draws tens and ones. The explainer draws in the style of the
+/// learner's own page, so the problem names it (EXP-7).
 public enum PlaceValueDrawing: String, CaseIterable, Sendable {
     /// A tall rectangle per ten and a small square per one, labelled "tens" and "ones" underneath.
     case blocks

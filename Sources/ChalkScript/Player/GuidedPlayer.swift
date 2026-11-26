@@ -2,8 +2,7 @@ import CoreGraphics
 import Foundation
 import Observation
 
-/// The child version's controls and the one line the player adds itself, from the string
-/// library.
+/// The child version's controls and the one line the player adds itself.
 public struct GuidedLabels: Sendable {
     public var watch: String
     public var start: String
@@ -56,7 +55,7 @@ public struct GuidedLabels: Sendable {
     }
 }
 
-/// A line of the child's pencil, kept by the player while it is drawn or as it fades away.
+/// A line of the learner's pencil, kept by the player while it is drawn or as it fades away.
 public struct InkStroke: Equatable, Sendable, Identifiable {
     public var id: Int
     public var points: [CGPoint]
@@ -70,21 +69,21 @@ public struct InkStroke: Equatable, Sendable, Identifiable {
 /// - Watch plays the steps as `ExplainerPlayer` does: Watch, then each step's motion and line,
 ///   paused until Next or a tap on the drawing; Again replays the paused step, or goes back one
 ///   while a step plays. A step that counts aloud says its line before it moves (EXP-10).
-/// - Do it with me: the child makes the marks of the last `fading` doable steps (backward
+/// - Do it with me: the learner makes the marks of the last `fading` doable steps (backward
 ///   fading, EXP-14) and watches the rest. It runs on by itself, with no Next: a step
-///   the child watches plays straight into the next after a short beat (`beat`), and so does a
-///   step the child has done, once its line has been said. A step the child does says its
+///   the learner watches plays straight into the next after a short beat (`beat`), and so does a
+///   step the learner has done, once its line has been said. A step the learner does says its
 ///   instruction first, and marks made while it is said are ignored; then each mark is read by
 ///   the explainer. Show me plays the step as watched, and the step counts as watched. A miss is
 ///   a kind line; from the second on a step, it adds that Show me is there.
-/// - What if? sets goals in turn on a picture the child drags, checked when the child lets go;
+/// - What if? sets goals in turn on a picture the learner drags, checked when the learner lets go;
 ///   once one is met the picture holds while its line is said, and after a beat the next goal
 ///   opens by itself (EXP-15).
-/// - Try one shows the third problem for the child to try alone.
+/// - Try one shows the third problem for the learner to try alone.
 /// - Why?, where a step of watch has one, plays over the paused step; Got it returns to it as it
 ///   was, and Again replays the step itself (EXP-16).
 ///
-/// The control that starts a part (Start, What if?, Try one) still waits for the child, at the
+/// The control that starts a part (Start, What if?, Try one) still waits for the learner, at the
 /// end of each part. While a touch is on the drawing, and for `PalmGuard.quiet` after it lifts,
 /// presses on the controls through `press(_:)` do nothing, so a resting palm presses nothing
 /// (EXP-17).
@@ -99,9 +98,9 @@ public final class GuidedPlayer {
         case ready
         /// A step plays: watched, or by Show me.
         case playing(Int)
-        /// A step the child does: its instruction is said, then the child's marks are read.
+        /// A step the learner does: its instruction is said, then the learner's marks are read.
         case doing(Int)
-        /// A step is done; nothing happens until the child asks (EXP-8).
+        /// A step is done; nothing happens until the learner asks (EXP-8).
         case paused(Int)
         /// What if? goal `goal` is open, or met.
         case whatIf(goal: Int, met: Bool)
@@ -113,10 +112,10 @@ public final class GuidedPlayer {
         case watch, start, next, doWithMe, whatIf, tryOne, watchAgain, gotIt
     }
 
-    /// A progress dot: where it is, and whether the child does that step.
+    /// A progress dot: where it is, and whether the learner does that step.
     public struct Dot: Equatable, Sendable {
         public var state: ExplainerPlayer.Dot
-        public var childDoes: Bool
+        public var learnerDoes: Bool
     }
 
     /// The short beat between one step's line and the next where do it with me and What if? run
@@ -131,36 +130,36 @@ public final class GuidedPlayer {
     public let labels: GuidedLabels
     /// The palm rule for the controls (EXP-17): fed by the touches on the drawing.
     public let palm = PalmGuard()
-    /// How many of the do-it-with-me problem's doable steps the child does, counted from the last
-    /// (EXP-14). The app computes it from how many times the child has done this explainer.
+    /// How many of the do-it-with-me problem's doable steps the learner does, counted from the last
+    /// (EXP-14). The app computes it from how many times the learner has done this explainer.
     public let fading: Int
 
     public private(set) var part: GuidedPart = .watch
     public private(set) var phase: Phase = .ready
     /// The line under the drawing.
     public private(set) var caption: Line
-    /// The line under it while the child does a step: a hint, or a miss.
+    /// The line under it while the learner does a step: a hint, or a miss.
     public private(set) var note: Line?
     public private(set) var tally: Tally?
-    /// A step the child does is saying its instruction: marks are ignored (EXP-14).
+    /// A step the learner does is saying its instruction: marks are ignored (EXP-14).
     public private(set) var listening = false
     /// Show me is offered after two misses on a step, and pulses.
     public private(set) var showMeUrged = false
     /// Why? is playing over the drawing, or has played and waits for Got it.
     public private(set) var whyShown = false
     public private(set) var whyPlaying = false
-    /// The child's pencil line being drawn, and lines fading because they were not read as marks.
+    /// The learner's pencil line being drawn, and lines fading because they were not read as marks.
     public private(set) var ink: [InkStroke] = []
     /// Bumped for each light haptic (a What if? goal met).
     public private(set) var haptics = 0
-    /// The steps the child was shown with Show me in this do it with me.
+    /// The steps the learner was shown with Show me in this do it with me.
     public private(set) var shownSteps: Set<Int> = []
     /// The large control that starts a part (Watch, Start, Do it with me, What if?, Try one) is
     /// shown but waits until the voice can say the part's first line at once, so the first
     /// motion never runs ahead of its line.
     public private(set) var gettingReady = false
 
-    /// Show each motion's end at once (EXP-11); the child's own steps are unchanged (EXP-14).
+    /// Show each motion's end at once (EXP-11); the learner's own steps are unchanged (EXP-14).
     public var reduceMotion: Bool {
         get { runner.reduceMotion }
         set { runner.reduceMotion = newValue }
@@ -187,11 +186,11 @@ public final class GuidedPlayer {
     @ObservationIgnored private var goalReady = false
     @ObservationIgnored private var locked = false
     @ObservationIgnored private var readyToken = 0
-    /// The motion a step the child does opens with (gathering pieces, framing them) is playing:
-    /// the child's marks wait for it, so the camera has landed before the child acts (EXP-18).
+    /// The motion a step the learner does opens with (gathering pieces, framing them) is playing:
+    /// the learner's marks wait for it, so the camera has landed before the learner acts (EXP-18).
     private var settling = false
 
-    /// `fading` is how many doable steps the child does; more than there are means all.
+    /// `fading` is how many doable steps the learner does; more than there are means all.
     public init<E: GuidedExplainer>(
         lesson: GuidedLesson<E>, voice: any ExplainerVoice, labels: GuidedLabels, fading: Int = .max,
         reduceMotion: Bool = false, drivesItself: Bool = true
@@ -214,7 +213,7 @@ public final class GuidedPlayer {
     // MARK: the lines ahead
 
     /// The lines the child version says from step `step` of `part` to the end of try one, in the
-    /// order a child who does each step right hears them; Why? panels, misses and hints are not
+    /// order a learner who does each step right hears them; Why? panels, misses and hints are not
     /// among them.
     public func plannedLines(from part: GuidedPart, step: Int = 0) -> [Line] {
         let order = parts
@@ -314,10 +313,10 @@ public final class GuidedPlayer {
         }
     }
 
-    /// Whether step `step` of the part playing is one the child does.
-    public func childDoes(_ step: Int) -> Bool { part == .doWithMe && doSet.contains(step) }
+    /// Whether step `step` of the part playing is one the learner does.
+    public func learnerDoes(_ step: Int) -> Bool { part == .doWithMe && doSet.contains(step) }
 
-    /// The do-it-with-me steps the child does: the last `fading` doable ones (EXP-14).
+    /// The do-it-with-me steps the learner does: the last `fading` doable ones (EXP-14).
     public var doSet: Set<Int> {
         let doable = lesson.steps(.doWithMe).enumerated().filter(\.element.doable).map(\.offset)
         return Set(doable.suffix(fading))
@@ -326,7 +325,7 @@ public final class GuidedPlayer {
     public var dots: [Dot] {
         let now = currentStep ?? -1
         return steps.indices.map {
-            Dot(state: $0 < now ? .done : $0 == now ? .current : .upcoming, childDoes: childDoes($0))
+            Dot(state: $0 < now ? .done : $0 == now ? .current : .upcoming, learnerDoes: learnerDoes($0))
         }
     }
 
@@ -358,7 +357,7 @@ public final class GuidedPlayer {
         }
     }
 
-    /// Show me: always offered during a step the child does, and while a What if? goal is open.
+    /// Show me: always offered during a step the learner does, and while a What if? goal is open.
     public var showMeOffered: Bool {
         switch phase {
         case .doing: !blocked
@@ -424,7 +423,7 @@ public final class GuidedPlayer {
     }
 
     /// A tap on the drawing does what the large control does while it waits on a step, except
-    /// just after a mark the child made.
+    /// just after a mark the learner made.
     public func tapDrawing() {
         guard clock() - lastMarkAt >= 0.7 else { return }
         switch phase {
@@ -434,7 +433,7 @@ public final class GuidedPlayer {
     }
 
     /// Replays the paused step; while a watched step plays, goes back one (EXP-8). On a step the
-    /// child does, starts its marks again. In What if?, says the goal again. During Why?, replays
+    /// learner does, starts its marks again. In What if?, says the goal again. During Why?, replays
     /// the step itself (EXP-16).
     public func again() {
         if whyShown, let k = currentStep {
@@ -445,7 +444,7 @@ public final class GuidedPlayer {
         case .ready, .tryOne: break
         case let .paused(k): replay(k)
         case let .doing(k): replay(k)
-        case let .playing(k): childDoes(k) ? replay(k) : run(max(0, k - 1))
+        case let .playing(k): learnerDoes(k) ? replay(k) : run(max(0, k - 1))
         case let .whatIf(g, met):
             let line = lesson.goalLine(g)
             runner.silence()
@@ -458,7 +457,7 @@ public final class GuidedPlayer {
         }
     }
 
-    /// Show me: plays the child's step as watched; in What if?, moves the picture to the goal.
+    /// Show me: plays the learner's step as watched; in What if?, moves the picture to the goal.
     public func showMe() {
         switch phase {
         case let .doing(k):
@@ -486,17 +485,17 @@ public final class GuidedPlayer {
         runner.play(motion) { [weak self] in self?.whyPlaying = false }
     }
 
-    /// Goes to a part directly (for a preview app).
+    /// Goes to a part directly (for an authoring app).
     public func jump(to part: GuidedPart) {
         guard parts.contains(part) else { return }
         startPart(part)
     }
 
-    /// Plays step `step` of the part playing directly (for a preview app): the steps before it
+    /// Plays step `step` of the part playing directly (for an authoring app): the steps before it
     /// that have not been played are built with their watched results, and the steps after it
     /// are forgotten, so they are rebuilt from wherever it leaves off. In do it with me, a step
-    /// the child does says its instruction and waits for the child's marks. Closes Why? if it is
-    /// shown. The child's own dots never call this (EXP-8).
+    /// the learner does says its instruction and waits for the learner's marks. Closes Why? if it is
+    /// shown. The learner's own dots never call this (EXP-8).
     public func jump(toStep step: Int) {
         guard steps.indices.contains(step) else { return }
         if whyShown { closeWhy() }
@@ -568,7 +567,7 @@ public final class GuidedPlayer {
         ink.removeAll { $0.fadingSince == nil }
     }
 
-    /// A mark on the drawing, read by the step the child is doing (EXP-14).
+    /// A mark on the drawing, read by the step the learner is doing (EXP-14).
     public func mark(_ mark: Mark) {
         guard readsMarks, case let .doing(k) = phase else { return }
         lastMarkAt = clock()
@@ -578,7 +577,7 @@ public final class GuidedPlayer {
         apply(r, step: k)
     }
 
-    /// A drag on the drawing: read by a step the child does by dragging, or by an open What if?
+    /// A drag on the drawing: read by a step the learner does by dragging, or by an open What if?
     /// goal.
     public func dragged(_ drag: Drag) {
         if case let .whatIf(g, false) = phase {
@@ -680,7 +679,7 @@ public final class GuidedPlayer {
         readyToken += 1
         gettingReady = false
         expectFrom(k)
-        childDoes(k) ? childStep(k) : watchStep(k)
+        learnerDoes(k) ? childStep(k) : watchStep(k)
     }
 
     private func replay(_ k: Int) { run(k) }
@@ -719,7 +718,7 @@ public final class GuidedPlayer {
             self.listening = false
             self.apply(self.lesson.begin(k), step: k, opening: true)
         }
-        // The instruction is heard before the child can act (EXP-14); the camera frames the step
+        // The instruction is heard before the learner can act (EXP-14); the camera frames the step
         // while it is said, and has landed by then (EXP-18).
         if let approach {
             runner.play(approach.saying(line), then: open)
@@ -728,8 +727,8 @@ public final class GuidedPlayer {
         }
     }
 
-    /// Applies a reaction to step `k`. The one a step opens with (`opening`) holds the child's
-    /// marks until its motion has played, so nothing the child draws lands while the pieces
+    /// Applies a reaction to step `k`. The one a step opens with (`opening`) holds the learner's
+    /// marks until its motion has played, so nothing the learner draws lands while the pieces
     /// gather or the camera moves.
     private func apply(_ r: AnyReaction, step k: Int, opening: Bool = false) {
         let my = token
@@ -784,7 +783,7 @@ public final class GuidedPlayer {
     }
 
     /// In do it with me, step `k` is done and its line said: after a beat the next step plays, or
-    /// says its instruction when it is the child's. The last step waits for the control
+    /// says its instruction when it is the learner's. The last step waits for the control
     /// that starts the next part. Again, a jump or Show me in the beat replaces it.
     private func runOn(after k: Int) {
         guard part == .doWithMe, k < steps.count - 1 else { return }
@@ -909,7 +908,7 @@ protocol LessonEngine: AnyObject {
     func picture(after step: Int) -> Scene
     func watch(_ step: Int) -> Motion
     func instruction(_ step: Int) -> Line
-    /// The camera's move to frame step `step` for the child, if it moves (EXP-18); the state
+    /// The camera's move to frame step `step` for the learner, if it moves (EXP-18); the state
     /// before the step is then the framed one.
     func approach(_ step: Int) -> Motion?
     func begin(_ step: Int) -> AnyReaction
@@ -926,7 +925,7 @@ protocol LessonEngine: AnyObject {
     func whatIfPicture() -> Scene
     func whatIfDrag(_ drag: Drag, goal: Int)
     func settle(goal: Int, showMe: Bool) -> (motion: Motion?, met: Line?)
-    /// The lines `part` says from step `step` on, as a child who does the steps in `doing`
+    /// The lines `part` says from step `step` on, as a learner who does the steps in `doing`
     /// right hears them, without changing what is playing.
     func planned(_ part: GuidedPart, from step: Int, doing: Set<Int>) -> [Line]
     func question(_ part: GuidedPart) -> Line?
@@ -942,7 +941,7 @@ final class Lesson<E: GuidedExplainer>: LessonEngine {
     private var part: GuidedPart = .watch
     /// The state before each step of the part playing; step k's is `states[k]`.
     private var states: [E.State] = []
-    /// The state of the step the child is doing, as its marks change it.
+    /// The state of the step the learner is doing, as its marks change it.
     private var workingState: E.State?
     private var tinker: E.Tinker?
     private var goalLines: [Int: Line] = [:]
@@ -998,7 +997,7 @@ final class Lesson<E: GuidedExplainer>: LessonEngine {
     func watch(_ step: Int) -> Motion {
         let (s1, motion) = e.watch(step, from: state(before: step))
         states = Array(states.prefix(step + 1)) + [s1]
-        // A step the child was doing and left (by Show me or a jump) leaves no marks behind.
+        // A step the learner was doing and left (by Show me or a jump) leaves no marks behind.
         workingState = nil
         return motion
     }

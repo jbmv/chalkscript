@@ -4,7 +4,7 @@ import Foundation
 
 /// The two tens-and-ones explainers (EXP-2, EXP-5, EXP-7): "47 is how many tens and
 /// ones?" (`TensOnesQuestion.reading`) and "What number do these make?" (`.writing`), each drawn
-/// in the style of the child's own assignment, rectangles and squares or sticks and circles in a
+/// in the style of the learner's own assignment, rectangles and squares or sticks and circles in a
 /// Tens | Ones chart. Their steps and timings, in seconds:
 ///
 /// - Each step's line is said first; on the tens and ones steps a pencil ring is drawn round the
@@ -48,10 +48,10 @@ public struct TensOnesExplainer: Explainer {
 
     public var stepCount: Int { steps.count }
     public var intro: Line { line(.intro) }
-    /// The child hears each count; the parent sees the counts and hears the lines (EXP-9).
+    /// The learner hears each count; the parent sees the counts and hears the lines (EXP-9).
     public var speaksCounts: Bool { version == .child }
 
-    /// How long counting takes against the child's pace (EXP-9), as the subtraction explainer.
+    /// How long counting takes against the learner's pace (EXP-9), as the subtraction explainer.
     public static func countPace(_ version: ExplainerVersion) -> Double {
         SubtractionExplainer.countPace(version)
     }
@@ -81,7 +81,7 @@ public struct TensOnesExplainer: Explainer {
         static let beforeJoin = 0.4, pulse = 0.5, workedFade = 0.4
     }
 
-    /// When the tens or the ones step's phases start, counting at `pace` times the child's.
+    /// When the tens or the ones step's phases start, counting at `pace` times the learner's.
     struct PlaceTimes {
         let pace: Double
         let ticks: [Double]

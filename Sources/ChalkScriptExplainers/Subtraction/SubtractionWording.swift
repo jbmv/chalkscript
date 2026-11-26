@@ -2,7 +2,7 @@ import ChalkScript
 import Foundation
 
 /// The lines of a subtraction explainer (EXP-10), one per step plus the counts, the joining of
-/// tens and ones, and the answer. The app turns each into its string-library entry, filled with
+/// tens and ones, and the answer. The app turns each into its wording entry, filled with
 /// the problem's values.
 public enum SubtractionLine: Equatable, Hashable, Sendable {
     /// Before the first step: the problem, read with its operation's name ("54 minus 26").
@@ -45,7 +45,7 @@ public enum SubtractionLine: Equatable, Hashable, Sendable {
 
 /// The child version's lines for do it with me and try one (EXP-14): the instructions that are
 /// not the watched step's own line, what is said once a step is done, and the kind lines met by
-/// a mark the step cannot use. The app turns each into its string-library entry.
+/// a mark the step cannot use. The app turns each into its wording entry.
 public enum SubtractionDoLine: Equatable, Hashable, Sendable {
     /// Before the first step: "Now let's do one together: 54 minus 26."
     case intro
@@ -105,7 +105,7 @@ public enum EquationSlot {
     public static let answer = "\u{E002}"
 }
 
-/// A subtraction explainer's wording, from the string library, for one version (child or
+/// A subtraction explainer's wording, for one version (child or
 /// parent).
 public struct SubtractionWording: Sendable {
     public var line: @Sendable (SubtractionLine, SubtractionProblem) -> Line

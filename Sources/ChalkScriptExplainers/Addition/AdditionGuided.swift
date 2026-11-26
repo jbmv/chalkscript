@@ -4,11 +4,11 @@ import Foundation
 
 /// Addition's child version (EXP-14): watch, do it with me, try one.
 ///
-/// The child does four steps, the last ones first as fading runs backward:
+/// The learner does four steps, the last ones first as fading runs backward:
 /// - add ones: each touch on the ones side draws the next one in its place, and its count is
 ///   said, counting on; once all are drawn, a pencil loop goes round all the ones and how many
 ///   there are is said (do it with me has no separate check step).
-/// - bundle: a loop drawn round any ten ones bundles them; the child's loop stays, in the trade's
+/// - bundle: a loop drawn round any ten ones bundles them; the learner's loop stays, in the trade's
 ///   colour, and copies of the ten ones travel into the new ten.
 /// - add tens: each touch on the tens side draws the next ten.
 /// - count: each piece is touched, tens first, and its count is said at once, cutting off the one
@@ -17,7 +17,7 @@ import Foundation
 extension AdditionExplainer: GuidedExplainer {
     public typealias State = AdditionState
 
-    /// The steps the child can do.
+    /// The steps the learner can do.
     static let doable: Set<Step> = [.addOnes, .bundle, .addTens, .count]
 
     public var guidedSteps: [GuidedStep] {
@@ -93,7 +93,7 @@ extension AdditionExplainer: GuidedExplainer {
             interrupts: ones, note: .clear, tally: Tally(placed + 1, of: need, op: .add), finished: finished)
     }
 
-    /// The piece drawn moves from where the child touched to its place; a one's count is said,
+    /// The piece drawn moves from where the learner touched to its place; a one's count is said,
     /// counting on. After the last, the loop is drawn round all the ones (the ones step) and how
     /// many there are is said.
     func placeMotion(
@@ -134,7 +134,7 @@ extension AdditionExplainer: GuidedExplainer {
         return Reaction(s1, motion: loopMotion(step, from: s, to: s1), note: .clear, keepsStroke: true, finished: true)
     }
 
-    /// The child's loop stays; the arrow is drawn from it to the new ten, and the ten ones travel
+    /// The learner's loop stays; the arrow is drawn from it to the new ten, and the ten ones travel
     /// along it and stack into the new ten. The line about the tens and ones there now is said
     /// once they have.
     func loopMotion(_ step: Int, from s0: AdditionState, to s1: AdditionState) -> Motion {
@@ -261,7 +261,7 @@ extension AdditionExplainer: GuidedExplainer {
     // MARK: the three problems
 
     /// The child version on `problem` and two other problems of its kind (EXP-3): `problem` is
-    /// watched, the first other is done with the child (without the separate check step), the
+    /// watched, the first other is done with the learner (without the separate check step), the
     /// second tried alone.
     public static func lesson(watching problem: AdditionProblem, wording: AdditionWording) -> GuidedLesson<AdditionExplainer> {
         GuidedLesson(

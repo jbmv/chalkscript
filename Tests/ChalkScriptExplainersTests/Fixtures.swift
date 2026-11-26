@@ -4,7 +4,7 @@ import Testing
 @testable import ChalkScript
 @testable import ChalkScriptExplainers
 
-/// Synthetic wording for the package's tests, shaped like the consuming app's string library
+/// Synthetic wording for the package's tests, shaped like a consuming app's wording
 /// entries. The app's own tests check the real entries.
 enum Fixture {
     static func wording(_ version: ExplainerVersion = .child) -> SubtractionWording {
@@ -115,7 +115,7 @@ enum PlaceValueFixture {
 // MARK: the child version
 
 extension Fixture {
-    /// The child's wording with synthetic do-it-with-me lines.
+    /// The learner's wording with synthetic do-it-with-me lines.
     static func guidedWording() -> SubtractionWording {
         var w = wording(.child)
         w.doLine = { l, p in
@@ -198,7 +198,7 @@ extension ExplainerPlayer {
 
 extension GuidedPlayer {
     /// Runs the clock in frames, finishing each line as it is said, until the player waits on
-    /// something other than its clock or voice: a control, or the child's marks.
+    /// something other than its clock or voice: a control, or the learner's marks.
     @discardableResult
     func settle(_ voice: RecordingVoice, frame: Double = 1.0 / 60, limit: Int = 20_000) -> Int {
         var frames = 0

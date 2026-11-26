@@ -58,7 +58,7 @@ extension ExplainerPlayer {
 
 extension GuidedPlayer {
     /// Runs the clock in frames, finishing each line as it is said, until the player waits on
-    /// something other than its clock or voice: a control, or the child's marks.
+    /// something other than its clock or voice: a control, or the learner's marks.
     @discardableResult
     func settle(_ voice: RecordingVoice, frame: Double = 1.0 / 60, limit: Int = 20_000) -> Int {
         var frames = 0

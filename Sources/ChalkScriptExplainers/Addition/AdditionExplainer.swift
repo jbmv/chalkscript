@@ -18,8 +18,8 @@ import Foundation
 ///   each showing its count on itself; the total shows "60 + 3" until it becomes 63, with "60 + 3"
 ///   left under it, and the answer replaces the question mark.
 ///
-/// Every picture is drawn from an `AdditionState`, so the child's own choices in do it with me
-/// (which ten ones are looped, with the child's own loop) are drawn as they were made, and Show
+/// Every picture is drawn from an `AdditionState`, so the learner's own choices in do it with me
+/// (which ten ones are looped, with the learner's own loop) are drawn as they were made, and Show
 /// me plays a step from them (AdditionGuided.swift). The explainer has a child version only.
 public struct AdditionExplainer: Explainer {
     public typealias Step = AdditionProblem.Step
@@ -67,7 +67,7 @@ public struct AdditionExplainer: Explainer {
     }
 
     /// When the bundle's phases start, from the moment its arrow begins (after the box in the
-    /// watched step; at once after the child's loop).
+    /// watched step; at once after the learner's loop).
     struct StackTimes {
         let travelEnd = T.arrow + 9 * T.travelEvery + T.travel
         var newTenEnd: Double { travelEnd + T.newTen }
@@ -259,7 +259,7 @@ public struct AdditionExplainer: Explainer {
         return t > 0 ? wording.runningTotal(t * 10, n - t) : String(n - t)
     }
 
-    /// The box round the ten ones, or the bounds of the child's loop round them: where the
+    /// The box round the ten ones, or the bounds of the learner's loop round them: where the
     /// bundle's arrow starts.
     func bundleFrom(_ loop: [CGPoint]?) -> CGRect {
         guard let loop, let x0 = loop.map(\.x).min(), let x1 = loop.map(\.x).max(), let y0 = loop.map(\.y).min(),
@@ -444,7 +444,7 @@ public enum AdditionPiece: Hashable, Sendable {
 }
 
 /// Everything an addition picture can show (EXP-2): what has been drawn, bundled and counted, and
-/// the child's own loop (EXP-14).
+/// the learner's own loop (EXP-14).
 public struct AdditionState: Equatable, Sendable {
     /// The first number is drawn as tens and ones.
     public var shown = false
@@ -456,10 +456,10 @@ public struct AdditionState: Equatable, Sendable {
     public var newTen = false
     /// The second number's tens drawn so far.
     public var addedTens = 0
-    /// The child's adding step ended with the loop round the ones (do it with me's adding step
+    /// The learner's adding step ended with the loop round the ones (do it with me's adding step
     /// does what the watched check step does).
     public var onesRinged = false
-    /// The child's own loop round the ten ones bundled, drawn in place of the box.
+    /// The learner's own loop round the ten ones bundled, drawn in place of the box.
     public var loop: [CGPoint]?
     /// The pieces counted, by their place in the count (tens first, then the ones standing).
     public var counted: Set<Int> = []
@@ -551,7 +551,7 @@ struct AdditionPicture {
         for (i, p) in ones.enumerated() { out.append(SceneElement("one.\(i)", .one(p.frame, p.style), opacity: p.opacity)) }
         if e.problem.regroups {
             out.append(SceneElement("box", .box(l.box, progress: box, op: .trade)))
-            // The child's own loop, in the trade's colour, in place of the box (EXP-14).
+            // The learner's own loop, in the trade's colour, in place of the box (EXP-14).
             out.append(SceneElement("loop", .ink(loop ?? [], op: .trade), opacity: loop == nil ? 0 : 1))
             let newTen = l.tens[e.problem.firstTens]
             out.append(SceneElement("arrow", .arrow(

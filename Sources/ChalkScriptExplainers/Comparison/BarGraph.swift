@@ -87,7 +87,7 @@ public struct BarGraphProblem: Equatable, Hashable, Sendable {
     }
 }
 
-/// The bar graph's lines (EXP-10), each a string-library entry the app fills with the problem's
+/// The bar graph's lines (EXP-10), each a wording entry the app fills with the problem's
 /// values and the graph's words.
 public enum BarGraphLine: Equatable, Hashable, Sendable {
     case intro
@@ -159,7 +159,7 @@ public enum BarGraphLine: Equatable, Hashable, Sendable {
     }
 }
 
-/// Text the bar graph draws, as the app fills it from the string library.
+/// Text the bar graph draws, as the app fills it from its wording.
 public enum BarGraphText: Equatable, Sendable {
     case title
     /// The name of the bar in place `n`.
@@ -173,7 +173,7 @@ public enum BarGraphText: Equatable, Sendable {
     case tryNote
 }
 
-/// The bar graph's wording, from the string library.
+/// The bar graph's wording.
 public struct BarGraphWording: Sendable {
     public var line: @Sendable (BarGraphLine, BarGraphProblem) -> Line
     public var text: @Sendable (BarGraphText, BarGraphProblem) -> String
@@ -196,7 +196,7 @@ public struct GraphState: Equatable, Sendable {
     /// Bars read off the scale (by place): a line down to the scale, the number ringed there and
     /// written inside the bar's end.
     public var read: [Int] = []
-    /// Bars whose end the child touched: only the line down is drawn, the number is still hers to
+    /// Bars whose end the learner touched: only the line down is drawn, the number is still the learner's to
     /// read.
     public var dropped: [Int] = []
     public var gap = false
@@ -297,7 +297,7 @@ public struct BarGraphExplainer: Sendable {
             finish = Double(n) * T.cell + T.beforeFinish
         }
 
-        /// One square the child touches; the last also finishes the count.
+        /// One square the learner touches; the last also finishes the count.
         init(oneCell last: Bool) {
             cells = [0]
             finish = last ? T.beforeFinish : .infinity
@@ -456,7 +456,7 @@ public struct BarGraphExplainer: Sendable {
     }
 
     /// A bar read off the scale: a dashed line from its end down to the numbers, the number ringed
-    /// there, and written just inside the bar's end, as a child writes it on the page.
+    /// there, and written just inside the bar's end, as a learner writes it on the page.
     func readMark(_ pen: inout Pen, _ i: Int, drop: Double, ring: Double, value: Double) {
         let v = problem.bars[i]
         let x = Self.x(v)
@@ -525,7 +525,7 @@ public struct BarGraphExplainer: Sendable {
     }
 
     /// The shorter bar drawn on: a dashed line marks where the longer bar ends (drawn when
-    /// watched, there already when the child drew it on), the dashed part grows to it, and its
+    /// watched, there already when the learner drew it on), the dashed part grows to it, and its
     /// squares and question mark appear.
     func gapMotion(_ p: inout Picture, _ t: Double, drawn: Bool) {
         let grow = drawn ? 0 : T.guide

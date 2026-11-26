@@ -370,7 +370,7 @@ struct TapeDiagramTests {
     }
 
     /// The whole child version plays in the player: watch, do it with me with every step the
-    /// child's, What if? and try one.
+    /// learner's, What if? and try one.
     @MainActor @Test func playsThroughEveryPart() throws {
         let voice = RecordingVoice()
         let lesson = TapeDiagramExplainer.lesson(watching: try TapeDiagramProblem(34, 52), wording: CompareFixture.tape())
@@ -383,7 +383,7 @@ struct TapeDiagramTests {
         }
         #expect(p.part == .doWithMe)
         let e = lesson.doWithMe
-        // Start: the watched steps run on into the child's.
+        // Start: the watched steps run on into the learner's.
         p.primary()
         p.settle(voice)
         #expect(p.phase == .doing(2))
@@ -474,7 +474,7 @@ struct BarGraphTests {
         let k = 1
         let s = e.start
         let axis = BarGraphExplainer.L.axisY + 19
-        // The bar's end: its line drops to the scale; the number is still hers to touch.
+        // The bar's end: its line drops to the scale; the number is still the learner's to touch.
         let end = e.read(.tap(CGPoint(x: BarGraphExplainer.x(14), y: BarGraphExplainer.rowY(0) + 18)), step: k, s)
         #expect(end.state.dropped == [0] && end.state.read.isEmpty && !end.finished)
         #expect(end.motion?.script.events.last.map { if case let .say(l, true) = $0.action { l == e.line(.lands) } else { false } } == true)
@@ -572,7 +572,7 @@ struct BarGraphTests {
         }
         #expect(p.part == .doWithMe)
         let e = lesson.doWithMe
-        // Start: step 0 is watched and runs on into the child's.
+        // Start: step 0 is watched and runs on into the learner's.
         p.primary()
         p.settle(voice)
         #expect(p.phase == .doing(1))
