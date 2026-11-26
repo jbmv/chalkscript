@@ -481,7 +481,7 @@ struct MakeTenPicture {
     }
 }
 
-/// The watched steps as the paced player and the approval fingerprint read an explainer
+/// The watched steps as the paced player and the revision fingerprint reads an explainer
 /// (`Explainer`): the child version's, since make a ten has no parent wording yet (EXP-9).
 extension MakeTenExplainer: Explainer {
     public var version: ExplainerVersion { .child }

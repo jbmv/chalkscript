@@ -5,7 +5,7 @@
 /// (EXP-13), in the colours of EXP-6 (`ExplainerPalette`).
 ///
 /// This target is the engine: the drawing components, the players, the style and motion formats,
-/// the approval check and the spoken form of numbers. The explainers are templates in other
+/// the revision of an explainer and the spoken form of numbers. The explainers are templates in other
 /// targets, such as `ChalkScriptExplainers`, that depend on it.
 ///
 /// The child version runs in parts (EXP-8, EXP-14, EXP-15, EXP-16): watch, do it with me, an
@@ -19,5 +19,5 @@
 /// comes from `NumberWords`.
 public enum ChalkScript {
     /// Bumped when the package's public surface changes shape.
-    public static let moduleVersion = 3
+    public static let moduleVersion = 4
 }

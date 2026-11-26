@@ -157,11 +157,11 @@ struct StyleAndMotionFileTests {
 
     @Test func theVersionCoversTheMotionFile() {
         let w = Fixture.wording()
-        let standard = SubtractionExplainer.currentVersion(.child, wording: w)
+        let standard = SubtractionExplainer.currentRevision(.child, wording: w)
         var json = CameraTests.bundledMotion
         json = json.replacingOccurrences(of: "\"tens\": { \"frame\": [\"tens\"] }", with: "\"tens\": { \"frame\": [\"tens\"], \"margin\": 30 }")
-        let moved = SubtractionExplainer.currentVersion(.child, wording: w, motion: SubtractionExplainer.motion(Data(json.utf8)))
+        let moved = SubtractionExplainer.currentRevision(.child, wording: w, motion: SubtractionExplainer.motion(Data(json.utf8)))
         #expect(moved != standard, "a shot's margin changes what the child sees, so the version")
-        #expect(SubtractionExplainer.currentVersion(.child, wording: w) == standard, "and is stable")
+        #expect(SubtractionExplainer.currentRevision(.child, wording: w) == standard, "and is stable")
     }
 }

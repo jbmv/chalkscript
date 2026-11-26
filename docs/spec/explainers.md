@@ -4,8 +4,8 @@ ChalkScript makes step-by-step visual explanations, called explainers. This docu
 
 ## Scope
 
-- **Covered:** what an explainer shows, how it moves, how it speaks, how it is paced, how the learner takes part, how it is laid out, how its style and motion are stored as data, and how a version of it is approved.
-- **Not covered:** the application around an explainer. How a learner reaches an explainer, how practice is scored, and where wording and approvals are kept belong to the app that uses the package.
+- **Covered:** what an explainer shows, how it moves, how it speaks, how it is paced, how the learner takes part, how it is laid out, how its style and motion are stored as data, and how its revision is computed.
+- **Not covered:** the application around an explainer. How a learner reaches an explainer, how practice is scored, who an explainer is shown to, and whether it has been reviewed or approved belong to the app that uses it, or to the repository that holds the content.
 - **Generality:** the requirements are written for any subject. The explainers in the package today, in the `ChalkScriptExplainers` target, are for early elementary arithmetic; the `ChalkScript` target holds the engine they share. Notes headed *In the package* describe that case, and a requirement worked out only for that case says so.
 - **Ids:** each requirement has a stable id, which the code and commit messages cite. The sections are grouped by topic, not by number. A requirement that is replaced or withdrawn stays as a tombstone.
 - **Metadata:** `status` and `governs` are `key: value` lines under a heading. `governs` lists the files a requirement chiefly describes.
@@ -17,7 +17,7 @@ ChalkScript makes step-by-step visual explanations, called explainers. This docu
 - **Style:** a set of design values that every explainer shares and that can be replaced as a whole: colours, easing curves, default durations, and the camera's defaults, including how strongly the rest of the picture is dimmed (EXP-6, EXP-19). A style is not a template.
 - **Step:** one change to the picture, with one spoken line.
 - **Learner:** the person the explainer is for.
-- **Version:** an explainer as presented to one audience. The package has two, named `child` and `parent` in the code (`ExplainerVersion`): the learner's version, and a version for a person helping the learner (EXP-9).
+- **Revision:** a fingerprint of everything an explainer shows and says (EXP-1).
 - **Part:** a stage of the learner's version: watch, do it with me, What if?, try one (EXP-8, EXP-14, EXP-15).
 - **Shot:** a region of the drawing that the camera frames (EXP-18).
 
@@ -325,23 +325,21 @@ A motion file (`<explainer>-motion.json`):
 
 *In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue`. `ExplainerMotion.bundled` reads a motion file from the bundle of the target that holds the explainer. `ChalkScript` bundles `style.json`, and `ChalkScriptExplainers` bundles `subtraction-motion.json`, the only motion file; the other explainers hold their timings in code.
 
-## EXP-1. Each explainer is reviewed singly, and an approval names a version
+## EXP-1. An explainer has a revision, which changes when what it shows changes
 
 status: draft
-governs: Sources/ChalkScript/Approval/ExplainerApprovals.swift, Sources/ChalkScriptExplainers/Approval/ExplainerID.swift, Sources/ChalkScriptExplainers/Approval/ExplainerVersions.swift
+governs: Sources/ChalkScript/Revision/ExplainerFingerprint.swift, Sources/ChalkScriptExplainers/Revision/ExplainerRevisions.swift
 
-An explainer is designed for the method a kind of question asks for, and is reviewed on its own. It has a version, which is a fingerprint over its steps, timing, lines and motion file. An approval names an explainer, an audience and a version. A change to the explainer changes the version, and the approval no longer holds.
+An explainer has a revision: a fingerprint computed from what it shows and says over sample values of its problem. A change to what it shows or says changes the revision. The package records no approval. A project that reviews explainers, such as a content repository or an app, ties its decision to a revision and decides who reviews and what a review checks.
 
-Who approves, and where approvals are kept, is decided by the project that uses the package.
-
-**Why:** an approval tied to a version cannot outlive a change to what was approved.
+**Why:** a decision tied to a revision cannot outlive a change to what was decided on, and nobody has to remember to change a number.
 
 **Acceptance:**
-- An approval records the explainer, the audience, the version, who approved it and when.
-- A change to an explainer's steps, timing, camera or narration changes its version.
-- The review checks that the method matches the learner's material, that the steps meet EXP-5 and EXP-6, that the narration reads correctly for every accepted value, and that the explainer works with Reduce Motion.
+- The revision is computed, never typed.
+- A change to an explainer's steps, timing, lines or camera changes its revision.
+- The sample values include the edges of the template's range and every shape of step list.
 
-*In the package:* `ExplainerApproval`, `ExplainerApprovals` and `ExplainerFingerprint` are in the `ChalkScript` target, and an approval names its explainer by the id string. `ExplainerID`, which lists the explainers of `ChalkScriptExplainers`, and each explainer's current version are in that target. The fingerprint covers the watched steps only, so explainers that have no watched part cannot yet be approved.
+*In the package:* `ExplainerFingerprint` computes it. Subtraction and the two tens-and-ones explainers have a revision function; the other five do not yet. The revision covers the paced steps' lines and timings and, for subtraction, its motion file; it does not yet cover the pictures, the style or the guided parts.
 
 ## EXP-4. Withdrawn: asking for help from an explainer
 

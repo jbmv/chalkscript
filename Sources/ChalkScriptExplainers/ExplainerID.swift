@@ -1,8 +1,6 @@
 import ChalkScript
 
-/// The explainers an approval can be recorded for (EXP-1): one per explainer this package draws.
-/// The raw value is the id written in the approvals file the app supplies. The order is the
-/// order the consuming app lists them in.
+/// The id of each explainer in this package.
 public enum ExplainerID: String, CaseIterable, Sendable {
     case subtraction
     case addition
@@ -19,12 +17,5 @@ public enum ExplainerID: String, CaseIterable, Sendable {
         case .subtraction, .tensOnesReading, .tensOnesWriting: true
         case .addition, .compareTape, .compareGraph, .makeTen, .threeCards: false
         }
-    }
-}
-
-extension ExplainerApprovals {
-    /// Whether `version` of `explainer` for `audience` is approved.
-    public func isApproved(_ explainer: ExplainerID, _ audience: ExplainerVersion, version: String) -> Bool {
-        isApproved(explainer.rawValue, audience, version: version)
     }
 }
