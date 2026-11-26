@@ -114,6 +114,7 @@ extension StudioModel {
                 reply["image"] = .object(["data": .string(picture.png.base64EncodedString()), "mimeType": .string("image/png")])
                 reply["ratio"] = .number(Canonical.number((picture.ratio * 100).rounded() / 100))
                 reply["layout"] = .string(picture.layout)
+                if let drawn = picture.drawn { reply["drawn"] = .number(Canonical.number((drawn * 100).rounded() / 100)) }
             }
             note("show \(name) \(shown.step)", client: client)
             return .object(reply)
@@ -157,8 +158,7 @@ extension StudioModel {
         }
         var hint = ""
         if let o = json.value(at: reached)?.object {
-            let keys = o.keys.prefix(12).joined(separator: ", ")
-            hint = "; \(reached.isEmpty ? "the document" : reached) holds \(keys)\(o.count > 12 ? ", …" : "")"
+            hint = "; the deepest part that exists is \(reached.isEmpty ? "the document" : reached), which holds \(o.keys.joined(separator: ", "))"
         }
         return MethodError(code: Studio.ErrorCode.noValue, "The pointer \(pointer) names no value in \(name)\(hint).")
     }

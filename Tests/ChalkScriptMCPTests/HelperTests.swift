@@ -189,6 +189,11 @@ struct ToolCallTests {
                                           "ratio": .number("0.6"), "image": .bool(true)])
         #expect(studio.studio.requests.last?.params["ratio"] == .number("0.6"))
         #expect(shaped.text == "showing trade (3 of 7); the picture is at ratio 0.6 in the layout tall")
+
+        let undeclared = helper.tool("show", ["doc": .string("subtraction"), "step": .string("trade"),
+                                              "ratio": .number("0.75"), "image": .bool(true)])
+        #expect(undeclared.text == "showing trade (3 of 7); the picture is at ratio 0.75 in the layout tall; "
+                + "0.75 is not a shape the document is made for; drawn at 0.9 inside it")
     }
 
     @Test func guideIsFetchedFromTheStudio() throws {

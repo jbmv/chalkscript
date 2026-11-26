@@ -189,8 +189,9 @@ To change what a step says, edit its entry in the wording being played: for exam
 `margin`: `"trade": {"frame": ["tradedTen", "arrow", "ones"]}`. A step's `shot` is used only in a
 layout with `camera: true`; the camera moves before the step's timeline begins, and what lies
 outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
-`areaH`), `size`, `camera`, `band` and `let` replacements; the first that suits the window, by
-name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the
+`areaH`), `size`, `camera`, `band` (the height at the top of the drawing kept for `fixed`
+elements when the camera is on; 0 by default) and `let` replacements; the first that suits the
+window, by name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the
 pane gives the drawing, or from the shape chosen in its Preview control.
 
 The document holds the drawing and its words only. The question, the line and the controls round
@@ -214,7 +215,9 @@ side or one above the other and one shape cannot hold both, as the subtraction e
 layout does. When a person asks whether an explainer works on a phone held upright or on a wide
 screen, look at it with `show`, `ratio` and `image` at that preset's nominal ratio and say what
 you see. If it reads well, tell them to tick that shape under "Explainer is made for" in the
-studio's window, which saves it in the document; do not patch `areas` yourself unless they ask.
+studio's window, which saves it in the document. For a shape the document is not made for, the
+picture is of the shape asked and the document is drawn in it at the nearest declared shape,
+framed; to see the shape itself, the document needs a layout and a range for it (`areas`, below).
 If it does not, say what is wrong and offer the smaller change first: a shot, a size or a place,
 before a layout of its own. Tell a person who asks that Preview and App arrangement in the
 studio change only what they see there, and that the app which plays the explainer decides where
@@ -241,13 +244,36 @@ removes one and the fifth removes the declaration. Removing the last entry with 
 leaves an empty `areas`, which is a `schema` error; remove `/areas` instead. A range that
 disagrees with the layouts is accepted with an `areas` warning, which means a declared range and
 a layout's `suits` disagree; when you change a range, change the `suits` of the layouts on each
-side of it in the same patch. A preset given a layout of its own needs a new entry in `layouts`,
-usually a copy of the layout it was drawn in, and its range in `areas`. The person ticks which of
-Tall, Square and Wide an explainer is made for in the studio, which writes `areas` only, naming
-the layout the document's `suits` already chooses at each; a layout of its own for one shape is
-yours to add when the person asks for a different arrangement there.
+side of it in the same patch.
+
+The rule for `areas`: the person ticks a shape that an existing layout serves, which writes
+`areas` only. When you add a layout for a shape, because the person asked for a different
+arrangement there, add its range to `areas` in the same patch and say so. Otherwise do not
+change `areas` unasked. A layout of its own is usually a copy of the layout it was drawn in.
+
+A layout changes the drawing only through `size`, `camera`, `band` and its `let`. A place or
+size that differs between layouts is therefore a `let` value that the elements name, replaced
+in the layout. With the document's `"let": {"rowY": 120}` and an element at `[100, "rowY"]`:
+
+```json
+{"op": "add", "path": "/layouts/tall/let", "value": {"rowY": 300}}
+```
+
+puts the element at 300 in `tall`. An element given a literal place stays where it is in every
+layout.
+
 The window shows an area of a shape the document is not made for at the nearest declared shape.
 To see a shape, `show` with `ratio` and `image`.
+
+## taps: the size of what a learner marks
+
+For a step the learner taps, check at the narrowest shape the document is made for that each
+target, with its `pad`, is large enough to tap. In an area *w* points wide and *h* high, the
+drawing is scaled by the smaller of *w* / *W* and *h* / *H*, where *W* and *H* are the layout's
+`size`, so a target *d* drawing units across is *d* times that scale in points. With `show`, *w*
+is 480 times the ratio when the ratio is below 1, and 480 otherwise. A shot that frames less of
+the drawing enlarges it further. EXP-18 requires a piece and its margin to be at least 44
+points across where the learner marks a piece.
 
 ## findings: what the codes mean
 

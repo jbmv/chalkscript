@@ -270,11 +270,15 @@ document if it is not already shown, and answers once the step has started, not 
 | `step` | yes | The name of the step shown. |
 | `index`, `count` | no | Its place among the problem's steps, from 1, and their number. |
 | `image` | no | Present only when asked for: `{"data": "<base64>", "mimeType": "image/png"}`. It is small, because it is sent to a model: laid out for the area of the shape asked for whose longer side is 480 points, so never more than 480 by 480, at one pixel per point. |
-| `ratio`, `layout` | no | Present with `image`: the ratio of the area the picture was laid out for, to two decimals, and the layout drawn there. |
+| `ratio`, `layout` | no | Present with `image`: the ratio of the area the picture is of, to two decimals, and the layout drawn there. |
+| `drawn` | no | Present with `image` only when the document declares shapes and not `ratio`: the ratio of the shape the document is drawn at inside the area, to two decimals. |
 
 A document that declares the shapes of area it is made for (the format reference, section 8.2) is
-pictured as a player lays it out: for a shape it does not declare, the picture is the largest area
-of the nearest declared shape inside the area asked for, and `ratio` is that shape's. Without
+pictured as a player lays it out: for a shape it does not declare, the picture is of the area
+asked for, with the document laid out for the nearest declared shape and drawn in it scaled,
+centred and framed in the `line` role; `ratio` is the area's and `drawn` is that shape's. The
+helper says both in its text, as "0.75 is not a shape the document is made for; drawn at 0.9
+inside it". At a declared shape, and for a document that declares none, there is no `drawn`. Without
 `ratio` and before the window has given the drawing an area, the picture has the stage's shape.
 A `ratio` that is not a number greater than 0 is error `-32602`.
 

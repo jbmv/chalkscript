@@ -195,6 +195,9 @@ public enum HelperTools {
             if result["image"] != nil, case .number(let ratio)? = result["ratio"] {
                 text += "; the picture is at ratio \(ratio)"
                 if let layout = result["layout"]?.string { text += " in the layout \(layout)" }
+                if case .number(let drawn)? = result["drawn"] {
+                    text += "; \(ratio) is not a shape the document is made for; drawn at \(drawn) inside it"
+                }
             }
             var content: [JSONValue] = [.object(["type": .string("text"), "text": .string(text)])]
             if let image = result["image"] {

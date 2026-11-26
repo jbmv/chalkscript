@@ -209,11 +209,13 @@ struct ShapeTests {
         #expect(tall["ratio"] == .number("0.6"))
         #expect(tall["layout"]?.string == "tall")
 
-        // An undeclared shape is pictured as the player lays it out: the nearest declared shape inside it.
+        // An undeclared shape is pictured as the player lays it out: the nearest declared shape, scaled, centred and framed in the area asked for.
         let narrow = try #require(model.respond(to: Studio.Method.show, params: try params(
             #"{"doc":"subtraction","step":"trade","ratio":0.4,"image":true}"#), client: nil).result)
-        #expect(try pngSize(narrow) == (192, 320))
-        #expect(narrow["ratio"] == .number("0.6"))
+        #expect(try pngSize(narrow) == (192, 480))
+        #expect(narrow["ratio"] == .number("0.4"))
+        #expect(narrow["drawn"] == .number("0.6"))
+        #expect(tall["drawn"] == nil)
 
         let wide = try #require(model.respond(to: Studio.Method.show, params: try params(
             #"{"doc":"subtraction","step":"trade","ratio":2.2,"image":true}"#), client: nil).result)

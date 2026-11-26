@@ -84,7 +84,13 @@ struct StudioMethodTests {
         let model = try openModel(project)
         let reply = model.respond(to: Studio.Method.read, params: try params(#"{"doc":"equal-groups","pointer":"/steps/nope/hold"}"#), client: nil)
         #expect(reply.errorCode == Studio.ErrorCode.noValue)
-        #expect(reply.errorMessage?.contains("/steps holds groups, same, skip") == true)
+        #expect(reply.errorMessage?.contains("the deepest part that exists is /steps, which holds groups, same, skip") == true)
+        #expect(reply.errorMessage?.contains("…") == false)
+        // Every key is listed, however many there are.
+        let top = model.respond(to: Studio.Method.read, params: try params(#"{"doc":"equal-groups","pointer":"/nope"}"#), client: nil)
+        let keys = try #require(model.document(named: "equal-groups")?.document?.json.object?.keys)
+        #expect(keys.count > 12)
+        #expect(top.errorMessage?.contains("the document, which holds " + keys.joined(separator: ", ")) == true)
         let missing = model.respond(to: Studio.Method.read, params: try params(#"{"doc":"nothing","pointer":""}"#), client: nil)
         #expect(missing.errorCode == Studio.ErrorCode.noDocument)
     }

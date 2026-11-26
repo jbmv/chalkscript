@@ -71,6 +71,7 @@ final class CannedStudio: StudioHandler, @unchecked Sendable {
                 if let ratio = params["ratio"] {
                     result["ratio"] = ratio
                     result["layout"] = .string("tall")
+                    if ratio == .number("0.75") { result["drawn"] = .number("0.9") }
                 }
             }
             return .result(.object(result))
