@@ -84,10 +84,6 @@ struct ScreenTests {
         let plain = GuidedPlayer(
             lesson: BarExplainer.lesson(), voice: RecordingVoice(), labels: Fixture.guidedLabels, drivesItself: false)
         #expect(plain.question == nil)
-        let subtraction = GuidedPlayer(
-            lesson: SubtractionExplainer.lesson(watching: try! SubtractionProblem(54, minus: 26), wording: Fixture.guidedWording()),
-            voice: RecordingVoice(), labels: Fixture.guidedLabels, drivesItself: false)
-        #expect(subtraction.question == nil)
     }
 
     /// A palm on the column's controls while the Pencil writes presses nothing.

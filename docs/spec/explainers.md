@@ -6,7 +6,7 @@ ChalkScript makes step-by-step visual explanations, called explainers. This docu
 
 - **Covered:** what an explainer shows, how it moves, how it speaks, how it is paced, how the learner takes part, how it is laid out, how its style and motion are stored as data, and how a version of it is approved.
 - **Not covered:** the application around an explainer. How a learner reaches an explainer, how practice is scored, and where wording and approvals are kept belong to the app that uses the package.
-- **Generality:** the requirements are written for any subject. The explainers in the package today are for early elementary arithmetic. Notes headed *In the package* describe that case, and a requirement worked out only for that case says so.
+- **Generality:** the requirements are written for any subject. The explainers in the package today, in the `ChalkScriptExplainers` target, are for early elementary arithmetic; the `ChalkScript` target holds the engine they share. Notes headed *In the package* describe that case, and a requirement worked out only for that case says so.
 - **Ids:** each requirement has a stable id, which the code and commit messages cite. The sections are grouped by topic, not by number. A requirement that is replaced or withdrawn stays as a tombstone.
 - **Metadata:** `status` and `governs` are `key: value` lines under a heading. `governs` lists the files a requirement chiefly describes.
 
@@ -24,7 +24,7 @@ ChalkScript makes step-by-step visual explanations, called explainers. This docu
 ## EXP-2. An explainer is a template filled from a problem's values
 
 status: draft
-governs: Sources/ChalkScript/Subtraction/SubtractionProblem.swift, Sources/ChalkScript/PlaceValue/TensOnesProblem.swift
+governs: Sources/ChalkScriptExplainers/Subtraction/SubtractionProblem.swift, Sources/ChalkScriptExplainers/PlaceValue/TensOnesProblem.swift
 
 An explainer is written once as a template. Its drawing, motion, narration and numbers all come from a small model of the problem. The template declares the values it accepts, and its steps may depend on them.
 
@@ -68,7 +68,7 @@ Where the learner already works with a representation, the explainer animates th
 ## EXP-5. Every motion shows what happens to which quantity
 
 status: draft
-governs: Sources/ChalkScript/Subtraction/SubtractionExplainer.swift, Sources/ChalkScript/Subtraction/SubtractionLayout.swift, Sources/ChalkScript/PlaceValue/TensOnesExplainer.swift, Sources/ChalkScript/PlaceValue/TensOnesLayout.swift
+governs: Sources/ChalkScriptExplainers/Subtraction/SubtractionExplainer.swift, Sources/ChalkScriptExplainers/Subtraction/SubtractionLayout.swift, Sources/ChalkScriptExplainers/PlaceValue/TensOnesExplainer.swift, Sources/ChalkScriptExplainers/PlaceValue/TensOnesLayout.swift
 
 Each step changes one thing and shows what the change does to the quantities. Nothing is erased: what is traded or taken away stays as a faded ghost with its mark. A result is built in view, by moving and counting the pieces that make it. The part of the problem a step acts on is marked while the step runs.
 
@@ -142,7 +142,7 @@ One change happens at a time. A piece moves only where the motion carries meanin
 ## EXP-18. A camera frames what each step acts on
 
 status: draft
-governs: Sources/ChalkScript/Drawing/Camera.swift, Sources/ChalkScript/Subtraction/SubtractionMotion.swift
+governs: Sources/ChalkScript/Drawing/Camera.swift, Sources/ChalkScriptExplainers/Subtraction/SubtractionMotion.swift
 
 An explainer may show its drawing through a camera. Each step names a shot, and the view eases to it. What is out of shot is dimmed, not cropped. The statement of the problem stays fixed outside the camera. Only the explainer moves the camera.
 
@@ -157,12 +157,12 @@ An explainer may show its drawing through a camera. Each step names a shot, and 
 - No mark is read until the camera has landed. A touch on the drawing holds any camera move until it lifts.
 - With Reduce Motion on, the camera cuts to each shot.
 
-*In the package:* `Camera` and `CameraPlan`; a `Scene` carries its camera, and `ExplainerStage` draws through it. Subtraction has five shots in `subtraction-motion.json`. Its smallest target on an iPad mini is about 45 points, which a test checks.
+*In the package:* `Camera` and `CameraPlan`; a `Scene` carries its camera, and `ExplainerStage` draws through it. Subtraction has five shots in `subtraction-motion.json`, which is a resource of the `ChalkScriptExplainers` target. Its smallest target on an iPad mini is about 45 points, which a test checks.
 
 ## EXP-10. Every step has one spoken line, shown as it is spoken
 
 status: draft
-governs: Sources/ChalkScript/NumberWords.swift, Sources/ChalkScript/Subtraction/SubtractionWording.swift, Sources/ChalkScript/PlaceValue/TensOnesWording.swift
+governs: Sources/ChalkScript/NumberWords.swift, Sources/ChalkScriptExplainers/Subtraction/SubtractionWording.swift, Sources/ChalkScriptExplainers/PlaceValue/TensOnesWording.swift
 
 Each step has one line, which is spoken and shown as text. The package owns no wording. An app gives a template its lines, and the package fills in the numbers and their spoken forms.
 
@@ -291,7 +291,7 @@ Export of an explainer to a video file is not built.
 ## EXP-19. Motion and style are data, in one documented format
 
 status: draft
-governs: Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScript/Resources/subtraction-motion.json
+governs: Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScriptExplainers/Resources/subtraction-motion.json
 
 Colours, motion defaults, shots and timings are data that the package reads. There are two kinds of file, both JSON: one style file, and a motion file for each explainer. Every value is optional. A missing value takes its default, an unknown key is ignored, and an unreadable value takes its default. Each such case is listed with its path, and none stops the file from being read.
 
@@ -323,12 +323,12 @@ A motion file (`<explainer>-motion.json`):
 - A missing, unknown or unreadable value is listed with its path.
 - The bundled files name nothing unknown and nothing unreadable.
 
-*In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue`. Subtraction is the only explainer with a motion file; the others hold their timings in code.
+*In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue`. `ExplainerMotion.bundled` reads a motion file from the bundle of the target that holds the explainer. `ChalkScript` bundles `style.json`, and `ChalkScriptExplainers` bundles `subtraction-motion.json`, the only motion file; the other explainers hold their timings in code.
 
 ## EXP-1. Each explainer is reviewed singly, and an approval names a version
 
 status: draft
-governs: Sources/ChalkScript/Approval/ExplainerApprovals.swift
+governs: Sources/ChalkScript/Approval/ExplainerApprovals.swift, Sources/ChalkScriptExplainers/Approval/ExplainerID.swift, Sources/ChalkScriptExplainers/Approval/ExplainerVersions.swift
 
 An explainer is designed for the method a kind of question asks for, and is reviewed on its own. It has a version, which is a fingerprint over its steps, timing, lines and motion file. An approval names an explainer, an audience and a version. A change to the explainer changes the version, and the approval no longer holds.
 
@@ -341,7 +341,7 @@ Who approves, and where approvals are kept, is decided by the project that uses 
 - A change to an explainer's steps, timing, camera or narration changes its version.
 - The review checks that the method matches the learner's material, that the steps meet EXP-5 and EXP-6, that the narration reads correctly for every accepted value, and that the explainer works with Reduce Motion.
 
-*In the package:* `ExplainerID`, `ExplainerApproval`, `ExplainerApprovals` and `ExplainerFingerprint`. The fingerprint covers the watched steps only, so explainers that have no watched part cannot yet be approved.
+*In the package:* `ExplainerApproval`, `ExplainerApprovals` and `ExplainerFingerprint` are in the `ChalkScript` target, and an approval names its explainer by the id string. `ExplainerID`, which lists the explainers of `ChalkScriptExplainers`, and each explainer's current version are in that target. The fingerprint covers the watched steps only, so explainers that have no watched part cannot yet be approved.
 
 ## EXP-4. Withdrawn: asking for help from an explainer
 

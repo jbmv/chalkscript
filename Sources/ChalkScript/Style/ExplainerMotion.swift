@@ -79,7 +79,7 @@ public struct StepMotion: Equatable, Sendable {
 ///
 /// The format, which `docs/spec/explainers.md` (EXP-19) sets out in full:
 ///
-///     { "format": "explainer-motion", "version": 1, "explainer": "subtraction",
+///     { "format": "explainer-motion", "version": 1, "explainer": "example",
 ///       "shots": { "ones": { "frame": ["ones"], "margin": 12 }, ... },
 ///       "opening": "whole",
 ///       "steps": { "takeOnes": { "shot": "ones",
@@ -224,9 +224,12 @@ public struct ExplainerMotion: Equatable, Sendable {
             issues: log.issues)
     }
 
-    /// Reads the motion file bundled with the package for `explainer` (`<explainer>-motion.json`).
-    public static func bundled(_ explainer: String, vocabulary: MotionVocabulary, style: ExplainerStyle = .standard) -> ExplainerMotion {
-        guard let data = ExplainerResources.data("\(explainer)-motion") else {
+    /// Reads the motion file for `explainer` (`<explainer>-motion.json`) from `bundle`, the bundle
+    /// of the package that holds the explainer.
+    public static func bundled(
+        _ explainer: String, vocabulary: MotionVocabulary, style: ExplainerStyle = .standard, bundle: Bundle
+    ) -> ExplainerMotion {
+        guard let data = ExplainerResources.data("\(explainer)-motion", in: bundle) else {
             var m = read(Data("{}".utf8), explainer: explainer, vocabulary: vocabulary, style: style)
             m.issues.insert(FormatIssue(.invalid, "", "the bundled \(explainer)-motion.json could not be read; defaults are used"), at: 0)
             return m

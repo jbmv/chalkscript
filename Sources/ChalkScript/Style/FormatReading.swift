@@ -188,10 +188,14 @@ extension RGB {
     }
 }
 
-/// The package's bundled files (EXP-19): the style file and each explainer's motion file.
+/// The bundled JSON files (EXP-19): the style file, and the motion files a package of explainers
+/// bundles.
 public enum ExplainerResources {
-    /// The bundled JSON file `name` (`style`, `subtraction-motion`), as it is in the package.
-    public static func data(_ name: String) -> Data? {
-        Bundle.module.url(forResource: name, withExtension: "json").flatMap { try? Data(contentsOf: $0) }
+    /// The JSON file `name` (`style`) in this package's bundle.
+    public static func data(_ name: String) -> Data? { data(name, in: .module) }
+
+    /// The JSON file `name` (`<explainer>-motion`) in `bundle`.
+    public static func data(_ name: String, in bundle: Bundle) -> Data? {
+        bundle.url(forResource: name, withExtension: "json").flatMap { try? Data(contentsOf: $0) }
     }
 }

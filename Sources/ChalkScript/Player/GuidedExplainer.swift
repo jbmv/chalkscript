@@ -3,8 +3,8 @@
 // The child version runs in parts (EXP-8, EXP-14, EXP-15): watch, do it with me, an optional
 // What if?, and try one, with an optional Why? on any step (EXP-16). `GuidedPlayer` runs all of
 // them; an explainer supplies only what is its own, by conforming to `GuidedExplainer` in its own
-// folder under Sources/ChalkScript/ (as Subtraction/ does). Nothing in Player/ or Drawing/ needs
-// editing to add one.
+// folder in the target that holds the explainers. Nothing in Player/ or Drawing/ needs editing to
+// add one.
 //
 // 1. A value filled with one problem (EXP-2), with a `State`: everything its picture can show,
 //    including the child's own marks. `start` is the state before the first step.
@@ -50,7 +50,7 @@
 //    fit and centred. The drawing area is about square or taller in both layouts.
 //
 // 9. The camera (EXP-18): a laid-out explainer may give its scenes a `Camera` that frames a shot
-//    per step, with its shots and timings in its motion file (EXP-19, as Subtraction/ does). A
+//    per step, with its shots and timings in its motion file (EXP-19). A
 //    motion that moves the camera lists when in `cameraMoves`, so the player can hold it while
 //    the child's Pencil is down; marks are read in the drawing's units, through the camera.
 //

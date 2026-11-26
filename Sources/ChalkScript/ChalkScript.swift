@@ -4,14 +4,14 @@
 /// through an `ExplainerVoice`. The drawing components in `Drawing/` are shared by every template
 /// (EXP-13), in the colours of EXP-6 (`ExplainerPalette`).
 ///
-/// The templates: two-digit subtraction (`SubtractionExplainer`), and tens and ones
-/// (`TensOnesExplainer`), which reads a number into tens and ones or writes the number tens and
-/// ones make, drawn as rectangles and squares or as sticks and circles in a chart.
+/// This target is the engine: the drawing components, the players, the style and motion formats,
+/// the approval check and the spoken form of numbers. The explainers are templates in other
+/// targets, such as `ChalkScriptExplainers`, that depend on it.
 ///
 /// The child version runs in parts (EXP-8, EXP-14, EXP-15, EXP-16): watch, do it with me, an
 /// optional What if?, and try one, with an optional Why? on a step. `GuidedPlayer` and
 /// `GuidedView` run them for any explainer that conforms to `GuidedExplainer`; how one plugs in is
-/// at the top of Player/GuidedExplainer.swift. Subtraction is the first (SubtractionGuided.swift).
+/// at the top of Player/GuidedExplainer.swift.
 /// The parent version plays the watched steps in `ExplainerPlayer`.
 ///
 /// The package owns no strings. A template is given its wording by the app, which reads it from

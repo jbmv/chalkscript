@@ -22,13 +22,13 @@ The requirements are in [docs/spec/explainers.md](docs/spec/explainers.md), each
 
 ## Status
 
-The project is at an early stage and its interfaces will change. The package contains the shared drawing components, the player, the style and motion formats, and explainers for two-digit subtraction, tens and ones, two-digit addition, comparing on a tape diagram and on a bar graph, making a ten, and choosing three cards closest to a target. All are for early elementary arithmetic. The requirements are written for any subject, and other subjects are intended.
+The project is at an early stage and its interfaces will change. The package has two targets. `ChalkScript` is the engine: the shared drawing components, the players, the style and motion formats, the approval check and the spoken form of numbers. It depends on nothing. `ChalkScriptExplainers` depends on the engine and holds explainers for two-digit subtraction, tens and ones, two-digit addition, comparing on a tape diagram and on a bar graph, making a ten, and choosing three cards closest to a target. All are for early elementary arithmetic. The requirements are written for any subject, and other subjects are intended.
 
 Planned work, not yet started: a validator that checks an explainer against the rules that can be computed; a macOS authoring app that an agent drives through the Model Context Protocol; export to video and still images; and a separate library of contributed explainers.
 
 ## Requirements and use
 
-Swift 6, iOS 27 or macOS 27. Add the package to a project by this repository's URL and import `ChalkScript`. The package has no dependencies. It owns no wording: an app gives a template its lines, and the package fills in the numbers and their spoken forms.
+Swift 6, iOS 27 or macOS 27. Add the package to a project by this repository's URL and import `ChalkScript`, for the engine, and `ChalkScriptExplainers`, for the explainers. The package has no dependencies. It owns no wording: an app gives a template its lines, and the package fills in the numbers and their spoken forms.
 
 To build and test:
 
