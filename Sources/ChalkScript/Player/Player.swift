@@ -214,6 +214,13 @@ public final class ExplainerPlayer {
         play(step)
     }
 
+    /// Plays step `step` from the picture before it, in either version: for an authoring app that
+    /// is asked to show a step, never for a learner's control (EXP-8).
+    public func show(step: Int) {
+        guard (0..<explainer.stepCount).contains(step) else { return }
+        play(step)
+    }
+
     /// Silences the voice and stops the clock, leaving the step's finished picture: for when
     /// the explainer is closed.
     public func stop() {

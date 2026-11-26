@@ -8,6 +8,7 @@ let package = Package(
         .library(name: "ChalkScript", targets: ["ChalkScript"]),
         .library(name: "ChalkScriptExplainers", targets: ["ChalkScriptExplainers"]),
         .library(name: "ChalkScriptMCP", targets: ["ChalkScriptMCP"]),
+        .library(name: "ChalkScriptStudioCore", targets: ["ChalkScriptStudioCore"]),
         .executable(name: "chalkscript-mcp", targets: ["chalkscript-mcp"]),
         .executable(name: "chalkscript-render", targets: ["chalkscript-render"]),
     ],
@@ -30,6 +31,13 @@ let package = Package(
         // helper forwards each call to the studio and reads no document itself.
         .target(
             name: "ChalkScriptMCP",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The studio app's logic that is not user interface: the open project and its documents,
+        // edits, and the studio's end of the helper protocol. For macOS only, like the helper.
+        .target(
+            name: "ChalkScriptStudioCore",
+            dependencies: ["ChalkScript", "ChalkScriptMCP"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .executableTarget(
@@ -57,6 +65,11 @@ let package = Package(
             name: "ChalkScriptMCPTests",
             // The executable is a dependency so that it is built before the tests launch it.
             dependencies: ["ChalkScriptMCP", "chalkscript-mcp"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "ChalkScriptStudioCoreTests",
+            dependencies: ["ChalkScriptStudioCore", "ChalkScript", "ChalkScriptMCP"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]

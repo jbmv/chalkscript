@@ -1,0 +1,202 @@
+# Authoring guide
+
+How an agent writes and edits explainer documents through ChalkScript Studio's tools. An
+explainer shows a method one step at a time, with a drawing, motion and one line per step, for a
+problem whose values it is given. The full definition is the format reference,
+`docs/format/explainer-1.0.md`; this guide is the part an agent needs. Read `editing` before the
+first edit, and other topics when a change needs them.
+
+## editing: the tools, and how to make a change
+
+The person watches the studio window. It shows one document, plays it for one problem, and
+redraws as soon as an edit is saved, so an image is rarely needed.
+
+- `list`: each document's name, hash, counts of errors and warnings, and title.
+- `read {doc, pointer}`: the value at a JSON Pointer, such as `/steps/trade` or
+  `/wording/en-US/everyday/make`. The first line is the document's hash. Read the part you will
+  change, not the whole document.
+- `edit {doc, base, ops}`: a JSON Patch (RFC 6902: `add`, `remove`, `replace`, `move`, `copy`,
+  `test`) made against `base`, the hash you read. Every operation applies or none does. A patch
+  is refused when the base is stale (read again), when a path is `""`, `/format` or `/version`,
+  when an operation fails, or when the result has an error; the refusal lists why, one finding
+  per line. Warnings do not refuse a patch. An accepted edit returns the new hash: use it as the
+  next base without reading again.
+- `check {doc, pointer?}`: the findings, one per line. Counts include problems found by playing
+  each sample, so an edit can be accepted and still report an error for some sample.
+- `show {doc, step?, problem?, image?}`: plays a step in the window. `problem` is an object of
+  parameter values, such as `{"a": 54, "b": 26}`. Ask for `image` only when the person cannot
+  see the window.
+- `guide {topic?}`: this guide.
+
+Practice:
+
+1. `list`, then `read` the steps or entries the request is about.
+2. Make the smallest patch that does what was asked. Several operations may go in one patch.
+3. `show` the step you changed, so the person sees it, and say in a sentence what you did.
+4. Keep ids stable. Renaming an element, step or entry is allowed, but every reference to the
+   old name must be changed in the same patch.
+
+Editing outside the studio is picked up too: the person may change a file in an editor, and the
+hash changes. A stale base means someone else edited; read again before retrying.
+
+## document: the top-level keys and names
+
+A document is one JSON object in a `.explainer` file.
+
+| Key | Holds |
+|---|---|
+| `format`, `version` | `"chalkscript-explainer"`, `"1.0"`. Never edited. |
+| `requires` | Capabilities used, such as `["components.arithmetic"]` for tens, ones and counters. |
+| `id`, `title`, `about` | Identity; `about` changes nothing seen or heard. |
+| `sourceLocale` | The locale written in, such as `en-US`. |
+| `params`, `let`, `vars`, `samples`, `kind` | The problem (topic `problem`). |
+| `layouts`, `elements`, `parts`, `shots`, `opening` | The drawing and camera (topics `elements`, `camera`). |
+| `intro`, `sequence`, `steps` | The lines before the first step, the step names in order, and the steps (topic `steps`). |
+| `try`, `whatIf` | Later parts: try one, and What if?. |
+| `style` | Overrides of the standard style: `palette`, `easings`, `motion`. |
+| `plays` | The wording suggested for `paced` and `skippable` playback. |
+| `wording` | Every line, by locale and wording (topic `wording`). |
+| `extensions` | Keys named `vendor.feature`; keep any you do not understand. |
+
+Names of elements, steps, actions, parts, shots, layouts, parameters, `let` and `vars` match
+`^[a-z][A-Za-z0-9]{0,47}$`; entry names may have dots, as `do.trade`. Parameters, `let`, `vars`
+and elements share one namespace. Reserved: `and`, `or`, `not`, `true`, `false`, function names,
+and `i`, `n`, `x0`, `y0`, `left`, `areaW`, `areaH`. Steps and elements are maps; order comes from
+`sequence` and from `z`. Colours are never written: name a role (topic `elements`).
+
+## problem: parameters, computed values and samples
+
+- `params`: each name to `{type, ...}`. `int` and `number` need `min` and `max` (numbers, or
+  expressions of other parameters, as `"max": "a"`); `bool`; `choice` with `values`.
+- `let`: names to expressions of parameters and other `let` names, such as `"d": "a - b"`. No
+  cycles; no `vars`, elements or locals.
+- `vars`: starting values that a viewer's action may change; fixed in the watched part.
+- `samples`: a non-empty array of problems, each giving every parameter. The studio plays the
+  first by default and checks every sample after an edit, so add a sample for each case a change
+  affects (a trade and no trade; a zero digit).
+- `kind`: how other problems of the same kind are chosen (`search`, `same`, `differ`, `near`).
+
+Every number drawn, shown or said is computed from these values. Never type a numeral into a line.
+
+## expressions: values, operators, functions and selections
+
+Wherever a number, truth value, selection or time is expected, a string is an expression. A
+literal string inside one is in single quotes: `"bT > 0 ? str(bT) : ''"`.
+
+- Operators, loosest first: `c ? x : y`, `or`, `and`, `not`, a comparison (`==` `!=` `<` `<=`
+  `>` `>=`, not chained), `+ -`, `* /`, unary `-`, then `s[k]` and `s.m`. `and`, `or` and `?:`
+  evaluate only what they need.
+- Functions: `div(a, b)` (floor), `mod(a, b)` (sign of `b`), `min`, `max`, `abs`, `floor`,
+  `round` (half away from zero), `str(a)`; selections `first(n, s)`, `last(n, s)`,
+  `slice(s, start, n)`, `whole(s)`; times `start(action)`, `end(action)`; `split(s)` as an
+  `appear`'s `place`.
+- At most 256 nodes and 24 levels. Division by zero, an index outside a family, or a selection
+  function asked for more than there is, is an error for that problem.
+- Selections: `ten` is every instance of `ten`; `ten[k]` one instance; `equation.ans` a run of
+  a text element; `ten[k].cross` a piece's cross-out; `s + t` joins without repeats; `whole(s)`
+  drops what is crossed out or ghosted. A step's selections are evaluated as it begins, so
+  `last(bT, whole(ten))` names the tens still standing.
+
+## elements: what is drawn, and where
+
+The drawing's units start at the top left, *y* down. The layout `stage` is `[1000, 540]` unless
+`layouts.stage.size` says otherwise. Every element has `kind`, and may have `repeat` (count of
+instances; `i` is the index in other keys), `when`, `z`, `fixed` (outside the camera, never
+dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
+
+| Kind | Keys |
+|---|---|
+| `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor`. |
+| `line` | `from`, `to`; `style` `rule` or `divider`; `ink`. |
+| `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required). |
+| `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`. |
+| `shape` | `rect` (with `corner`), `ellipse` or `points` (with `closed`); `fill` and/or `ink`. |
+| `ten`, `one`, `stick`, `circle` | Pieces of `components.arithmetic`: `rect`, and `look` `pencil`, `traded` or `counted`. Each has a cross-out, `.cross`. |
+
+Roles: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult`, and the operation roles
+`subtract`, `trade`, `result`, `add`, `multiply`, `divide` (each with `.fill`, `.ink`, `.soft`).
+Each operation keeps its role in every explainer; do not use `subtract` for adding.
+
+A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` the runs are `a`,
+`b` and `ans`, and `runs.ans.text` fills `ans` from an entry until a verb sets it. A piece is a
+quantity: it is never faded below a ghost (0.28), and nothing removes an element.
+
+## steps: steps, actions, timing and the verbs
+
+A step is one change to the picture with one line. Keys: `say` (the step's line, an entry name),
+`actions` (name to action), `when`, `shot`, `duration` (replaces the end of the last action),
+`hold` (seconds after), `counts` (the step counts aloud), `like` (copy another step's keys,
+replacing those given), and `act` and `why`, which the studio keeps but does not play yet.
+
+An action has `do` (the verb), `target`, `at` (start, seconds or an expression such as
+`"end(arrow) + 0.2"`), `dur` (per instance), `each` (stagger between instances), `reverse`,
+`ease` (a curve name), `when`, `wait: "voice"` and `mark: true` (undone when the next step
+begins, as a tinted digit). An action ends at `at + (n − 1) · each + dur`; the step's timeline
+is the latest end, plus `hold`. Default durations: appear 0.3, draw 0.4, fade 0.35, travel 1.2
+seconds.
+
+| Verb | Kind | Does |
+|---|---|---|
+| `appear` | appear | From opacity 0; `rise`, `grow`, `place` (`split(ten[k])`), `text`. |
+| `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
+| `draw` | draw | A stroked element from progress 0 to 1. |
+| `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
+| `tint` | draw | A pale `ink` role behind a run or element; with `mark`, marks a digit. |
+| `move` | travel | To `to`, or back to its place; `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
+| `gather` | travel | From the positions of `from` to their places. |
+| `look` | instant | Sets a piece's `value` look. |
+| `set` | instant | Sets a text or run to the entry `text`. |
+| `tag` | appear | A small card with the entry `text` over each target, which comes and goes. |
+| `pulse` | appear | Grows to 1.15 and back. |
+| `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
+| `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
+
+A duration a person asks for ("slower", "hold longer") is usually `dur`, `each`, `gap` or `hold`.
+
+## wording: lines, placeholders and languages
+
+`wording` maps a locale to sections: `shared`, and wordings named by the author (the examples
+have `everyday` and `formal`). An entry is a string or an object with exactly one of `text`,
+`forms` (plural categories, `other` required, chosen by `n`) and `select` with `cases`; and may
+have `spoken`, `visual: true` (shown, never said), `emphasis` (a placeholder set in the result
+colour), `pronunciation`, `notes` and `maxLength`.
+
+- `{name}` inserts a value; `{groups:a}` fills the entry `groups` with `n` set to `a`.
+- The text outside placeholders must contain no digit.
+- In an entry that is said, a number placeholder must not touch a letter: "Count by {b}s" is an
+  error, since its spoken form cannot be derived.
+- An entry name is in `shared` or in a wording, never both. Each wording must provide every entry
+  its watched part uses: step lines, the entries of `say`, `set`, `tag` and `appear`, runs, and
+  `intro.watch`.
+- A translation is another locale with the same sections and names; each entry is an object with
+  `of`, the first 8 digits of the source entry's hash. Edit a translation only when asked.
+
+To change what a step says, edit its entry in the wording being played: for example
+`{"op": "replace", "path": "/wording/en-US/everyday/make", "value": "Make {groups:a} of {b}."}`.
+
+## camera: parts, shots and layouts
+
+`parts` names selections (`"tens": "ten"`). A shot frames parts and an optional `region`, with a
+`margin`: `"trade": {"frame": ["tradedTen", "arrow", "ones"]}`. A step's `shot` is used only in a
+layout with `camera: true`; the camera moves before the step's timeline begins, and what lies
+outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
+`areaH`), `size`, `camera`, `band` and `let` replacements; the first that suits the window, by
+name, is used, and otherwise `stage`. The studio's window chooses the layout from its size.
+
+## findings: what the codes mean
+
+One finding is one line: severity, code, JSON Pointer, `@offset` inside an expression or text,
+the problem's values, a time, then the message.
+
+| Code | Fix |
+|---|---|
+| `json`, `format`, `version` | The file itself; the person fixes a file that is not JSON in an editor. |
+| `schema` | A missing key, wrong type, unknown verb or kind, or a bad name. |
+| `unknown` | A key the format does not define (a warning); often a misspelling. |
+| `ref` | A name that does not exist: a step, action, element, run, part, shot, entry or role. |
+| `expr` | A syntax error, unknown name or function, or a cycle; `@` gives the offset. |
+| `wording` | A placeholder that cannot be filled, a typed numeral, or an unsayable number. |
+| `eval` | An expression failed for the problem in braces; try that problem with `show`. |
+| `range` | A problem outside the parameters. |
+| `patch` | A refused patch: stale base, protected path, or an operation that failed. |
+| `capability` | A kind or verb used without its capability in `requires`, or one this studio does not draw. |

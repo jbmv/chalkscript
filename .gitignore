@@ -5,3 +5,7 @@ xcuserdata/
 DerivedData/
 .kyosei-report.json
 __pycache__/
+# The studio app: the generated Xcode project, the build, and the local signing settings.
+Studio/ChalkScriptStudio.xcodeproj/
+Studio/build/
+Studio/Config/Local.xcconfig
