@@ -291,11 +291,15 @@ Export of an explainer to a video file is not built.
 ## EXP-19. Motion and style are data, in one documented format
 
 status: draft
-governs: Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScriptExplainers/Resources/subtraction-motion.json
+governs: docs/format/explainer-1.0.md, docs/format/explainer-1.0.schema.json, Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScriptExplainers/Resources/subtraction-motion.json
 
-Colours, motion defaults, shots and timings are data that the package reads. There are two kinds of file, both JSON: one style file, and a motion file for each explainer. Every value is optional. A missing value takes its default, an unknown key is ignored, and an unreadable value takes its default. Each such case is listed with its path, and none stops the file from being read.
+An explainer is a document in one documented format, the explainer document format. A document is one JSON file, ending `.explainer`, that holds everything needed to play the explainer: the problem's values and what is computed from them, what is drawn, the steps and their timing and easing, the camera's shots, the narration in each of its wordings and languages, what the viewer may do on a step, and overrides of the standard style. Its reference is [docs/format/explainer-1.0.md](../format/explainer-1.0.md), with a JSON Schema and two example documents beside it. Version 1.0 of the format is a draft.
 
-**Why:** a person or a tool can then adjust an explainer without changing code. A wrong value is reported and does not fail silently.
+**Why:** a person or a tool can then write or change an explainer without changing code, and another app can play it from the reference alone. A wrong value is reported and does not fail silently.
+
+A document is read strictly. An unknown key is listed with its path and ignored. A missing required key, a value of the wrong type, an unknown verb or kind, and a reference to nothing are errors, listed with their paths, and a document with an error is not played. A player refuses a document that requires a capability it does not implement, and names the capability.
+
+The package does not yet read documents. Today it reads two kinds of JSON file: the style file, which is also the format's standard style, and a motion file for one explainer. In these two files every value is optional. A missing value takes its default, an unknown key is ignored, and an unreadable value takes its default. Each such case is listed with its path, and none stops the file from being read.
 
 The style file (`style.json`):
 
@@ -317,13 +321,16 @@ A motion file (`<explainer>-motion.json`):
 | `opening` | The shot before the first step. |
 | `steps.<step>` | `shot`; `doShot`, the shot the learner acts in where it differs; `camera` (`at`, `duration`, `easing`); `durations`; `easings`. |
 
+A document holds what a motion file holds, so motion files are not part of the format.
+
 **Acceptance:**
+- The JSON Schema accepts the example documents and refuses a document with an unknown verb, a missing required key or a value of the wrong type (`docs/format/check-schema.py`).
 - A style with other values changes every colour drawn, with no change to code.
 - A value left out of a motion file falls back to the style, and a value left out of a style to the bundled style.
 - A missing, unknown or unreadable value is listed with its path.
 - The bundled files name nothing unknown and nothing unreadable.
 
-*In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue`. `ExplainerMotion.bundled` reads a motion file from the bundle of the target that holds the explainer. `ChalkScript` bundles `style.json`, and `ChalkScriptExplainers` bundles `subtraction-motion.json`, the only motion file; the other explainers hold their timings in code.
+*In the package:* `ExplainerStyle`, `ExplainerMotion`, `FormatReader` and `FormatIssue` read the style and motion files. `ExplainerMotion.bundled` reads a motion file from the bundle of the target that holds the explainer. `ChalkScript` bundles `style.json`, and `ChalkScriptExplainers` bundles `subtraction-motion.json`, the only motion file; the other explainers hold their timings in code. No reader or player of documents is built yet.
 
 ## EXP-1. Each explainer is reviewed singly, and an approval names a version
 

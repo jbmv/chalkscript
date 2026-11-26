@@ -1,0 +1,241 @@
+{
+  "format": "chalkscript-explainer",
+  "version": "1.0",
+  "requires": ["components.arithmetic"],
+  "id": "subtraction-trading",
+  "title": "Two-digit subtraction by trading a ten",
+  "about": { "licence": "CC-BY-4.0" },
+  "sourceLocale": "en-US",
+
+  "params": {
+    "a": { "type": "int", "min": 10, "max": 99 },
+    "b": { "type": "int", "min": 1, "max": "a" }
+  },
+  "let": {
+    "aT": "div(a, 10)", "aO": "mod(a, 10)", "bT": "div(b, 10)", "bO": "mod(b, 10)",
+    "r": "aO < bO",
+    "d": "a - b", "dT": "div(d, 10)", "dO": "mod(d, 10)", "dTv": "dT * 10",
+    "oAfter": "aO + (r ? 10 : 0)",
+    "bTs": "bT > 0 ? str(bT) : ''",
+    "gap": "min(44, 300 / max(aT, 1))",
+    "lx": "40 + aT * gap + 14",
+    "bx": "lx + max(1, div(aO + 4, 5)) * 30 + 26",
+    "top": 92, "boxX": "bx + 30",
+    "room": "dO == 0 ? 298 : 266 - (div(dO + 4, 5) - 1) * 30 - 20",
+    "ctX": 660, "cgap": "dT > 1 ? min(40, room / (dT - 1)) : 40",
+    "clx": "dT == 0 ? 674 : 660 + (dT - 1) * cgap + 54",
+    "countY": 150, "totalX": 800, "totalY": 480, "eqX": 500,
+    "divAx": 620, "divAy": 120, "divBx": 620, "divBy": 420
+  },
+  "vars": { "traded": "aT - 1" },
+  "samples": [
+    { "a": 10, "b": 1 }, { "a": 10, "b": 9 }, { "a": 10, "b": 10 }, { "a": 11, "b": 1 }, { "a": 19, "b": 9 },
+    { "a": 20, "b": 1 }, { "a": 20, "b": 11 }, { "a": 50, "b": 20 }, { "a": 54, "b": 26 }, { "a": 83, "b": 12 },
+    { "a": 44, "b": 5 }, { "a": 90, "b": 89 }, { "a": 91, "b": 9 }, { "a": 98, "b": 20 }, { "a": 99, "b": 1 },
+    { "a": 99, "b": 9 }, { "a": 99, "b": 10 }, { "a": 99, "b": 90 }, { "a": 99, "b": 98 }, { "a": 99, "b": 99 }
+  ],
+  "kind": {
+    "search": { "a": [21, 98], "b": [2, "a - 1"] },
+    "same": ["aO == 0", "r", "bT > 0", "bO > 0", "dT > 0", "dO > 0"],
+    "differ": ["a", "b", "d"],
+    "near": { "aT": 2 }
+  },
+
+  "layouts": {
+    "stage": { "size": [1000, 540] },
+    "tall": {
+      "suits": "areaW <= areaH * 1.35",
+      "size": [640, "640 * areaH / areaW"], "band": 96, "camera": true,
+      "let": {
+        "ctX": 40, "cgap": 40, "clx": "dT == 0 ? 54 : 40 + (dT - 1) * 40 + 54",
+        "countY": 470, "totalY": 760, "eqX": 320,
+        "cMinX": "dT > 0 ? 40 : clx",
+        "cMaxX": "dO > 0 ? clx + div(dO - 1, 5) * 30 + 20 : 40 + (dT - 1) * 40 + 22",
+        "totalX": "max(d > 0 ? (cMinX + cMaxX) / 2 : 40, 100)",
+        "wsRight": "r ? bx + 80 : (aO > 0 ? lx + div(aO - 1, 5) * 30 + 20 : 40 + (aT - 1) * gap + 22)",
+        "divAx": 28, "divAy": 440, "divBx": "max(wsRight, d > 0 ? cMaxX : 40) + 12", "divBy": 440
+      }
+    }
+  },
+
+  "elements": {
+    "equation": { "kind": "text", "style": "equation", "at": ["eqX", 70], "text": "equation",
+                  "runs": { "ans": { "ink": "result", "text": "unknown" } }, "fixed": true },
+    "divider": { "kind": "line", "style": "divider", "from": ["divAx", "divAy"], "to": ["divBx", "divBy"] },
+    "tensLabel": { "kind": "text", "style": "label", "at": [40, 410], "text": "tensLabel", "start": { "opacity": 0 } },
+    "onesLabel": { "kind": "text", "style": "label", "at": ["aO > 0 ? lx : bx", 410], "text": "onesLabel", "start": { "opacity": 0 } },
+    "ten": { "kind": "ten", "repeat": "aT", "rect": ["40 + i * gap", 150, 22, 220], "start": { "opacity": 0 } },
+    "one": { "kind": "one", "repeat": "aO", "rect": ["lx + div(i, 5) * 30", "154 + mod(i, 5) * 44", 20, 20], "start": { "opacity": 0 } },
+    "arrow": { "kind": "arrow", "when": "r", "from": "ten[traded]", "to": "box", "y": 104, "ink": "trade", "start": { "progress": 0 } },
+    "box": { "kind": "outline", "style": "box", "when": "r", "rect": ["bx", 140, 80, 240], "ink": "trade", "start": { "progress": 0 } },
+    "hint": { "kind": "outline", "style": "hint", "when": "aO > 0", "around": "one", "start": { "progress": 0 } },
+    "boxed": { "kind": "one", "look": "traded", "repeat": "r ? 10 : 0",
+               "rect": ["bx + 12 + mod(i, 2) * 34", "154 + div(i, 2) * 44", 20, 20], "start": { "opacity": 0 } },
+    "cten": { "kind": "ten", "repeat": "dT", "rect": ["ctX + i * cgap", "countY", 22, 220], "start": { "opacity": 0 } },
+    "cone": { "kind": "one", "repeat": "dO", "rect": ["clx + div(i, 5) * 30", "countY + 4 + mod(i, 5) * 44", 20, 20], "start": { "opacity": 0 } },
+    "total": { "kind": "text", "style": "total", "at": ["totalX", "totalY"] }
+  },
+  "parts": {
+    "tens": "ten", "ones": "one + box", "tradedTen": "ten[traded]", "arrow": "arrow",
+    "worksheet": "ten + one + box + arrow + tensLabel + onesLabel",
+    "count": "cten + cone + total"
+  },
+  "shots": {
+    "whole": { "frame": ["worksheet", "count"] }, "ones": { "frame": ["ones"] },
+    "trade": { "frame": ["tradedTen", "arrow", "ones"] }, "tens": { "frame": ["tens"] },
+    "count": { "frame": ["count"] }
+  },
+  "opening": "whole",
+
+  "intro": { "watch": "intro", "guided": "do.intro" },
+  "sequence": ["show", "short", "enough", "trade", "takeOnes", "takeTens", "count"],
+  "steps": {
+    "show": {
+      "shot": "whole", "say": "show", "duration": "aT * 0.18 + 0.45 + aO * 0.16",
+      "actions": {
+        "labels": { "do": "appear", "target": "tensLabel + onesLabel", "dur": 0 },
+        "tens": { "do": "appear", "target": "ten", "dur": 0.32, "each": 0.18, "rise": 14 },
+        "ones": { "do": "appear", "target": "one", "at": "aT * 0.18 + 0.15", "dur": 0.26, "each": 0.16, "grow": 0.4 }
+      }
+    },
+    "short": {
+      "when": "r", "shot": "ones", "say": "short", "duration": "aO > 0 ? 1.5 : 0.7",
+      "actions": {
+        "mark": { "do": "tint", "target": "equation.bO", "ink": "subtract", "dur": 0.35, "mark": true },
+        "loop": { "do": "draw", "target": "hint", "dur": 0.9, "mark": true, "when": "aO > 0" }
+      }
+    },
+    "enough": { "when": "not r and bO > 0", "like": "short", "say": "enough" },
+    "trade": {
+      "when": "r", "shot": "trade", "say": "trade",
+      "actions": {
+        "arrow": { "do": "draw", "target": "arrow", "dur": 0.7 },
+        "split": { "do": "appear", "target": "boxed", "place": "split(ten[traded])", "at": "end(arrow)", "dur": 0.26, "each": 0.05 },
+        "fade": { "do": "fade", "target": "ten[traded]", "to": "ghost", "at": "end(split)", "dur": 0.4 },
+        "cross": { "do": "cross", "target": "ten[traded]", "at": "start(fade) + 0.1", "dur": 0.38 },
+        "travel": { "do": "move", "target": "boxed", "at": "end(cross) + 0.2", "dur": 1.5, "each": 0.16, "reverse": true,
+                    "via": [[0.15, "x0 - 6", "y0 + (i - 4.5) * 3"], [0.4, "x0", "top"], [0.7, "boxX", "top"]] },
+        "box": { "do": "draw", "target": "box", "at": "end(travel)", "dur": 0.6 },
+        "settle": { "do": "fade", "target": "ten[traded].cross", "to": "ghost", "at": "end(box)", "dur": 0.3 }
+      },
+      "act": {
+        "input": "stroke", "say": "do.trade", "targets": "whole(ten)", "bind": "traded", "keep": true, "ink": "trade",
+        "then": "watch", "done": "do.traded",
+        "misses": { "tap": "do.tradeTapped", "one + boxed": "do.tradeOnOne", "nothing": "do.tradeMissed" }
+      }
+    },
+    "takeOnes": {
+      "when": "bO > 0", "shot": "ones", "say": "takeOnes", "hold": 0.15,
+      "actions": {
+        "mark": { "do": "tint", "target": "equation.bO", "ink": "subtract", "dur": 0.35, "mark": true },
+        "cross": { "do": "cross", "target": "first(bO, whole(one + boxed))", "dur": 0.28, "fade": 0.35, "each": 0.48 }
+      },
+      "act": {
+        "input": "stroke", "targets": "whole(one + boxed)", "need": "bO", "many": true, "tally": "subtract", "keep": true, "ink": "subtract",
+        "then": { "do": "cross", "dur": 0, "fade": 0.35 }, "done": "do.crossedOnes",
+        "misses": { "tap": "do.crossTappedOnes", "tooMany": "do.crossedTooMany", "whole(ten)": "do.crossedTen", "nothing": "do.crossMissedOnes" }
+      }
+    },
+    "takeTens": {
+      "when": "bT > 0", "shot": "tens", "say": "takeTens", "hold": 0.15,
+      "actions": {
+        "mark": { "do": "tint", "target": "equation.bTs", "ink": "subtract", "dur": 0.35, "mark": true },
+        "cross": { "do": "cross", "target": "last(bT, whole(ten))", "dur": 0.28, "fade": 0.35, "each": 0.48 }
+      },
+      "act": {
+        "input": "stroke", "targets": "whole(ten)", "need": "bT", "many": true, "tally": "subtract", "keep": true, "ink": "subtract",
+        "then": { "do": "cross", "dur": 0, "fade": 0.35 }, "done": "do.crossedTens",
+        "misses": { "tap": "do.crossTappedTens", "tooMany": "do.crossedTooMany", "whole(one + boxed)": "do.crossedOne", "nothing": "do.crossMissedTens" }
+      }
+    },
+    "count": {
+      "shot": "whole", "doShot": "count", "say": "count", "counts": true,
+      "actions": {
+        "gather": { "do": "gather", "target": "cten + cone", "from": "whole(ten + one + boxed)", "dur": 0.95, "each": 0.09,
+                    "ease": "settle", "when": "d > 0" },
+        "count": { "do": "each", "target": "cten + cone", "at": "end(gather)", "gap": "i < dT ? 0.85 : 0.56", "wait": "voice",
+                   "when": "d > 0", "let": { "n": "i < dT ? (i + 1) * 10 : i - dT + 1" },
+                   "then": {
+                     "look": { "do": "look", "value": "counted" },
+                     "tag": { "do": "tag", "text": "tick", "dur": "i < dT ? 0.8 : 0.56" },
+                     "say": { "do": "say", "line": "tick", "count": true },
+                     "total": { "do": "set", "target": "total", "text": "tick", "when": "i < dT or dT == 0" },
+                     "running": { "do": "set", "target": "total", "text": "runningTotal", "when": "i >= dT and dT > 0" }
+                   } },
+        "none": { "do": "set", "target": "total", "text": "answerTotal", "at": 0.5, "when": "d == 0" },
+        "join": { "do": "say", "line": "join", "at": "end(count) + 0.25", "wait": "voice", "when": "dT > 0 and dO > 0" },
+        "joined": { "do": "set", "target": "total", "text": "answerTotal", "at": "start(join)", "when": "dT > 0 and dO > 0" },
+        "pulse": { "do": "pulse", "target": "total", "at": "start(join)", "dur": 0.5, "when": "dT > 0 and dO > 0" },
+        "answer": { "do": "appear", "target": "equation.ans", "text": "answerTotal", "dur": 0.4, "wait": "voice",
+                    "at": "dT > 0 and dO > 0 ? end(pulse) : (d > 0 ? end(count) : 0.5)" },
+        "said": { "do": "say", "line": "answer", "at": "end(answer)", "wait": "voice" }
+      },
+      "act": {
+        "input": "tap", "begin": "gather", "say": "do.count", "targets": "cten + cone", "order": ["cten", "cone"], "pad": 10,
+        "then": "count", "interrupts": true, "done": ["join", "joined", "pulse", "answer", "said"],
+        "misses": { "order": "do.tensFirst" }
+      }
+    }
+  },
+  "try": { "question": "question", "say": "do.tryIntro", "note": "do.tryNote" },
+
+  "wording": {
+    "en-US": {
+      "shared": {
+        "equation": { "text": "{a} − {bTs}{bO} = {ans}", "visual": true },
+        "unknown": { "text": "?", "visual": true },
+        "question": { "text": "{a} − {b} =", "visual": true },
+        "tensLabel": { "text": "tens", "visual": true },
+        "onesLabel": { "text": "ones", "visual": true },
+        "tick": "{n}",
+        "runningTotal": { "text": "{dTv} + {n}", "visual": true },
+        "answerTotal": { "text": "{d}", "visual": true },
+        "ones": { "forms": { "one": "{n} one", "other": "{n} ones" } },
+        "tens": { "forms": { "one": "{n} ten", "other": "{n} tens" } }
+      },
+      "everyday": {
+        "intro": "{a} minus {b}. Let's see how!",
+        "show": "This is {a}.",
+        "short": "We need to take away {ones:bO}. But we only have {aO}!",
+        "enough": "We have {aO}. That's enough!",
+        "trade": "Now we have {ones:oAfter}!",
+        "takeOnes": "Cross out {ones:bO}.",
+        "takeTens": "Now cross out {tens:bT}.",
+        "count": "Let's count what's left.",
+        "join": "{dTv} plus {dO} is {d}.",
+        "answer": { "text": "{a} minus {b} is {d}!", "emphasis": "d" },
+        "do.intro": "Now let's do one together: {a} minus {b}.",
+        "do.trade": "We need more ones. Break one ten: draw a line through a ten.",
+        "do.traded": "Now we have {ones:oAfter}. That's enough!",
+        "do.crossedOnes": "The ones are crossed out.",
+        "do.crossedTens": "The tens are crossed out.",
+        "do.tradeTapped": "Draw a line through a ten to break it.",
+        "do.tradeOnOne": "That one is a one. Draw a line through a ten.",
+        "do.tradeMissed": "Draw a line right through one ten.",
+        "do.crossTappedOnes": "Draw a line across a one to cross it out.",
+        "do.crossTappedTens": "Draw a line across a ten to cross it out.",
+        "do.crossedTooMany": "That's more than we need. Cross out {left} more, one at a time.",
+        "do.crossedTen": "We're crossing out ones now. Cross out a one.",
+        "do.crossedOne": "We're crossing out tens now. Cross out a ten.",
+        "do.crossMissedOnes": "Draw a line right across a one.",
+        "do.crossMissedTens": "Draw a line right across a ten.",
+        "do.count": "Let's count what's left. Touch each piece, tens first.",
+        "do.tensFirst": "Count the tens first.",
+        "do.tryIntro": "Now you try one: {a} minus {b}.",
+        "do.tryNote": { "text": "Your turn. Draw it, cross out, and count.", "visual": true }
+      },
+      "formal": {
+        "intro": { "select": "r", "cases": { "true": "{a} minus {b}, trading a ten.", "false": "{a} minus {b}. There are enough ones." } },
+        "show": "{a} is {tens:aT} and {ones:aO}.",
+        "short": "There are fewer ones than {bO}, so a ten is traded for ten ones.",
+        "enough": "There are enough ones to take away {bO}.",
+        "trade": "Trading a ten gives {ones:oAfter}.",
+        "takeOnes": "Take away {ones:bO}.",
+        "takeTens": "Take away {tens:bT}.",
+        "count": "What is left is counted.",
+        "join": "{dTv} plus {dO} is {d}.",
+        "answer": { "text": "{a} minus {b} is {d}.", "emphasis": "d" }
+      }
+    }
+  }
+}
