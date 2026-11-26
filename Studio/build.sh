@@ -4,7 +4,6 @@
 # desktop app from the app's helper. Prints the paths of the app and the extension.
 #
 # Usage: Studio/build.sh [Debug|Release]   (default: Debug)
-#
 set -eu
 cd "$(dirname "$0")"
 configuration="${1:-Debug}"
