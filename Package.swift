@@ -9,6 +9,7 @@ let package = Package(
         .library(name: "ChalkScriptExplainers", targets: ["ChalkScriptExplainers"]),
         .library(name: "ChalkScriptMCP", targets: ["ChalkScriptMCP"]),
         .executable(name: "chalkscript-mcp", targets: ["chalkscript-mcp"]),
+        .executable(name: "chalkscript-render", targets: ["chalkscript-render"]),
     ],
     targets: [
         .target(
@@ -34,6 +35,12 @@ let package = Package(
         .executableTarget(
             name: "chalkscript-mcp",
             dependencies: ["ChalkScriptMCP"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // Renders a document's still pictures to PNG files from a terminal, for macOS only.
+        .executableTarget(
+            name: "chalkscript-render",
+            dependencies: ["ChalkScript"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
