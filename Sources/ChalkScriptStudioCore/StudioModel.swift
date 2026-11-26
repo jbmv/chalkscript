@@ -24,8 +24,9 @@ public final class StudioModel {
     public private(set) var wording: String?
     public private(set) var locale: String?
     public private(set) var control: DocumentPlayback.Control = .paced
-    /// The shape the shown document is played at: the window's, or a ratio chosen to preview.
-    public private(set) var shape: ShapeChoice = .window
+    /// What the shown document is previewed at: nothing, so that it is played in the pane's own
+    /// area, or a ratio. A preview changes nothing in the document.
+    public private(set) var preview: PreviewChoice = .none
     /// The player of the shown document, or nil when it cannot be played (`refusal` says why).
     public private(set) var player: ExplainerPlayer?
     /// Changes whenever `player` is replaced, so that a view can start again with the new one.
@@ -109,7 +110,7 @@ public final class StudioModel {
     public func select(_ name: String?) {
         guard name != selectedName else { return }
         selectedName = name
-        shape = .window
+        preview = .none
         rebuild(keepStep: false)
     }
 
@@ -128,10 +129,10 @@ public final class StudioModel {
         rebuild(keepStep: true)
     }
 
-    /// Plays the shown document at `choice`; a ratio that is not a positive number is ignored.
-    public func setShape(_ choice: ShapeChoice) {
+    /// Previews the shown document at `choice`; a ratio that is not a positive number is ignored.
+    public func setPreview(_ choice: PreviewChoice) {
         if case let .ratio(r) = choice, !(r > 0 && r.isFinite) { return }
-        shape = choice
+        preview = choice
         rebuild(keepStep: true)
     }
 
@@ -164,51 +165,73 @@ public final class StudioModel {
     /// The names of the steps the shown document has for its problem.
     public var stepNames: [String] { shaped?.shown.resolved.stepNames ?? [] }
 
-    // MARK: shapes
+    // MARK: previews and layouts
 
-    /// The shapes the Shape menu offers to preview for the shown document (EXP-17).
-    public var previewShapes: [PreviewShape] {
-        guard let shown = selected, let doc = shown.document else { return [] }
-        return Shapes.previews(doc, problem: problem(for: shown.name))
+    /// What the Preview menu offers for the shown document between None and Test Ratio (EXP-17).
+    public var previewItems: [PreviewItem] {
+        guard let doc = selected?.document else { return [] }
+        return Shapes.previews(doc)
     }
 
     /// The ratio of the area the shown document is laid out for, once the window has given it one.
     public var shownRatio: Double? { shaped?.shown.areaUse.flatMap { Shapes.ratio($0.used) } }
 
-    /// What the status line says of the shape: a preview, or a shape the document does not
-    /// declare and the declared shape it is shown at instead. Nil for a declared window shape,
-    /// and for a document without a declaration in the window.
-    public var shapeStatus: String? {
-        guard let s = shaped, let use = s.shown.areaUse, let given = Shapes.ratio(use.given), let used = Shapes.ratio(use.used) else { return nil }
-        let name = s.ratio == nil ? "Window \(Shapes.text(given))" : Shapes.text(given)
-        if !Shapes.fills(use) { return "\(name) is not a declared shape; shown as \(Shapes.text(used))" }
-        return s.ratio == nil ? nil : "Previewing \(name) · \(s.shown.resolved.layout)"
+    /// The layout the shown document is drawn in.
+    public var shownLayout: String? { shaped?.shown.resolved.layout }
+
+    /// What the status line says of the drawing area: the layout in use, the area shown, and,
+    /// when that area is not one the document is made for, so, with the ratio it is drawn at
+    /// instead. Nil when nothing is played.
+    public var areaStatus: String? {
+        guard let s = shaped else { return nil }
+        let layout = "Layout \(s.shown.resolved.layout)"
+        guard let use = s.shown.areaUse, let given = Shapes.ratio(use.given), let used = Shapes.ratio(use.used) else { return layout }
+        if !Shapes.fills(use) {
+            let shape = (s.ratio == nil ? "pane " : "") + Shapes.text(given)
+            return "\(layout) · \(shape) is not a shape the document is made for; drawn at \(Shapes.text(used))"
+        }
+        guard let r = s.ratio else { return "\(layout) · pane \(Shapes.text(given))" }
+        let item = previewItems.first { abs($0.ratio - r) < 1e-9 }
+        return "\(layout) · previewing " + (item.map { "\($0.title) at \(Shapes.text(r))" } ?? Shapes.text(r))
     }
 
-    /// Whether the shape shown is outside the shown document's declaration, so that Declare This
-    /// Shape can widen the nearest range to it.
-    public var canDeclareShownShape: Bool {
-        guard let use = shaped?.shown.areaUse else { return false }
-        return !Shapes.fills(use)
+    /// The plan that makes the shown document made for the area shown, when it is not, and how
+    /// the status line's button names it.
+    private var addition: (plan: LayoutPlan, label: String)? {
+        guard let doc = selected?.document, doc.declaresAreas, let s = shaped, let use = s.shown.areaUse, !Shapes.fills(use),
+              let r = Shapes.ratio(use.given) else { return nil }
+        return LayoutPlan(doc).adding(ratio: r, layout: s.shown.resolved.layout)
     }
 
-    /// Declares the shape shown by moving the nearest end of the nearest declared range to it,
-    /// as one patch. Returns why it was refused, or nothing.
+    /// The label of the status line's button that makes the document made for the area shown,
+    /// such as "Add Square" or "Add 0.40"; nil when there is nothing to add.
+    public var additionLabel: String? { addition?.label }
+
+    /// Makes the shown document made for the area shown, as one patch: the preset that holds
+    /// it, drawn in the layout it is drawn in now, or the nearest range widened to it. Returns
+    /// why it was refused, or nothing.
     @discardableResult
-    public func declareShownShape() -> [DocumentFinding] {
-        guard let shown = selected, let doc = shown.document, let use = shaped?.shown.areaUse, let r = Shapes.ratio(use.given),
-              let ops = Shapes.declaring(doc, ratio: r) else { return [] }
-        return apply(ops, to: shown.name, base: doc.shortHash, actionName: "Declare This Shape")
+    public func addShownArea() -> [DocumentFinding] {
+        guard let shown = selected, let doc = shown.document, let addition else { return [] }
+        do {
+            guard let ops = try Shapes.patch(doc, plan: addition.plan, original: LayoutPlan(doc)) else { return [] }
+            return apply(ops, to: shown.name, base: doc.shortHash, actionName: addition.label)
+        } catch {
+            return [.error(.areas, "/areas", error.message)]
+        }
     }
 
-    /// Makes the shown document's declaration `rows`, as one patch through the patch engine, so
-    /// that it is checked, saved and one step of Undo. Returns why the patch was refused; throws
-    /// when a row cannot be written.
+    /// The plan the Layouts sheet starts from for the shown document.
+    public var layoutPlan: LayoutPlan? { selected?.document.map(LayoutPlan.init) }
+
+    /// Makes the shown document what `plan` says, as one patch through the patch engine, so that
+    /// it is checked, saved and one step of Undo. Returns why the patch was refused; throws when
+    /// the plan cannot be written.
     @discardableResult
-    public func declareShapes(_ rows: [DeclaredRow]) throws(ShapeError) -> [DocumentFinding] {
+    public func saveLayouts(_ plan: LayoutPlan) throws(ShapeError) -> [DocumentFinding] {
         guard let shown = selected, let doc = shown.document else { return [] }
-        guard let ops = try Shapes.patch(doc, rows: rows) else { return [] }
-        return apply(ops, to: shown.name, base: doc.shortHash, actionName: "Declare Shapes")
+        guard let ops = try Shapes.patch(doc, plan: plan, original: LayoutPlan(doc)) else { return [] }
+        return apply(ops, to: shown.name, base: doc.shortHash, actionName: "Layouts")
     }
 
     private func apply(_ ops: [DocJSON], to name: String, base: String, actionName: String) -> [DocumentFinding] {
@@ -254,7 +277,7 @@ public final class StudioModel {
                 document: doc, problem: problem(for: shown.name), wording: effectiveWording, locale: effectiveLocale,
                 playback: DocumentPlayback(control: control))
             var ratio: Double?
-            if case let .ratio(r) = shape { ratio = r }
+            if case let .ratio(r) = preview { ratio = r }
             let p = ExplainerPlayer(explainer: ShapedExplainer(e, ratio: ratio), voice: SilentVoice(), drivesItself: drivesPlayer)
             if let area { p.layOut(for: area) }
             if let stepName, let k = e.resolved.stepNames.firstIndex(of: stepName) { p.show(step: k) }
@@ -329,7 +352,7 @@ public final class StudioModel {
         }
         if selectedName != name {
             selectedName = name
-            shape = .window
+            preview = .none
         }
         rebuild(keepStep: false)
         guard let player, let e = shaped?.shown else {

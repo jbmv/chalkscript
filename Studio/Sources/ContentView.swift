@@ -117,22 +117,35 @@ struct RefusalView: View {
     }
 }
 
-/// What the agent last asked of the studio, whether the studio can be reached, and the shape the
-/// document is shown at when it is a preview or is not one the document declares.
+/// What the agent last asked of the studio, whether the studio can be reached, and the layout
+/// the document is drawn in and the area it is shown at; when that area is not one the document
+/// is made for, it says so and offers to add it (EXP-17).
 struct StatusLine: View {
     let model: StudioModel
+    @State private var refused: String?
 
     var body: some View {
         HStack(spacing: 6) {
             Circle()
                 .fill(model.listening != nil ? Color.green : Color.orange)
                 .frame(width: 7, height: 7)
-            Text(status).lineLimit(1).truncationMode(.tail)
+            Text(refused ?? status).lineLimit(1).truncationMode(.tail)
+                .foregroundStyle(refused == nil ? Color.secondary : Color.red)
             Spacer(minLength: 0)
-            if let shape = model.shapeStatus {
-                Text(shape).lineLimit(1).truncationMode(.head)
+            if let area = model.areaStatus {
+                Text(area).lineLimit(1).truncationMode(.head)
+                    .help(area)
+            }
+            if let label = model.additionLabel {
+                Button(label) {
+                    let findings = model.addShownArea()
+                    refused = findings.isEmpty ? nil : findings.prefix(2).map(\.message).joined(separator: "; ")
+                }
+                .controlSize(.mini)
+                .help("Make the document made for this shape. It changes the document, and Edit > Undo takes it back.")
             }
         }
+        .onChange(of: model.playerSerial) { refused = nil }
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)

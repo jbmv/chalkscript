@@ -3,8 +3,9 @@ import ChalkScriptStudioCore
 import SwiftUI
 
 /// The problem the document is played with, chosen from its samples or typed within its
-/// parameters, and the wording, language, playback, the shape of drawing area it is shown at and
-/// the arrangement of the screen round the drawing.
+/// parameters, and the wording, language and playback; then, grouped apart as view-only, the
+/// area the drawing is previewed at and the arrangement an app might give the screen; and, set
+/// apart from both, the Layouts sheet, which changes the document (EXP-17).
 struct OptionsBar: View {
     let model: StudioModel
     let document: StudioDocument
@@ -13,7 +14,7 @@ struct OptionsBar: View {
     @State private var outside: String?
     @State private var asksRatio = false
     @State private var ratioText = ""
-    @State private var declaring = false
+    @State private var editsLayouts = false
 
     private var doc: ExplainerDocument? { document.document }
 
@@ -47,9 +48,14 @@ struct OptionsBar: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .help("Paced plays as a learner sees it; skippable lets you jump to any step with the dots.")
-                shapeMenu
-                arrangementPicker
                 Spacer(minLength: 0)
+            }
+            HStack(spacing: 10) {
+                viewOnly
+                Spacer(minLength: 0)
+                Button("Layouts…") { editsLayouts = true }
+                    .disabled(doc == nil)
+                    .help("The shapes of drawing area the document is made for, and the layout it is drawn in at each. Saved in the document.")
             }
         }
         .controlSize(.small)
@@ -57,61 +63,73 @@ struct OptionsBar: View {
         .padding(.vertical, 8)
         .onAppear(perform: resetDrafts)
         .onChange(of: model.playerSerial) { resetDrafts() }
-        .alert("Preview Another Ratio", isPresented: $asksRatio) {
+        .alert("Test a Ratio", isPresented: $asksRatio) {
             TextField("Ratio", text: $ratioText)
             Button("Preview") { previewTypedRatio() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The drawing area's width over its height, such as 0.75. The preview is not saved in the document.")
+            Text("The drawing area's width over its height, such as 0.75. The preview changes nothing in the document.")
         }
-        .sheet(isPresented: $declaring) { DeclareShapesSheet(model: model) }
+        .sheet(isPresented: $editsLayouts) {
+            if let plan = model.layoutPlan { LayoutsSheet(model: model, plan: plan) }
+        }
     }
 
-    /// Window, the shapes the document declares, another ratio, and declaring (EXP-17).
-    private var shapeMenu: some View {
+    /// The Preview menu and the arrangement, in one group marked as changing only the view.
+    private var viewOnly: some View {
+        HStack(spacing: 10) {
+            Text("View only, not saved:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            previewMenu
+            arrangementPicker
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.5)))
+    }
+
+    /// None, each preset the document is made for at its nominal ratio, and a typed ratio (EXP-17).
+    private var previewMenu: some View {
         Menu {
-            Toggle("Window", isOn: Binding(get: { model.shape == .window }, set: { _ in model.setShape(.window) }))
-            let previews = model.previewShapes
-            if !previews.isEmpty {
+            Toggle("None", isOn: Binding(get: { model.preview == .none }, set: { _ in model.setPreview(.none) }))
+            let items = model.previewItems
+            if !items.isEmpty {
                 Divider()
-                ForEach(previews) { p in
-                    Toggle(p.label, isOn: Binding(get: { model.shape == .ratio(p.ratio) }, set: { _ in model.setShape(.ratio(p.ratio)) }))
+                ForEach(items) { item in
+                    Toggle(item.label, isOn: Binding(get: { model.preview == .ratio(item.ratio) }, set: { _ in model.setPreview(.ratio(item.ratio)) }))
                 }
             }
             Divider()
-            Button("Other Ratio…") {
+            Button("Test Ratio…") {
                 ratioText = model.shownRatio.map(Shapes.text) ?? ""
                 asksRatio = true
             }
-            Divider()
-            if model.canDeclareShownShape {
-                Button("Declare This Shape") { report(model.declareShownShape()) }
-            }
-            Button("Declare Shapes…") { declaring = true }
-                .disabled(doc == nil)
         } label: {
-            Text(shapeTitle)
+            Text(previewTitle)
         }
         .fixedSize()
-        .help("The shape of drawing area the document is shown at: the window's, or a shape to preview")
+        .help("Preview the drawing in an area of one of the shapes the document is made for, framed inside the pane. None plays it in the pane's own area.")
     }
 
-    /// The arrangement is the app's, not the document's, so it is kept from one document to the
-    /// next (EXP-17).
+    /// The arrangement is an app's choice, not the document's, so it is kept from one document to
+    /// the next (EXP-17).
     private var arrangementPicker: some View {
-        Picker("Arrangement", selection: $arrangement) {
+        Picker("App arrangement", selection: $arrangement) {
             Text("Automatic").tag(ScreenArrangement.automatic)
             Text("Caption Below").tag(ScreenArrangement.captionBelow)
             Text("Caption Beside").tag(ScreenArrangement.captionBeside)
         }
         .fixedSize()
-        .help("How the screen is arranged round the drawing, as an app that plays the document chooses it")
+        .help("A preview of how an app that plays the explainer might arrange the screen round the drawing. The app chooses its own arrangement; this is not a setting of the document.")
     }
 
-    private var shapeTitle: String {
-        switch model.shape {
-        case .window: "Shape: Window"
-        case let .ratio(r): "Shape: \(Shapes.text(r))"
+    private var previewTitle: String {
+        switch model.preview {
+        case .none: return "Preview: None"
+        case let .ratio(r):
+            let item = model.previewItems.first { abs($0.ratio - r) < 1e-9 }
+            return "Preview: " + (item?.title ?? Shapes.text(r))
         }
     }
 
@@ -121,11 +139,7 @@ struct OptionsBar: View {
             return
         }
         outside = nil
-        model.setShape(.ratio(r))
-    }
-
-    private func report(_ refused: [DocumentFinding]) {
-        outside = refused.isEmpty ? nil : refused.prefix(3).map(\.message).joined(separator: "; ")
+        model.setPreview(.ratio(r))
     }
 
     private var problem: [String: DocumentValue] { model.problem(for: document.name) }
