@@ -29,6 +29,7 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
     static let socketKey = "StudioSocketPath"
 
     let model: StudioModel
+    let newDocument = NewDocumentRequest()
 
     override init() {
         let guide = Bundle.main.url(forResource: "authoring-guide", withExtension: "md")
@@ -46,6 +47,7 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
         try? model.startListening(path: socket ?? StudioSocket.defaultPath)
         #if DEBUG
         observeWindowPictureRequests()
+        observeKeyRequests()
         #endif
     }
 
@@ -68,6 +70,44 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
+    }
+
+    /// In a debug build, another process may open the New Explainer sheet and press keys in it,
+    /// for testing from a session that is not allowed to send keys to another app. The app is
+    /// not brought to the front, so its menus cannot be chosen this way: the first notification
+    /// below does what File > New Explainer does, and the second presses the keys named by its
+    /// object, `return`, `escape`, or text to type, in the sheet over the window if there is one.
+    static let newExplainerRequest = Notification.Name("org.chalkscript.studio.newExplainer")
+    static let keysRequest = Notification.Name("org.chalkscript.studio.keys")
+
+    private func observeKeyRequests() {
+        let center = DistributedNotificationCenter.default()
+        center.addObserver(forName: Self.newExplainerRequest, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.newDocument.isShown = true }
+        }
+        center.addObserver(forName: Self.keysRequest, object: nil, queue: .main) { note in
+            guard let keys = note.object as? String else { return }
+            MainActor.assumeIsolated { Self.press(keys) }
+        }
+    }
+
+    private static func press(_ keys: String) {
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }) else { return }
+        let target = window.attachedSheet ?? window
+        let presses: [(characters: String, code: UInt16)] = switch keys {
+        case "return": [("\r", 36)]
+        case "escape": [("\u{1B}", 53)]
+        default: keys.map { (String($0), 0) }
+        }
+        for press in presses {
+            for type in [NSEvent.EventType.keyDown, .keyUp] {
+                guard let event = NSEvent.keyEvent(
+                    with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: target.windowNumber, context: nil, characters: press.characters,
+                    charactersIgnoringModifiers: press.characters, isARepeat: false, keyCode: press.code) else { continue }
+                target.sendEvent(event)
+            }
+        }
     }
     #endif
 
@@ -126,6 +166,10 @@ struct StudioCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
+            Button("New Explainer…") { delegate.newDocument.isShown = true }
+                .keyboardShortcut("n")
+                .disabled(model.folder == nil)
+            Divider()
             Button("Open Project Folder…") { delegate.chooseProject() }
                 .keyboardShortcut("o")
             Button("Add Example Documents") { delegate.addExamples() }

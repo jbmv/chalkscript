@@ -30,6 +30,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showsConnect) { ConnectView(model: model) }
+        .sheet(isPresented: Bindable(delegate.newDocument).isShown) { NewDocumentSheet(model: model) }
         .frame(minWidth: 560, minHeight: 600)
         .onAppear { model.undoManager = undoManager }
         .onChange(of: undoManager) { model.undoManager = undoManager }
@@ -63,7 +64,7 @@ struct DocumentList: View {
         .overlay {
             if model.folder != nil && model.documents.isEmpty {
                 ContentUnavailableView("No documents", systemImage: "doc",
-                                       description: Text("Add Example Documents from the File menu, or ask the agent to make one."))
+                                       description: Text("Choose New Explainer or Add Example Documents from the File menu, or ask the agent to make one."))
             }
         }
     }
@@ -106,7 +107,7 @@ struct RefusalView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("This document cannot be played", systemImage: "exclamationmark.triangle")
                 .font(.headline)
-            Text(findings.isEmpty ? "It has an error." : "Fix the first error below and it plays again.")
+            Text(findings.isEmpty ? "It has an error." : "Ask Claude to fix it; Claude sees the same errors.")
                 .foregroundStyle(.secondary)
             ForEach(Array(findings.prefix(6).enumerated()), id: \.offset) { _, f in
                 Text(f.message).font(.callout)

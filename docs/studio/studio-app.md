@@ -52,8 +52,12 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   a copy of another document of the project, with its own `id` and title. The studio reads the
   folder again at once, lists the new document, selects it and shows it in the Square preview,
   where it draws "Ask Claude to make this explainer." until the agent builds it. The code that
-  does so is `StudioModel.createDocument(title:name:from:)`, which the window can call with a
-  title alone.
+  does so is `StudioModel.createDocument(title:name:from:)`.
+- **New Explainer.** File > New Explainer (Command-N) makes the same starter document from the
+  window. Its sheet asks for a title and nothing else; the document's name and `id` are made
+  from the title, with `-2` added when the name is taken. Create is unavailable while the title
+  is empty, Return in the field creates, and Cancel or Escape makes nothing. If the document
+  cannot be made, the sheet stays open and says why.
 - **Playing.** The window plays the selected document's watched steps with the engine's player and
   view (`ExplainerView`), for a problem chosen from the document's samples or typed within its
   parameters, in a chosen wording and language, paced or skippable. Lines are shown, not spoken.
@@ -102,6 +106,9 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   it, at the nearest declared shape, and the status line says so, such as "Layout tall · pane
   0.40 is not a shape the document is made for; drawn at 0.60". A document without `areas` is
   laid out for any area it is given, so for it the status line names the layout only.
+- **A document that cannot be played.** In place of the player, the window lists the document's
+  first errors under "Ask Claude to fix it; Claude sees the same errors.", since the agent's
+  tools report the same findings.
 - **Findings.** Below the player are the document's findings: the reader's, and what refuses any
   sample in any wording when the document is played. Each shows its line in the file and its JSON
   Pointer; clicking one on a step plays that step.
@@ -125,11 +132,15 @@ Both edit the open project, so run it against a temporary folder: the app's laun
 `-StudioProjectFolder` and `-StudioSocketPath` open a folder and listen on a socket of your choice
 without changing the app's saved settings. In a Debug build, posting the distributed notification
 `org.chalkscript.studio.windowPicture` with a file path as its object makes the app write a
-picture of its window to that path, for a session that cannot capture the screen.
+picture of its window to that path, for a session that cannot capture the screen. For a session
+that cannot send keys to another app, `org.chalkscript.studio.newExplainer` opens the New
+Explainer sheet, and `org.chalkscript.studio.keys` presses the keys its object names, `return`,
+`escape` or text to type, in the sheet if one is open. Neither brings the app to the front, so
+the menu item and its shortcut are tried by hand.
 
 ## Not built yet
 
 Narration (lines are shown, not spoken), do it with me, What if? and try one, export to video, a
 timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for,
-making a document in the window (File > New Explainer), renaming, duplicating and removing a document
-there, a document's own palette, and notarisation.
+renaming, duplicating and removing a document in the window, a document's own palette, and
+notarisation.
