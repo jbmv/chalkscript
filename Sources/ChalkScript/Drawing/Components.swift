@@ -178,9 +178,27 @@ public enum Components {
         ]
     }
 
-    /// The arrow's head at `tip`, the end of its path, pointing down.
-    public static func arrowHead(at tip: CGPoint) -> [CGPoint] {
-        [CGPoint(x: tip.x - 8, y: tip.y - 10), CGPoint(x: tip.x, y: tip.y + 1), CGPoint(x: tip.x + 8, y: tip.y - 10)]
+    /// The arrow's head at `tip`, the end of its path, pointing along `direction`, a vector that
+    /// need not be a unit vector. A zero or non-finite direction points down.
+    public static func arrowHead(at tip: CGPoint, direction: CGVector = CGVector(dx: 0, dy: 1)) -> [CGPoint] {
+        let norm = hypot(direction.dx, direction.dy)
+        let u = norm > 0 && norm.isFinite ? CGVector(dx: direction.dx / norm, dy: direction.dy / norm) : CGVector(dx: 0, dy: 1)
+        // `side` runs across the head and `along` runs the way the arrow travels; for a downward
+        // arrow they are x and y.
+        func point(side: CGFloat, along: CGFloat) -> CGPoint {
+            CGPoint(x: tip.x + u.dy * side + u.dx * along, y: tip.y - u.dx * side + u.dy * along)
+        }
+        return [point(side: -8, along: -10), point(side: 0, along: 1), point(side: 8, along: -10)]
+    }
+
+    /// The head for an arrow along `path`, at its last point, pointing along its last segment
+    /// that has length, or down when none has.
+    public static func arrowHead(endingPath path: [CGPoint]) -> [CGPoint] {
+        guard let tip = path.last else { return [] }
+        for (a, b) in zip(path, path.dropFirst()).reversed() where a != b {
+            return arrowHead(at: tip, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y))
+        }
+        return arrowHead(at: tip)
     }
 
     /// The length of a path through `points`.

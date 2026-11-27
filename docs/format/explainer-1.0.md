@@ -486,7 +486,9 @@ These are the *stroked* kinds: their `progress` is how much of the stroke is dra
 | `outline` | `rect` (`[x, y, width, height]`) or `around` (a selection), one of them required; `pad`; `style`: `box`, `ring`, `hint` or `target`, required; `ink`. |
 | `shape` | One of `rect` (with `corner`, a radius), `ellipse` (a rectangle it fills) or `points` (an array of points, with `closed`, by default `false`); `fill`, a role for the inside; `ink`, a role for the stroke. At least one of `fill` and `ink`. |
 
-An arrow between two points is straight. An arrow from or to a selection starts or ends 8 units
+An arrow between two points is straight. The head points along the arrow's last segment, in the direction
+the arrow travels there; a last segment of no length gives way to the nearest earlier one that has length,
+and an arrow with none has a head that points down. An arrow from or to a selection starts or ends 8 units
 above the middle of the top edge of the instance's bounds. With `y`, the arrow runs vertically to
 height `y`, across, and vertically down to its end, as an arrow over the top of a drawing does.
 

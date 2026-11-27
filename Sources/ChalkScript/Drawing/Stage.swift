@@ -218,8 +218,8 @@ struct StageDrawing {
         case let .arrow(points, p, op):
             let ink = c(.ink(op))
             stroke(Components.partial(points, p), color: ink, width: Components.tradeWidth, in: &context)
-            if p >= 1, let tip = points.last {
-                stroke(Components.arrowHead(at: tip), color: ink, width: Components.tradeWidth, in: &context)
+            if p >= 1 {
+                stroke(Components.arrowHead(endingPath: points), color: ink, width: Components.tradeWidth, in: &context)
             }
         case let .box(rect, p, op):
             let path = Path(roundedRect: rect, cornerRadius: Components.boxCorner).trimmedPath(from: 0, to: p)
