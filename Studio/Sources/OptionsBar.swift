@@ -12,8 +12,6 @@ struct OptionsBar: View {
     @Binding var arrangement: ScreenArrangement
     @State private var drafts: [String: String] = [:]
     @State private var outside: String?
-    @State private var asksRatio = false
-    @State private var ratioText = ""
 
     private var doc: ExplainerDocument? { document.document }
 
@@ -68,13 +66,6 @@ struct OptionsBar: View {
         .padding(.vertical, 8)
         .onAppear(perform: resetDrafts)
         .onChange(of: model.playerSerial) { resetDrafts() }
-        .alert("Test a Ratio", isPresented: $asksRatio) {
-            TextField("Ratio", text: $ratioText)
-            Button("Preview") { previewTypedRatio() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("The drawing area's width over its height, such as 0.75. The preview changes nothing in the document.")
-        }
     }
 
     /// The Preview menu and the arrangement, in one group marked as changing only the view.
@@ -89,25 +80,18 @@ struct OptionsBar: View {
         .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.5)))
     }
 
-    /// The shape of area the drawing is previewed in: one of the three presets, or a typed ratio
-    /// (EXP-17). Every preset is offered, whether or not the document is made for it.
+    /// The shape of area the drawing is previewed in: one of the three presets (EXP-17). Every
+    /// preset is offered, whether or not the document is made for it. Any other shape is seen
+    /// through an agent, whose `show` takes a ratio.
     private var previewMenu: some View {
-        HStack(spacing: 6) {
-            Picker("Preview (not saved)", selection: Binding(get: { previewedPreset }, set: { p in
-                if let p { model.setPreview(.ratio(p.nominal)) }
-            })) {
-                ForEach(Preset.allCases) { Text($0.title).tag(Preset?.some($0)) }
-            }
-            .pickerStyle(.segmented)
-            .fixedSize()
-            .help("The shape of the area the drawing is shown in, framed inside the pane. It changes nothing in the document.")
-            Button(previewedPreset == nil ? "Test Ratio: \(model.shownRatio.map(Shapes.text) ?? "…")" : "Test Ratio…") {
-                ratioText = model.shownRatio.map(Shapes.text) ?? ""
-                asksRatio = true
-            }
-            .fixedSize()
-            .help("Preview any other shape by its width over its height.")
+        Picker("Preview (not saved)", selection: Binding(get: { previewedPreset }, set: { p in
+            if let p { model.setPreview(.ratio(p.nominal)) }
+        })) {
+            ForEach(Preset.allCases) { Text($0.title).tag(Preset?.some($0)) }
         }
+        .pickerStyle(.segmented)
+        .fixedSize()
+        .help("The shape of the area the drawing is shown in, framed inside the pane. It changes nothing in the document.")
     }
 
     private var previewedPreset: Preset? {
@@ -148,15 +132,6 @@ struct OptionsBar: View {
         }
         .fixedSize()
         .help("A preview of how an app that plays the explainer might arrange the screen round the drawing. The app chooses its own arrangement; this is not a setting of the document.")
-    }
-
-    private func previewTypedRatio() {
-        guard let r = Double(ratioText.trimmingCharacters(in: .whitespaces)), r > 0, r.isFinite else {
-            outside = "A ratio is a number greater than 0, such as 0.75."
-            return
-        }
-        outside = nil
-        model.setPreview(.ratio(r))
     }
 
     private var problem: [String: DocumentValue] { model.problem(for: document.name) }

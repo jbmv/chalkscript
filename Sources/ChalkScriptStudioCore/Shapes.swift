@@ -94,7 +94,7 @@ public enum Shapes {
         size.width > 0 && size.height > 0 ? Double(size.width / size.height) : nil
     }
 
-    /// What the Preview menu offers between None and Test Ratio: each preset the document is made
+    /// The shapes a document is made for, each as a preview: each preset the document is made
     /// for at its nominal ratio, and each custom range at its middle in ln r.
     public static func previews(_ doc: ExplainerDocument) -> [PreviewItem] {
         guard doc.declaresAreas else { return [] }

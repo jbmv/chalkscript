@@ -170,7 +170,7 @@ public final class StudioModel {
 
     // MARK: previews and layouts
 
-    /// What the Preview menu offers for the shown document between None and Test Ratio (EXP-17).
+    /// The shapes the shown document is made for, each as a preview (EXP-17).
     public var previewItems: [PreviewItem] {
         guard let doc = selected?.document else { return [] }
         return Shapes.previews(doc)

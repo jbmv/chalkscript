@@ -66,8 +66,8 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   preset, or several that follow one another, as those presets.
 - **Preview.** The Preview control chooses the shape of area the drawing is shown in: Tall,
   Square or Wide, each at its nominal ratio, whether or not the document is made for it. A
-  document is first shown in Square, so the bounds of the drawing are always seen. **Test
-  Ratio…** previews a ratio typed in. A preview lays the player out for the largest area of
+  document is first shown in Square, so the bounds of the drawing are always seen. The
+  window previews no other ratio; an agent sees any ratio with the helper's `show`. A preview lays the player out for the largest area of
   that ratio inside the pane, centred and framed with a thin line in the `line` role, and
   changes nothing in the document.
 - **Arrangement.** The menu labelled "App arrangement" previews how an app that plays the

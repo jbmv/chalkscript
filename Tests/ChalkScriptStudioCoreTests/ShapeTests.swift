@@ -191,7 +191,7 @@ struct ShapeTests {
         #expect(model.document(named: "equal-groups")?.hash == hash)
     }
 
-    @Test func aTestRatioOutsideTheDocumentSaysSo() throws {
+    @Test func aPreviewRatioOutsideTheDocumentSaysSo() throws {
         let project = try TemporaryProject()
         let model = try openModel(project)
         model.select("subtraction")
