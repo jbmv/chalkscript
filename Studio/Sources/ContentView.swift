@@ -32,7 +32,13 @@ struct ContentView: View {
         .sheet(isPresented: $showsConnect) { ConnectView(model: model) }
         .sheet(isPresented: Bindable(delegate.newDocument).isShown) { NewDocumentSheet(model: model) }
         .frame(minWidth: 560, minHeight: 600)
-        .onAppear { model.undoManager = undoManager }
+        .onAppear {
+            model.undoManager = undoManager
+            model.speakingVoice = { SystemVoice(locale: $0) }
+            model.setSpeaksLines(UserDefaults.standard.bool(forKey: SystemVoice.enabledKey))
+        }
+        // A closed window is heard no longer.
+        .onDisappear { model.player?.stop() }
         .onChange(of: undoManager) { model.undoManager = undoManager }
     }
 }

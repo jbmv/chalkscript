@@ -60,7 +60,27 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   cannot be made, the sheet stays open and says why.
 - **Playing.** The window plays the selected document's watched steps with the engine's player and
   view (`ExplainerView`), for a problem chosen from the document's samples or typed within its
-  parameters, in a chosen wording and language, paced or skippable. Lines are shown, not spoken. The window plays with `EstimatedVoice`, a stand-in that says nothing and finishes each line once its estimate has passed on the player's clock: 0.3 seconds and a third of a second for each word of the spoken form (`ReadingTime.seconds`), divided by the player's pace, and nothing for a line with no spoken form. A `wait: "voice"` therefore holds and a step lasts about as long as it would spoken. The estimate was fitted to the system voice at its default rate and is not the time of any particular voice. The voice is chosen in one place, `StudioModel.makeVoice`, so that a voice that speaks can replace it.
+  parameters, in a chosen wording and language, paced or skippable. Lines are shown, and are
+  spoken only when Speak lines is ticked. Without it the window plays with `EstimatedVoice`, a
+  stand-in that says nothing and finishes each line once its estimate has passed on the player's clock: 0.3 seconds
+  and a third of a second for each word of the spoken form (`ReadingTime.seconds`), divided by
+  the player's pace, and nothing for a line with no spoken form. A `wait: "voice"` therefore
+  holds and a step lasts about as long as it would spoken. The estimate was fitted to the system
+  voice at its default rate and is not the time of any particular voice. The voice is chosen in
+  one place, `StudioModel.makeVoice`.
+- **Speak lines.** The tick labelled "Speak lines", beside Playback, makes the window say each
+  line aloud while its step plays. It is off when the studio is first used, and is kept from one
+  launch to the next in the app's settings, not in any document. With it on, the window plays
+  with `SystemVoice` (`Studio/Sources/SystemVoice.swift`), which speaks a line's spoken form
+  with the Mac's system voice (`AVSpeechSynthesizer`) for the language the document is played
+  in, at the voice's own rate and the Mac's volume, and finishes the line when it has been heard
+  to its end. A `wait: "voice"` action therefore starts when the line before it has been heard.
+  A line with no spoken form says nothing. Again, another step, another document, an edit, and
+  closing the window each stop what is being said at once. Ticking or unticking plays the step
+  shown again. A Mac with no voice for the document's language speaks in its own voice. The
+  system voice is for hearing a draft while it is made. It is not the voice of anything sent to
+  others: an export is to be spoken by another voice, and is not built yet. What an agent reads
+  through the helper does not change with the tick.
 - **What the studio authors.** A document holds the drawing and its words. The arrangement of
   the question, the line and the controls round the drawing belongs to the app that plays the
   document (EXP-17), and nothing the studio's view controls choose is saved in the document or
@@ -140,7 +160,8 @@ the menu item and its shortcut are tried by hand.
 
 ## Not built yet
 
-Narration (lines are shown, not spoken), do it with me, What if? and try one, export to video, a
+Narration in a voice fit to send to others (the window speaks lines with the system voice, for
+drafts only), do it with me, What if? and try one, export to video, a
 timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for,
 renaming, duplicating and removing a document in the window, a document's own palette, and
 notarisation.
