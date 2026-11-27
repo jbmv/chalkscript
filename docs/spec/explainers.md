@@ -16,7 +16,7 @@ ChalkScript makes step-by-step visual explanations, called explainers. This docu
 - **Template:** an explainer written once and filled from a problem's values (EXP-2).
 - **Document:** one file that holds an explainer in the explainer document format (EXP-19).
 - **Wording:** what an explainer shows and says, as text. A document may hold several wordings, each in several languages (EXP-10, EXP-19).
-- **Style:** a set of design values that every explainer shares and that can be replaced as a whole: colours, easing curves, default durations, and the camera's defaults, including how strongly the rest of the picture is dimmed (EXP-6, EXP-19). A style is not a template.
+- **Style:** a set of design values that every explainer shares and that can be replaced as a whole: colours, easing curves, default durations, and the camera's defaults, including how strongly the rest of the picture is dimmed (EXP-6, EXP-19). A *profile* is a style file that also says which colours have a fixed meaning (EXP-20). A style is not a template.
 - **Step:** one change to the picture, with one spoken line.
 - **Learner:** the person the explainer is for.
 - **Revision:** a fingerprint of everything an explainer shows and says (EXP-1).
@@ -83,12 +83,12 @@ Each step changes one thing and shows what the change does to the quantities. No
 - A step marks at most two things, or three when it compares two amounts.
 - A mark stays while its step is paused.
 
-## EXP-6. Colour means an operation, the same in every explainer
+## EXP-6. In the maths profile, colour means an operation, the same in every explainer
 
 status: draft
 governs: Sources/ChalkScript/Drawing/Palette.swift, Sources/ChalkScript/Resources/style.json
 
-Each operation has one colour and a second cue that does not depend on colour. A colour always says which operation is happening. The roles are fixed. Their values come from the style file (EXP-19).
+In an explainer made for the maths profile (EXP-20), each operation has one colour and a second cue that does not depend on colour. A colour always says which operation is happening. The operation roles are fixed by the profile. Their values come from the style file (EXP-19). In another profile the roles keep their values, and a document that requires `components.arithmetic` may draw them, but the profile does not fix their meaning.
 
 | Meaning | Light (fill) | Light (ink) | Dark | Second cue |
 |---|---|---|---|---|
@@ -109,9 +109,30 @@ Subtract, the answer and the fill for trade are Okabe-Ito colours. Add, multiply
 - Pieces are drawn in pencil and are not coloured by place value.
 - Thin strokes and text use the ink value, which keeps at least 3:1 contrast with the paper.
 - Any two colours shown together stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in light and dark. A test checks this for the colours each explainer draws.
-- Every colour drawn is one of these roles, resolved from the style. A style with other values changes every colour, with no change to an explainer's code, and is held to the same checks.
+- Every colour drawn is one of these roles, resolved from the style, or a colour of the document's own (EXP-20). A style with other values changes every colour of a role, with no change to an explainer's code, and is held to the same checks.
+- In a document made for the maths profile, a colour of its own within 20 of an operation colour with normal vision is reported as a warning, since a learner may read it as that operation.
 
 *In the package:* `ExplainerStyle` reads `Resources/style.json`; `ExplainerPalette.light` and `.dark` are the bundled values.
+
+## EXP-20. A document declares a style profile, and its colours can be seen by everyone
+
+status: draft
+governs: Sources/ChalkScript/Resources/profiles/, Sources/ChalkScript/Drawing/ColourVision.swift, Sources/ChalkScript/Style/ExplainerStyle.swift
+
+A document declares the style profile it is made for: `maths` or `open`, or a later profile added as a style file. A document that declares none is made for `open`. A profile says which colours have a fixed meaning and offers suggested colours. The maths profile fixes the operation colours (EXP-6) and offers none. The open profile fixes none, and suggests `orange`, `green` and `purple`. In a profile that fixes no colour, a document may give colours of its own, each by light and dark values or by naming a suggested colour, and states for each what tells its marks apart without colour.
+
+**Why:** a fixed colour for each operation helps a learner of arithmetic and is a constraint in other subjects. What every document needs is that its colours can be seen and told apart, which is the same for all profiles.
+
+**Acceptance:**
+- An unknown profile is an error that names it, so that a player does not draw a document under another profile.
+- Every coloured mark has a second cue that does not depend on colour. An explainer reads correctly in greyscale. A colour of a document's own has a `cue` that says what the cue is; a missing one is reported as a warning.
+- Thin strokes and text keep at least 3:1 contrast with the sheet and on their own tint.
+- Any two colours drawn together, one of them a colour of the document's own, stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in light and dark.
+- The reader reports each failure as a warning that explains it in plain words and, for contrast, names the nearest colour that passes. The studio advises and does not refuse, and a warning does not stop a document playing.
+- The suggested colours of a profile keep the contrast of the first criterion with each sheet and are 20 apart from each other and from the neutral roles, in the same conditions; tests check them.
+- A document colour is drawn as given, in light and in dark, wherever a role is taken.
+
+*In the package:* `ExplainerStyle.profiles` reads the profile files in `Resources/profiles/`; `ColourVision` is the simulation, and `ColourChecks` the contrast measure and the search for the nearest colour that passes; the reader reports the warnings with the code `colour`. A player that accepts only some profiles, or replaces one with its own, is not built.
 
 ## EXP-13. One visual language across explainers
 
@@ -297,7 +318,7 @@ Export of an explainer to a video file is not built.
 status: draft
 governs: docs/format/explainer-1.0.md, docs/format/explainer-1.0.schema.json, Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScriptExplainers/Resources/subtraction-motion.json
 
-An explainer is a document in one documented format, the explainer document format. A document is one JSON file, ending `.explainer`, that holds everything needed to play the explainer: the problem's values and what is computed from them, what is drawn, the steps and their timing and easing, the camera's shots, the narration in each of its wordings and languages, what the viewer may do on a step, and overrides of the standard style. Its reference is [docs/format/explainer-1.0.md](../format/explainer-1.0.md), with a JSON Schema and two example documents beside it. Version 1.0 of the format is a draft.
+An explainer is a document in one documented format, the explainer document format. A document is one JSON file, ending `.explainer`, that holds everything needed to play the explainer: the problem's values and what is computed from them, what is drawn, the colours it names for itself and the profile it is made for, the steps and their timing and easing, the camera's shots, the narration in each of its wordings and languages, what the viewer may do on a step, and overrides of the standard style. Its reference is [docs/format/explainer-1.0.md](../format/explainer-1.0.md), with a JSON Schema and two example documents beside it. Version 1.0 of the format is a draft.
 
 **Why:** a person or a tool can then write or change an explainer without changing code, and another app can play it from the reference alone. A wrong value is reported and does not fail silently.
 
@@ -310,7 +331,8 @@ The style file (`style.json`):
 | Key | Holds |
 |---|---|
 | `format`, `version` | `"explainer-style"`, `1`. |
-| `palette.light`, `palette.dark` | The roles of EXP-6 as `#RRGGBB`: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult`, and for each operation (`subtract`, `trade`, `result`, `add`, `multiply`, `divide`) its `fill`, `ink` and `soft`. |
+| `palette.light`, `palette.dark` | The roles of EXP-6 as `#RRGGBB`: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult`, and for each operation (`subtract`, `trade`, `result`, `add`, `multiply`, `divide`) its `fill`, `ink` and `soft`; and in a profile, `suggested` colours (EXP-20). |
+| `profile` | In a profile's file only (EXP-20): its `id` and `title`, the roles it `fixed`, and whether a fixed role may be changed (`overrides`). |
 | `easings` | Named curves, each a cubic bezier `[x1, y1, x2, y2]`. `linear` always exists. |
 | `motion.durations` | Default seconds for each kind of motion: `appear`, `draw`, `fade`, `travel`, `lag`, `hold`. |
 | `motion.easings` | The default curve, by name, for `appear`, `draw`, `fade` and `travel`. |

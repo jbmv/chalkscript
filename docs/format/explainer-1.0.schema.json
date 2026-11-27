@@ -19,6 +19,11 @@
         "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"
       }
     },
+    "profile": {
+      "description": "The style profile the document is made for; open when absent.",
+      "type": "string",
+      "pattern": "^[a-z]{2,}$"
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]{0,63}$"
@@ -361,6 +366,51 @@
         "goals"
       ],
       "additionalProperties": false
+    },
+    "colours": {
+      "description": "Colours the document names for itself: light and dark values, or a suggested colour of its profile, and a cue.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "light": {
+                "$ref": "#/$defs/colour"
+              },
+              "dark": {
+                "$ref": "#/$defs/colour"
+              },
+              "cue": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "light",
+              "dark"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "suggested": {
+                "$ref": "#/$defs/name"
+              },
+              "cue": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "suggested"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
     },
     "style": {
       "$ref": "#/$defs/style"
@@ -1692,6 +1742,9 @@
         },
         "text": {
           "$ref": "#/$defs/entryName"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
         }
       },
       "required": [
@@ -2451,6 +2504,9 @@
         },
         "text": {
           "$ref": "#/$defs/entryName"
+        },
+        "ink": {
+          "$ref": "#/$defs/role"
         }
       },
       "required": [
@@ -3118,68 +3174,6 @@
     "style": {
       "type": "object",
       "properties": {
-        "palette": {
-          "type": "object",
-          "properties": {
-            "light": {
-              "type": "object",
-              "propertyNames": {
-                "$ref": "#/$defs/name"
-              },
-              "additionalProperties": {
-                "oneOf": [
-                  {
-                    "$ref": "#/$defs/colour"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "fill": {
-                        "$ref": "#/$defs/colour"
-                      },
-                      "ink": {
-                        "$ref": "#/$defs/colour"
-                      },
-                      "soft": {
-                        "$ref": "#/$defs/colour"
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            },
-            "dark": {
-              "type": "object",
-              "propertyNames": {
-                "$ref": "#/$defs/name"
-              },
-              "additionalProperties": {
-                "oneOf": [
-                  {
-                    "$ref": "#/$defs/colour"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "fill": {
-                        "$ref": "#/$defs/colour"
-                      },
-                      "ink": {
-                        "$ref": "#/$defs/colour"
-                      },
-                      "soft": {
-                        "$ref": "#/$defs/colour"
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            }
-          },
-          "additionalProperties": false
-        },
         "easings": {
           "type": "object",
           "propertyNames": {

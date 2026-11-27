@@ -154,6 +154,7 @@ then reports every reference the rename broke.
 | `format` | yes | `"chalkscript-explainer"`. |
 | `version` | yes | `"1.0"` (section 2.2). |
 | `requires` | no | Capability names (section 2.3). |
+| `profile` | no | The style profile the document is made for, by `id`; `open` when absent (section 16.5). |
 | `id` | yes | The explainer's id, matching `^[a-z][a-z0-9-]{0,63}$`. |
 | `title` | yes | A title, for people choosing or reviewing explainers. It is not shown by a player. |
 | `about` | no | An object of information that changes nothing seen or heard, such as `licence`, `authors` (an array of strings) and `notes`. Any keys are allowed. |
@@ -174,6 +175,7 @@ then reports every reference the rename broke.
 | `steps` | yes | Each step, by name (section 11). Every name in `sequence` is a step, and every step is in `sequence`. |
 | `try` | no | The problem the viewer tries alone (section 15.5). |
 | `whatIf` | no | A part in which the viewer drags a value toward goals (section 15.6). |
+| `colours` | no | Colours the document names for itself (section 16.5). |
 | `style` | no | Overrides of the standard style (section 16). |
 | `plays` | no | The wording a document suggests for each playback control (section 17). |
 | `wording` | yes | Every line, by locale and wording (section 14). |
@@ -455,7 +457,7 @@ reader checks this (section 21, `areas`).
 | `start` | The starting `opacity` (0 to 1, by default 1) and, for a stroked kind, the starting `progress` (0 to 1, by default 1) of every instance. |
 | `let` | An object of names to expressions, evaluated for each instance, each after the values it names, with `i` (when the element has `repeat`) and the document's values in scope. The names are locals of the element's other keys except `repeat` and `when`, and of the entries its text and runs show (section 6.5), and must not be any other name of the first namespace (section 3). For example, `"repeat": 12, "let": {"k": "i + 1"}` with the entry `{k}` shows the numerals 1 to 12. |
 
-Colours are given only as *roles* (section 16.1), never as colour values.
+Colours are given only as *roles* (section 16.1) or as the document's own named colours (section 16.5), never as colour values.
 
 Each instance has a *place* (where its geometry puts it) and a *position*, which is its place unless a
 verb has moved it. Its position is a reference point: the top-left corner of its `rect`, its `at`,
@@ -787,7 +789,8 @@ instance; a run's text takes the role's ink at the start. End: tinted. With `mar
 how the digit a step acts on is marked.
 
 The player in this repository draws a tint only behind a run of a text element in the style
-`equation`, with `ink` an operation role named alone. Any other target, an element or a run of a
+`equation`, with `ink` an operation role or one of the document's own colours (section 16.5), named
+alone. Any other target, an element or a run of a
 text in another style, is refused with a `capability` finding that names it (section 2.3), and
 is not drawn as an approximation.
 
@@ -825,9 +828,10 @@ instance shows that entry, filled at that moment with the names then in scope (s
 
 ### 13.10 `tag`
 
-Kind `appear`. Targets: elements and pieces. Parameter: `text`, an entry (required).
+Kind `appear`. Targets: elements and pieces. Parameters: `text`, an entry (required); `ink`, a role
+named alone (an operation role or one of the document's own colours), by default `result`.
 
-A small card in the `result` role, showing the entry, appears over each target and goes: 48 by 34
+A small card in the `ink` role, showing the entry, appears over each target and goes: 48 by 34
 units over a ten or stick and 30 by 34 otherwise, centred on the target's bounds. Over eased progress *p* its opacity goes from 0 to 1 by *p* = 0.2, holds,
 and returns to 0 from *p* = 0.75 to 1, and its scale goes from 0.6 to 1 by *p* = 0.2. Start and
 end: no tag.
@@ -1090,19 +1094,22 @@ a role, it may name an operation role's value as `role.fill`, `role.ink` or `rol
 operation role named alone is its `ink` for a stroke or text and its `fill` for a fill.
 
 The standard style defines the operation roles `subtract`, `trade`, `result`, `add`, `multiply`
-and `divide`. A document may define more by giving an operation role, with all three values, in
-both `palette.light` and `palette.dark` of its `style`.
+and `divide`. A document names the neutral roles and `result` in any case, and the others when it
+requires `components.arithmetic` (section 2.3), in every profile. A document's own colours (section
+16.5) are named in the same keys and have the same three forms. A document does not define a role
+in its `style`.
 
 ### 16.2 The standard style
 
 The standard style is the file `Sources/ChalkScript/Resources/style.json` of this repository. Its
 keys are those of a document's `style` (below), with `"format": "explainer-style"` and `"version":
 1`. There is one standard style; a player uses it unless it is given a replacement whole, and a
-document's `style` overrides values of whichever style the player uses.
+document's `style` overrides values of whichever style the player uses (section 16.3). A style
+profile is a file of the same form with one more key (section 16.4).
 
 | Key | Holds |
 |---|---|
-| `palette.light`, `palette.dark` | Each role's colour, as `#RRGGBB`; an operation role as `{fill, ink, soft}`. |
+| `palette.light`, `palette.dark` | Each role's colour, as `#RRGGBB`; an operation role as `{fill, ink, soft}`; and `suggested`, the colours a profile offers (section 16.4). |
 | `easings` | Named curves, each a CSS cubic Bézier `[x1, y1, x2, y2]` with `x1` and `x2` from 0 to 1. `linear` always exists and cannot be redefined. |
 | `motion.durations` | Default seconds by kind: `appear`, `draw`, `fade`, `travel`, and `lag` and `hold`, which a document's timing does not use. |
 | `motion.easings` | The default curve, by name, for `appear`, `draw`, `fade` and `travel`. |
@@ -1113,11 +1120,68 @@ to (1, 1) at that *x*, exactly 0 at 0 and exactly 1 at 1.
 
 ### 16.3 A document's `style`
 
-A document's `style` has the keys above, without `format` and `version`, each optional. A value it
-gives replaces the value at the same path; a value it omits keeps the style's. An unknown curve name
-and a colour that is not `#RRGGBB` are errors. Every pair of roles drawn together must stay
-distinguishable, under simulated colour-vision deficiencies, in light and dark; a validator checks
-this for the roles a document draws.
+A document's `style` has the keys of the standard style except `palette`, `format` and `version`,
+each optional: `easings` and `motion`. A value it gives replaces the value at the same path; a value
+it omits keeps the style's. An unknown curve name is an error. A `style.palette` is a `schema` error
+that names `colours`: a document's colours are named under `colours` (section 16.5), not given in
+`style`.
+
+### 16.4 A style profile
+
+A *profile* is a style file (section 16.2) with one more key, `profile`, and is read over the
+standard style, so it gives only what differs. A reader bundles the files of the profiles it has, in
+`Sources/ChalkScript/Resources/profiles/`. A later profile is a new file in the same form, and the
+format does not change.
+
+| Key | Holds |
+|---|---|
+| `profile.id` | The name a document declares: two or more lowercase letters, such as `maths`. |
+| `profile.title` | A short name for people. |
+| `profile.fixed` | The roles whose meaning the profile fixes, each with a sentence saying what it means. |
+| `profile.overrides` | `explained` or `none`: whether a fixed role may be changed in one document. |
+| `palette.light.suggested`, `palette.dark.suggested` | Named colours, each one `#RRGGBB` value, offered as the first choice when a person asks for colours without naming them. As for an operation role, the ink is also the fill, and the soft form is the ink at 16% over the light sheet and 18% over the dark sheet. |
+
+Two profiles are bundled. `maths` fixes the six operation roles (`subtract` taking away, `trade`
+trading or regrouping, `result` the answer, `add` adding or joining, `multiply` groups of, `divide`
+sharing) and offers no suggested colour. `open` fixes none and suggests `orange`, `green` and
+`purple`.
+
+### 16.5 A document's profile and colours
+
+A document's top-level `profile` names the profile it is made for. A document that declares none is
+made for `open`. A profile the reader does not have is a `ref` error that names it, so that a player
+never draws a document under another profile.
+
+A document's top-level `colours` gives each colour of its own a name that is not a role of the
+style (section 3's pattern) and either `light` and `dark`, two values written `#RRGGBB`, or
+`suggested`, the name of one of its profile's suggested colours, and `cue`, a sentence saying what
+tells the colour's marks apart without colour, such as length, width or place. The name is then used
+in every key that takes a role (sections 9.2, 9.3, 13.5 and 13.10), as `hour`, `hour.fill`,
+`hour.ink` or `hour.soft`. A colour has one value for fill and ink, and its soft form is derived as
+a suggested colour's is.
+
+```json
+"profile": "open",
+"colours": {
+  "hour": {"light": "#CF6900", "dark": "#FCA200", "cue": "the short, wide hand"},
+  "minute": {"suggested": "purple", "cue": "the long, thin hand"}
+}
+```
+
+The reader reports the following as `colour` warnings (section 21), each in plain words with the
+measurement after it, and none stops a document playing. Colours compared are those the document
+draws: the roles it names and the roles the format gives by default. A colour that already has a
+contrast warning in one appearance is not also compared there.
+
+| Check | Warning |
+|---|---|
+| An ink keeps less than 3:1 contrast with the sheet, or on its own soft form, in light or in dark | The message names the contrast and the nearest colour that passes. |
+| Two colours drawn, one of them the document's own, are under 20 apart in CIELAB (D65, CIE76), with normal vision or a simulated protanopia, deuteranopia or tritanopia (Machado, Oliveira and Fernandes 2009) | One warning for the pair, naming both, the appearance and the condition. |
+| In the `maths` profile, a colour is under 20 from an operation colour with normal vision | The colour may be read as that operation. |
+| A colour has no `cue` | The message says what a cue is. |
+
+A value that is not `#RRGGBB`, a colour with neither or both forms, and a suggested colour the
+profile does not have are errors.
 
 ## 17. Playback options
 
@@ -1211,12 +1275,13 @@ A reader and a validator report *findings*. Each has:
 | `capability` | A required capability is not implemented, or one used is not required. |
 | `schema` | A missing key, a value of the wrong type, an unknown verb, kind or input, or a name that does not match its pattern. |
 | `unknown` | An unknown key (warning). |
-| `ref` | A reference to a step, action, element, run, part, shot, layout, entry, `vars` value, role or curve that does not exist. |
+| `ref` | A reference to a step, action, element, run, part, shot, layout, entry, `vars` value, role, curve or profile that does not exist, or to a suggested colour its profile does not have. |
 | `expr` | A syntax error, unknown name, unknown function, wrong arguments, or a cycle. |
 | `wording` | A placeholder that cannot be filled, a typed numeral, a spoken form that cannot be derived, or an entry in both `shared` and a wording. |
 | `eval` | An evaluation error for a problem (section 6.6). |
 | `range` | A problem outside the parameters' ranges. |
 | `areas` | A declared shape at which another layout is chosen, a layout no entry names, or a `suits` that depends on the area's size (warnings). |
+| `colour` | A colour of the document's that may not be seen or told from another, or that has no `cue` (warnings; section 16.5). |
 | `patch` | A patch refused: a stale base, a protected path, or an operation that failed. |
 
 A validator adds its own codes for the checks it computes. One finding is written on one line as

@@ -113,3 +113,40 @@ struct SuggestedColourTests {
         #expect(ExplainerStyle.profiles.values.allSatisfy { $0.issues.filter(\.isProblem).isEmpty })
     }
 }
+
+/// The table of colours people name, in the authoring guide, holds values that show (EXP-20).
+struct GuideColourTableTests {
+    static let guide = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().appendingPathComponent("docs/format/authoring-guide.md")
+
+    /// Each row of the guide's colour table: the name and its light and dark values.
+    func rows() throws -> [(name: String, light: RGB, dark: RGB)] {
+        let text = try String(contentsOf: Self.guide, encoding: .utf8)
+        var out: [(String, RGB, RGB)] = []
+        for line in text.split(separator: "\n") where line.hasPrefix("| ") {
+            let cells = line.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "`")) }
+            guard cells.count == 3, let l = RGB(hexString: cells[1]), let d = RGB(hexString: cells[2]) else { continue }
+            out.append((cells[0], l, d))
+        }
+        return out
+    }
+
+    @Test func theTableHasTheColoursPeopleName() throws {
+        let names = Set(try rows().map(\.name))
+        #expect(names.isSuperset(of: ["orange", "teal", "green", "purple", "pink", "blue"]), "\(names)")
+    }
+
+    @Test(arguments: [false, true]) func everyColourKeepsItsContrastAndItsDistanceFromTheNeutrals(dark: Bool) throws {
+        let p = ExplainerStyle.standard.palette(dark: dark)
+        for row in try rows() {
+            let ink = dark ? row.dark : row.light
+            let k = ColourChecks.contrasts(ink, sheet: p.sheet, dark: dark)
+            #expect(k.sheet >= (dark ? 4.5 : 3.6), "\(row.name) with the sheet: \(k.sheet)")
+            #expect(k.soft >= 3, "\(row.name) on its soft form: \(k.soft)")
+            for (other, neutral) in [("text", p.ink), ("pencil", p.pencil), ("line", p.line)] {
+                let w = ColourVision.worst(ink, neutral)
+                #expect(w.distance >= 20, "\(row.name) and \(other) are \(w.distance) apart with \(w.seenWith)")
+            }
+        }
+    }
+}

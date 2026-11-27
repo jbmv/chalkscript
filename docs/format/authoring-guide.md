@@ -137,6 +137,7 @@ the others are optional, and a document without them is complete.
 |---|---|
 | `format`, `version` | Required. `"chalkscript-explainer"`, `"1.0"`. Never edited. |
 | `requires` | Capabilities used: `components.arithmetic` for tens, ones and counters, and `drawing.turn` to turn a line, arrow or shape (topic `elements`). |
+| `profile` | `open` when absent, or `maths`. Colours of the document's own go under `colours` (topic `colour`). |
 | `id`, `title` | Required. Identity. `id` is the document's name as the studio made it, the same as its file's name; leave it alone in a patch. |
 | `about` | Information that changes nothing seen or heard. |
 | `sourceLocale` | Required. The locale written in, such as `en-US`. |
@@ -148,7 +149,8 @@ the others are optional, and a document without them is complete.
 | `intro` | The lines before the first step. |
 | `sequence`, `steps` | Required. The step names in order, and the steps (topic `steps`). |
 | `try`, `whatIf` | Later parts; not played (below). |
-| `style` | Overrides of the standard style: `palette`, `easings`, `motion`. |
+| `colours` | Colours the document names for itself (topic `colour`). |
+| `style` | Overrides of the standard style: `easings`, `motion`. |
 | `plays` | The wording suggested for `paced` and `skippable` playback. |
 | `wording` | Required. Every line, by locale and wording (topic `wording`). |
 | `extensions` | Keys named `vendor.feature`; keep any you do not understand. |
@@ -157,7 +159,7 @@ Names of elements, steps, actions, parts, shots, layouts, parameters, `let` and 
 `^[a-z][A-Za-z0-9]{0,47}$`; entry names may have dots, as `do.trade`. Parameters, `let`, `vars`
 and elements share one namespace. Reserved: `and`, `or`, `not`, `true`, `false`, function names,
 and `i`, `n`, `x0`, `y0`, `left`, `areaW`, `areaH`. Steps and elements are maps; order comes from
-`sequence` and from `z`. Colours are never written: name a role (topic `elements`).
+`sequence` and from `z`. Colour values are written only under `colours` (topic `colour`); elsewhere name a role (topic `elements`).
 
 Only the watched part plays from a document today: the steps of `sequence`. `try`, `whatIf` and a
 step's `act` and `why` are kept but not played; write none unless the person asks.
@@ -225,11 +227,11 @@ Roles. Without a capability: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`
 
 | Key | Accepts |
 |---|---|
-| `ink` of `text`, `line` and `shape`; `fill` of `shape` | `text`, `muted`, `line`, `pencil`, `sheet`, or an operation role bare or with a suffix (bare is the ink, or the fill for `fill`) |
-| `ink` of `arrow`, of `outline` (`box` and `ring`; the others take none) and of `tint` | an operation role bare: `add`, not `add.ink` |
-| `ink` of a run | `result` or `text`, in an `equation` text only |
+| `ink` of `text`, `line` and `shape`; `fill` of `shape` | `text`, `muted`, `line`, `pencil`, `sheet`, or an operation role or a colour of the document's own, bare or with a suffix (bare is the ink, or the fill for `fill`) |
+| `ink` of `arrow`, of `outline` (`box` and `ring`; the others take none), of `tint` and of `tag` | an operation role or a colour of the document's own, bare: `add`, not `add.ink` |
+| `ink` of a run | `result`, `text` or a colour of the document's own, in an `equation` text only |
 
-No key draws `paper` or `onResult`, and a document with `style.palette` is refused. A `total` text
+No key draws `paper` or `onResult`, and a document with `style.palette` is refused with a `schema` error. A `total` text
 is centred in `result`, and an `equation` text centred in `text`; leave `ink` and `anchor` out of
 both. `label`, `note` and `body` take any `ink` of the first row.
 
@@ -267,6 +269,36 @@ A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` t
 `b` and `ans`, and `runs.ans.text` fills `ans` from an entry until a verb sets it. A piece is a
 quantity: it is never faded below a ghost (0.28), and nothing removes an element.
 
+## colour: profiles and the colours a document names
+
+A document is made for a profile. With no `profile` it is `open`, which fixes no colour's meaning. Write `"profile": "maths"` for an explainer on arithmetic that draws the operation roles (`components.arithmetic`), whose colours then mean what the profile fixes. An operation role stays drawable in either profile, and an operation's colour is not used for anything else in `maths`. A profile the studio does not have is a `ref` error.
+
+For a colour that is not an operation's, give the document its own, under `colours`, one entry for each, and name it wherever a role is taken (topic `elements`):
+
+```json
+"colours": {
+  "hour": {"light": "#CF6900", "dark": "#FCA200", "cue": "the short, wide hand, and the hours on the left"},
+  "minute": {"suggested": "purple", "cue": "the long, thin hand, and the minutes on the right"}
+}
+```
+
+A colour has `light` and `dark` values, or `suggested` with `orange`, `green` or `purple` (the `open` profile's own values, which differ a little from the table's), and a `cue`: what tells its marks apart without colour, such as length, width or place. A `tag` beside a colour of the document's takes that colour as its `ink`, since `result`, its default, may be too near it. `colour` warnings follow (topic `findings`).
+
+Colours that keep 3:1 contrast with each sheet and with their own tint, and are 20 apart from `text`, `pencil` and `line`:
+
+| Colour | Light | Dark |
+|---|---|---|
+| orange | `#CF6900` | `#FCA200` |
+| teal | `#1B8A8A` | `#4EBABA` |
+| green | `#189042` | `#5AC672` |
+| purple | `#995DE1` | `#C67EFF` |
+| pink | `#D54290` | `#FF6CB7` |
+| blue | `#247BEA` | `#6390FF` |
+
+- A colour the person names in words: use its row of the table. `muted` is within 20 of teal and of pink in some conditions; if the document draws `muted`, `check` says so.
+- Values the person gives: use them, and report each `colour` warning in plain words. When a colour is hard to see, say on which background and offer the nearest value that shows, which the warning names. A person's choice stands.
+- The person wants different colours and names none: offer orange and purple, and say that they stay apart for colour-blind viewers and on both backgrounds.
+
 ## steps: steps, actions, timing and the verbs
 
 A step is one change to the picture with one line. Keys: `say` (the step's line, an entry name),
@@ -295,7 +327,7 @@ line, not seconds guessed for it. The studio plays with a stand-in voice that sa
 | `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
 | `look` | instant | Sets a piece's `value` look. |
 | `set` | instant | Sets a text or run to the entry `text`. |
-| `tag` | appear | A small card with the entry `text` over each target, which comes and goes. |
+| `tag` | appear | A small card with the entry `text` over each target, which comes and goes; its `ink` is `result` unless given. |
 | `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
@@ -451,4 +483,5 @@ the problem's values, a time, then the message.
 | `range` | A problem outside the parameters. |
 | `areas` | A warning that a declared range and a layout's `suits` disagree, that no entry names a layout, or that `suits` depends on the area's size; change the range or the layout's `suits`, or add the missing entry. |
 | `patch` | A refused patch: stale base, protected path, or an operation that failed. |
+| `colour` | A warning: a colour that is hard to see (on the light or dark background, or on its own tint), two colours drawn together that may look alike to some colour-blind viewers, in `maths` a colour near an operation's, or a colour with no `cue`. The message gives the measurement and, for contrast, the nearest colour that shows. |
 | `capability` | A kind, verb or key used without its capability in `requires` (`components.arithmetic` or `drawing.turn`), or one this studio does not draw. |
