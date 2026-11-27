@@ -269,9 +269,35 @@ document if it is not already shown, and answers once the step has started, not 
 |---|---|---|
 | `step` | yes | The name of the step shown. |
 | `index`, `count` | no | Its place among the problem's steps, from 1, and their number. |
+| `timeline` | no | The step's timeline, as text (below). The studio gives it with every answer; a client that predates it ignores the key. |
 | `image` | no | Present only when asked for: `{"data": "<base64>", "mimeType": "image/png"}`. It is small, because it is sent to a model: laid out for the area of the shape asked for whose longer side is 480 points, so never more than 480 by 480, at one pixel per point. |
 | `ratio`, `layout` | no | Present with `image`: the ratio of the area the picture is of, to two decimals, and the layout drawn there. |
 | `drawn` | no | Present with `image` only when the document declares shapes and not `ratio`: the ratio of the shape the document is drawn at inside the area, to two decimals. |
+
+The timeline is the step as the window plays it for the problem shown, on the clock of the studio's
+stand-in voice, which says nothing and finishes each line after the time `ReadingTime` estimates
+for it (0.3 s and a third of a second for each word of its spoken form). It is worked out from the
+step's lines and waits, without playing the step, and its length is the time the player takes with
+that voice, to within a frame. It is a few lines of text:
+
+- A header line: `step <name> (<index> of <count>), <problem>: <length> s as played`. When the
+  length on the step's own clock (the format reference, section 12.4) differs, the header gives
+  that too, and says whether the clock is held for the voice or the step only waits for its last
+  line. It ends `; ends of lines estimated`. The times are seconds from the step's start, to a
+  tenth.
+- A row for each line said, `<start>-<end> <action> says "<spoken form>"`, where a line is said
+  from when the voice reaches it, after the lines queued before it; the step's own line is
+  `line`. A visual line is `shows` and not said. A count word is in its iteration's row.
+- A row `<start>-<end> held for the voice` for each span in which the clock waits for the voice.
+- A row for each action, `<start>-<end> <name> <verb> <targets>`, with the times mapped through the
+  holds, a run of indices written as `nums[0-11]`, a stagger as `one every 0.4`, and the text a
+  `tag`, `set` or `appear` shows. Rows are ordered by start.
+- For an `each`, a row `<start>-<end> <name> each <targets>, <n> times`, then one indented row for
+  each iteration, `<start> [<i>] ...`, that gives the lines and actions of that iteration.
+  Consecutive iterations in which nothing runs are one row, `<start>-<end> [<first>-<last>] nothing:
+  every when is false`.
+
+An `at` in a document is on the step's own clock, not on the timeline's.
 
 A document that declares the shapes of area it is made for (the format reference, section 8.2) is
 pictured as a player lays it out: for a shape it does not declare, the picture is of the area
@@ -383,7 +409,7 @@ agent receives.
 | `read` | `document.read` | `hash <hash>`, then the value as compact JSON on one line. |
 | `edit` | `document.patch` | `applied; hash <hash>; <counts>`, or a tool error: `refused; hash <hash>` and one line per finding. |
 | `check` | `document.check` | `hash <hash>; <counts>`, then one line per finding, at most 40, and how many more there are. |
-| `show` | `step.show` | `showing <step> (<index> of <count>)`, and the picture when one was asked for. |
+| `show` | `step.show` | `showing <step> (<index> of <count>)`, then the step's timeline on the following lines when the result has one, and the picture when one was asked for. |
 | `create` | `document.create` | `created <doc>; hash <hash>; <counts>`, then the new document as compact JSON on one line. |
 | `guide` | `guide.read` | The text. |
 

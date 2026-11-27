@@ -53,7 +53,7 @@ public enum HelperTools {
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"base":{"type":"string"},"ops":{"type":"array","items":{"type":"object"}}},"required":["doc","base","ops"],"additionalProperties":false}},
     {"name":"check","description":"List a document's errors and warnings, one per line, or only those under a JSON Pointer.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"pointer":{"type":"string"}},"required":["doc"],"additionalProperties":false}},
-    {"name":"show","description":"Play a step in the studio window for the person to watch: the first step without step, the current problem without problem. With image, returns a picture of the step's end at ratio (width/height) or the window's shape.",
+    {"name":"show","description":"Play a step in the studio window: the first without step, the current problem without problem. Returns its timeline. With image, also a picture of its end, at ratio (width/height) or the window's shape.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"step":{"type":"string"},"problem":{"type":"object"},"ratio":{"type":"number","exclusiveMinimum":0},"image":{"type":"boolean"}},"required":["doc"],"additionalProperties":false}},
     {"name":"create","description":"Make a new explainer from a title and show it in the window. Its name comes from the title; name sets one, from copies a document. Returns the document to patch; read guide topic new first.",
      "inputSchema":{"type":"object","properties":{"title":{"type":"string"},"name":{"type":"string"},"from":{"type":"string"}},"required":["title"],"additionalProperties":false}},
@@ -209,6 +209,7 @@ public enum HelperTools {
                     text += "; \(ratio) is not a shape the document is made for; drawn at \(drawn) inside it"
                 }
             }
+            if let timeline = result["timeline"]?.string, !timeline.isEmpty { text += "\n" + timeline }
             var content: [JSONValue] = [.object(["type": .string("text"), "text": .string(text)])]
             if let image = result["image"] {
                 guard let data = image["data"]?.string else { return nil }

@@ -1,0 +1,692 @@
+{
+  "format": "chalkscript-explainer",
+  "version": "1.0",
+  "id": "clock-hour-minute",
+  "title": "Setting a clock",
+  "sourceLocale": "en-US",
+  "params": {
+    "hour": {
+      "max": 12,
+      "min": 1,
+      "type": "int"
+    },
+    "minute": {
+      "type": "choice",
+      "values": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55
+      ]
+    }
+  },
+  "samples": [
+    {
+      "hour": 7,
+      "minute": 25
+    },
+    {
+      "hour": 3,
+      "minute": 0
+    }
+  ],
+  "areas": [
+    {
+      "layout": "stage",
+      "ratio": [
+        0.9,
+        1.35
+      ]
+    }
+  ],
+  "layouts": {
+    "stage": {
+      "size": [
+        880,
+        800
+      ]
+    }
+  },
+  "elements": {
+    "face": {
+      "ellipse": [
+        140,
+        100,
+        600,
+        600
+      ],
+      "ink": "line",
+      "kind": "shape",
+      "z": 0
+    },
+    "hourHand": {
+      "closed": true,
+      "fill": "add",
+      "kind": "shape",
+      "pivot": [
+        440,
+        400
+      ],
+      "points": [
+        [
+          451,
+          400
+        ],
+        [
+          440,
+          262
+        ],
+        [
+          429,
+          400
+        ],
+        [
+          440,
+          420
+        ]
+      ],
+      "start": {
+        "opacity": 0
+      },
+      "z": 2
+    },
+    "hub": {
+      "ellipse": [
+        431,
+        391,
+        18,
+        18
+      ],
+      "fill": "text",
+      "kind": "shape",
+      "start": {
+        "opacity": 0
+      },
+      "z": 4
+    },
+    "minuteHand": {
+      "closed": true,
+      "fill": "multiply",
+      "kind": "shape",
+      "pivot": [
+        440,
+        400
+      ],
+      "points": [
+        [
+          446,
+          400
+        ],
+        [
+          440,
+          150
+        ],
+        [
+          434,
+          400
+        ],
+        [
+          440,
+          428
+        ]
+      ],
+      "start": {
+        "opacity": 0
+      },
+      "z": 3
+    },
+    "nums": {
+      "anchor": "middle",
+      "at": [
+        "440 + 215 * sin(30 * i + 30)",
+        "414 - 215 * cos(30 * i + 30)"
+      ],
+      "ink": "text",
+      "kind": "text",
+      "let": {
+        "k": "i + 1"
+      },
+      "repeat": 12,
+      "size": 40,
+      "start": {
+        "opacity": 0
+      },
+      "style": "body",
+      "text": "numEntry"
+    },
+    "bigTicks": {
+      "from": [
+        "440 + 258 * sin(a)",
+        "400 - 258 * cos(a)"
+      ],
+      "ink": "text",
+      "kind": "line",
+      "let": {
+        "a": "30 * i + 30"
+      },
+      "repeat": 12,
+      "start": {
+        "progress": 0
+      },
+      "to": [
+        "440 + 292 * sin(a)",
+        "400 - 292 * cos(a)"
+      ]
+    },
+    "small": {
+      "from": [
+        "440 + 276 * sin(a)",
+        "400 - 276 * cos(a)"
+      ],
+      "ink": "text",
+      "kind": "line",
+      "let": {
+        "a": "6 * (i + div(i, 4) + 1)"
+      },
+      "repeat": 48,
+      "start": {
+        "progress": 0
+      },
+      "to": [
+        "440 + 292 * sin(a)",
+        "400 - 292 * cos(a)"
+      ]
+    },
+    "countSpots": {
+      "ellipse": [
+        "440 + 312 * sin(a) - 6",
+        "400 - 312 * cos(a) - 6",
+        12,
+        12
+      ],
+      "fill": "multiply",
+      "kind": "shape",
+      "let": {
+        "a": "6 * (i + 1)"
+      },
+      "repeat": 5,
+      "start": {
+        "opacity": 0
+      }
+    },
+    "hourText": {
+      "anchor": "end",
+      "at": [
+        428,
+        772
+      ],
+      "ink": "add.ink",
+      "kind": "text",
+      "size": 54,
+      "start": {
+        "opacity": 0
+      },
+      "style": "body",
+      "text": "hourEntry"
+    },
+    "colon": {
+      "anchor": "middle",
+      "at": [
+        440,
+        768
+      ],
+      "ink": "text",
+      "kind": "text",
+      "size": 54,
+      "start": {
+        "opacity": 0
+      },
+      "style": "body",
+      "text": "colonEntry"
+    },
+    "minText": {
+      "anchor": "start",
+      "at": [
+        452,
+        772
+      ],
+      "ink": "multiply.ink",
+      "kind": "text",
+      "size": 54,
+      "start": {
+        "opacity": 0
+      },
+      "style": "body",
+      "text": "minEntry"
+    },
+    "hourRing": {
+      "ink": "add",
+      "kind": "outline",
+      "rect": [
+        "440 + 215 * sin(30 * hour) - 34",
+        "394 - 215 * cos(30 * hour) - 30",
+        68,
+        60
+      ],
+      "start": {
+        "progress": 0
+      },
+      "style": "ring"
+    },
+    "minRings": {
+      "ink": "multiply",
+      "kind": "outline",
+      "let": {
+        "a": "30 * i + 30"
+      },
+      "rect": [
+        "440 + 215 * sin(a) - 34",
+        "394 - 215 * cos(a) - 30",
+        68,
+        60
+      ],
+      "repeat": 12,
+      "start": {
+        "progress": 0
+      },
+      "style": "ring"
+    },
+    "bigCount": {
+      "anchor": "middle",
+      "at": [
+        440,
+        460
+      ],
+      "ink": "multiply.ink",
+      "kind": "text",
+      "let": {
+        "v": "(i + 1) * 5"
+      },
+      "repeat": 12,
+      "size": 170,
+      "start": {
+        "opacity": 0
+      },
+      "style": "body",
+      "text": "bigCountEntry",
+      "z": 6
+    }
+  },
+  "sequence": [
+    "circle",
+    "bigNums",
+    "littleLines",
+    "countFive",
+    "fiveMeans",
+    "hands",
+    "shortHand",
+    "longHand",
+    "hour",
+    "minutes",
+    "nudge",
+    "oclock",
+    "read"
+  ],
+  "steps": {
+    "hands": {
+      "actions": {
+        "hub": {
+          "do": "appear",
+          "dur": 0.6,
+          "target": "hub"
+        },
+        "hubPulse": {
+          "at": "end(hub)",
+          "do": "pulse",
+          "target": "hub"
+        },
+        "unFive": {
+          "do": "fade",
+          "target": "countSpots",
+          "to": 0
+        }
+      },
+      "hold": 0.8,
+      "say": "handsLine"
+    },
+    "hour": {
+      "actions": {
+        "goal": {
+          "do": "appear",
+          "dur": 0.5,
+          "target": "hourText + colon + minText"
+        },
+        "hourSay": {
+          "at": "end(goal)",
+          "do": "say",
+          "line": "hourLine"
+        },
+        "point": {
+          "at": "end(turn)",
+          "do": "pulse",
+          "target": "nums[hour - 1]"
+        },
+        "turn": {
+          "at": "end(goal)",
+          "do": "turn",
+          "dur": 1.6,
+          "target": "hourHand",
+          "to": "hourAngle",
+          "wait": "voice"
+        },
+        "mark": {
+          "at": "end(turn)",
+          "do": "draw",
+          "dur": 0.5,
+          "target": "hourRing"
+        },
+        "goalHour": {
+          "at": "end(goal)",
+          "do": "pulse",
+          "target": "hourText"
+        }
+      },
+      "say": "goalLine"
+    },
+    "minutes": {
+      "actions": {
+        "count": {
+          "do": "each",
+          "gap": "countGap",
+          "let": {
+            "m": "(i + 1) * 5"
+          },
+          "target": "nums",
+          "then": {
+            "big": {
+              "do": "appear",
+              "dur": 1,
+              "grow": 0,
+              "target": "bigCount[i]",
+              "when": "i < fives",
+              "rise": -61
+            },
+            "gone": {
+              "at": 1.1,
+              "do": "fade",
+              "dur": 0.3,
+              "target": "bigCount[i]",
+              "to": 0,
+              "when": "i < fives"
+            },
+            "mark": {
+              "do": "draw",
+              "dur": 0.5,
+              "target": "minRings[i]",
+              "when": "i < fives"
+            },
+            "word": {
+              "count": true,
+              "do": "say",
+              "line": "fiveCount",
+              "when": "i < fives"
+            }
+          },
+          "wait": "voice"
+        },
+        "sweep": {
+          "do": "turn",
+          "dur": "fives * countGap",
+          "target": "minuteHand",
+          "to": "30 * fives",
+          "wait": "voice"
+        },
+        "goalMin": {
+          "do": "pulse",
+          "target": "minText"
+        }
+      },
+      "counts": true,
+      "say": "minutesLine",
+      "when": "minute > 0"
+    },
+    "nudge": {
+      "actions": {
+        "slide": {
+          "do": "turn",
+          "dur": 1.5,
+          "target": "hourHand",
+          "to": "hourAngle + minute / 2",
+          "wait": "voice"
+        }
+      },
+      "say": "nudgeLine",
+      "when": "minute > 0"
+    },
+    "oclock": {
+      "actions": {
+        "pulse": {
+          "do": "pulse",
+          "target": "minuteHand",
+          "wait": "voice"
+        },
+        "top": {
+          "at": "end(pulse)",
+          "do": "draw",
+          "dur": 0.5,
+          "target": "minRings[11]"
+        }
+      },
+      "say": "oclockLine",
+      "when": "minute == 0"
+    },
+    "read": {
+      "actions": {
+        "pulse": {
+          "do": "pulse",
+          "target": "hourText + colon + minText"
+        }
+      },
+      "hold": 1.5,
+      "say": "readLine"
+    },
+    "circle": {
+      "actions": {
+        "face": {
+          "do": "draw",
+          "dur": 3,
+          "target": "face"
+        }
+      },
+      "say": "circleLine"
+    },
+    "bigNums": {
+      "actions": {
+        "nums": {
+          "at": 0.1,
+          "do": "appear",
+          "dur": 0.4,
+          "each": 0.4,
+          "target": "nums"
+        },
+        "ticks": {
+          "do": "draw",
+          "dur": 0.3,
+          "each": 0.4,
+          "target": "bigTicks"
+        }
+      },
+      "say": "bigLine"
+    },
+    "littleLines": {
+      "actions": {
+        "firstFour": {
+          "do": "draw",
+          "dur": 0.3,
+          "each": 0.35,
+          "target": "first(4, small)",
+          "wait": "voice"
+        },
+        "fiveSay": {
+          "do": "say",
+          "line": "fiveLine"
+        },
+        "rest": {
+          "at": "end(firstFour) + 1.2",
+          "do": "draw",
+          "dur": 0.25,
+          "each": 0.05,
+          "target": "slice(small, 4, 44)"
+        }
+      },
+      "say": "littleLine"
+    },
+    "countFive": {
+      "actions": {
+        "count": {
+          "do": "each",
+          "gap": 0.9,
+          "let": {
+            "c": "i + 1"
+          },
+          "target": "countSpots",
+          "then": {
+            "card": {
+              "do": "tag",
+              "text": "countWord"
+            },
+            "dot": {
+              "do": "appear",
+              "dur": 0.3
+            },
+            "word": {
+              "count": true,
+              "do": "say",
+              "line": "countWord"
+            }
+          },
+          "wait": "voice"
+        }
+      },
+      "counts": true,
+      "say": "countLine"
+    },
+    "fiveMeans": {
+      "actions": {
+        "all": {
+          "at": "end(one) + 0.4",
+          "do": "pulse",
+          "each": 0.2,
+          "target": "nums"
+        },
+        "one": {
+          "do": "pulse",
+          "target": "nums[0]"
+        }
+      },
+      "say": "eachBig"
+    },
+    "shortHand": {
+      "actions": {
+        "out": {
+          "do": "appear",
+          "dur": 1.2,
+          "grow": 0,
+          "target": "hourHand"
+        },
+        "pulse": {
+          "at": "end(out) + 0.4",
+          "do": "pulse",
+          "target": "hourHand"
+        }
+      },
+      "hold": 1,
+      "say": "shortLine"
+    },
+    "longHand": {
+      "actions": {
+        "out": {
+          "do": "appear",
+          "dur": 1.2,
+          "grow": 0,
+          "target": "minuteHand"
+        },
+        "pulse": {
+          "at": "end(out) + 0.4",
+          "do": "pulse",
+          "target": "minuteHand"
+        }
+      },
+      "hold": 1,
+      "say": "longLine"
+    }
+  },
+  "wording": {
+    "en-US": {
+      "everyday": {
+        "eachBig": "Five little lines, five minutes. So each big number means five more minutes.",
+        "fiveLine": "Five little lines! Each one is a minute.",
+        "goalLine": {
+          "cases": {
+            "big": "Let's make the clock say {hour} {minute}.",
+            "small": "Let's make the clock say {hour} oh {minute}.",
+            "zero": "Let's make the clock say {hour} o'clock."
+          },
+          "select": "minute == 0 ? 'zero' : (minute < 10 ? 'small' : 'big')"
+        },
+        "handsLine": "A clock has two hands.",
+        "hourLine": "First, the short hand. Turn it to point at the big {hour}.",
+        "longLine": "The long hand shows the minutes.",
+        "minutesLine": "Now the long hand. We need {minute} minutes, so we count by fives on the big numbers.",
+        "nudgeLine": "Look! The short hand slides a little past the {hour}, because some minutes have gone by.",
+        "oclockLine": "For o'clock, the long hand points straight up, to the top. It is already there!",
+        "readLine": {
+          "cases": {
+            "big": "Now the clock says {hour} {minute}!",
+            "small": "Now the clock says {hour} oh {minute}!",
+            "zero": "Now the clock says {hour} o'clock!"
+          },
+          "select": "minute == 0 ? 'zero' : (minute < 10 ? 'small' : 'big')"
+        },
+        "shortLine": "The short hand shows the hour.",
+        "circleLine": "This is a clock. Let's draw it together.",
+        "bigLine": "It has big numbers, from one all the way to twelve.",
+        "littleLine": "It also has lots of little lines.",
+        "countLine": "Let's count them from the top to the one."
+      },
+      "shared": {
+        "countWord": "{c}",
+        "fiveCount": "{m}",
+        "numEntry": {
+          "text": "{k}",
+          "visual": true
+        },
+        "hourEntry": {
+          "text": "{hour}",
+          "visual": true
+        },
+        "colonEntry": {
+          "text": ":",
+          "visual": true
+        },
+        "minEntry": {
+          "text": "{tens}{ones}",
+          "visual": true
+        },
+        "bigCountEntry": {
+          "text": "{v}",
+          "visual": true
+        }
+      }
+    }
+  },
+  "requires": [
+    "drawing.turn",
+    "components.arithmetic"
+  ],
+  "let": {
+    "fives": "div(minute, 5)",
+    "hourAngle": "mod(hour, 12) * 30",
+    "ones": "mod(minute, 10)",
+    "tens": "div(minute, 10)",
+    "countGap": 1.5
+  }
+}

@@ -514,3 +514,19 @@ final class CreatingStudio: StudioHandler, @unchecked Sendable {
                                 "errors": .int(0), "warnings": .int(0), "value": value]))
     }
 }
+
+struct ShowResultTextTests {
+    @Test func theTimelineFollowsTheFirstLineAndComesBeforeThePicture() throws {
+        let timeline = "step trade (3 of 7), a 52, b 17: 4 s as played; ends of lines estimated\n0-3 line says \"Trade.\""
+        let result: JSONValue = .object(["step": .string("trade"), "index": .int(3), "count": .int(7), "timeline": .string(timeline),
+                                         "image": .object(["data": .string("iVBORw0KGgo="), "mimeType": .string("image/png")]),
+                                         "ratio": .number("0.6"), "layout": .string("tall")])
+        let rendered = try #require(HelperTools.render("show", result))
+        #expect(rendered.content.count == 2)
+        #expect(rendered.content[0]["text"]?.string == "showing trade (3 of 7); the picture is at ratio 0.6 in the layout tall\n" + timeline)
+        #expect(rendered.content[1]["type"] == .string("image"))
+        let bare = try #require(HelperTools.render("show", .object(["step": .string("trade")])))
+        #expect(bare.content.count == 1)
+        #expect(bare.content[0]["text"]?.string == "showing trade")
+    }
+}

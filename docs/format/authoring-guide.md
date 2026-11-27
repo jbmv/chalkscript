@@ -26,11 +26,28 @@ redraws as soon as an edit is saved, so an image is rarely needed.
   each sample, so an edit can be accepted and still report an error for some sample.
 - `create {title, name?, from?}`: makes a new document in the project and shows it in the window
   (topic `new`). The result gives the document, so it need not be read.
-- `show {doc, step?, problem?, ratio?, image?}`: plays a step in the window. `problem` is an
-  object of parameter values, such as `{"a": 54, "b": 26}`; without it the window's current
-  problem is played. Ask for `image` only when the person cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
+- `show {doc, step?, problem?, ratio?, image?}`: plays a step in the window and returns the
+  step's timeline (below). `problem` is an object of parameter values, such as
+  `{"a": 54, "b": 26}`; without it the window's current problem is played. Ask for `image` only
+  when the person cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
   picture is laid out for, with a longer side of 480 points; without it, the window's shape.
 - `guide {topic?}`: this guide.
+
+The timeline is the text that comes after `show`'s first line, for the step and problem shown. Its
+header gives the step's place among the problem's steps, the problem, and the step's length as
+the studio plays it, with the length on the step's own clock when that differs. A row gives a
+span in seconds from the step's start, then what happens: each line said, with its spoken form;
+each time the clock holds for the voice; each action, with its verb, its targets as runs such as
+`nums[0-11]`, and the text a `tag`, `set` or `appear` shows. An `each` has a row, then one
+indented row for each iteration, and consecutive iterations that do nothing are one row that says
+so. The times use the studio's stand-in voice, so the end of a line is an estimate. Read it
+instead of asking for an `image` when the question is when something happens, how long a step
+lasts, or whether anything is left at its end.
+
+An `at`, a `dur`, `hold` or `duration` in a document is on the step's own clock, which stops
+while the clock is held for the voice. The timeline's times are the played ones, so a second read
+from it is not an `at`: where the two differ, the header gives the own length, and an action that
+should follow a line takes `wait: "voice"` instead of a number of seconds.
 
 Practice:
 

@@ -108,6 +108,9 @@ extension StudioModel {
             }
             let shown = try show(name, step: step, problem: problem)
             var reply: WireObject = ["step": .string(shown.step), "index": .int(shown.index + 1), "count": .int(shown.count)]
+            if let e = shaped?.shown {
+                reply["timeline"] = .string(StepTimeline.make(e, step: shown.index).text)
+            }
             // Without a ratio, the picture is at the shape the window is showing.
             let shape = ratio ?? shownRatio ?? Double(Scene.stage.width / Scene.stage.height)
             if wantsImage, let e = shaped?.made, let picture = StepPicture.png(e, step: shown.index, ratio: shape) {

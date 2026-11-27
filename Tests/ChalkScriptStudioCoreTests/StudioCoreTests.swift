@@ -421,6 +421,8 @@ struct ExtensionManifestTests {
         let url = repository.appendingPathComponent("Studio/Extension/manifest.json")
         let manifest = try ChalkScriptMCP.JSONValue.parse(String(contentsOf: url, encoding: .utf8))
         #expect(manifest["tools"]?.array?.compactMap { $0["name"]?.string } == HelperTools.names)
+        func show(_ tools: [ChalkScriptMCP.JSONValue]?) -> String? { tools?.first { $0["name"]?.string == "show" }?["description"]?.string }
+        #expect(show(manifest["tools"]?.array) == show(HelperTools.definitions))
         #expect(manifest["server"]?["type"]?.string == "binary")
         #expect(manifest["server"]?["mcp_config"]?["command"]?.string == "${__dirname}/server/chalkscript-mcp")
         #expect(manifest["version"]?.string == HelperInfo.version)
@@ -896,5 +898,70 @@ struct GuideStatementTests {
         let doc = try #require(ExplainerDocument.read(Data(json.utf8)).document)
         let d = try DocumentExplainer(document: doc, problem: ["k": .number(3)])
         #expect(d.resolved.steps[0].waits == [0.5])
+    }
+}
+
+/// The timeline `step.show` returns: the step's lines, holds and actions on the stand-in voice's
+/// clock.
+@MainActor
+struct StepTimelineTests {
+    /// A clock document whose count runs over the twelve numerals, with a `when` on its actions.
+    private let clock = repository.appendingPathComponent("Tests/ChalkScriptStudioCoreTests/Fixtures/clock-hour-minute.explainer")
+
+    private func timeline(_ project: TemporaryProject, step: String, problem: String) throws -> [String] {
+        let model = try openModel(project)
+        let r = try #require(model.respond(to: Studio.Method.show, params: try params(
+            #"{"doc":"clock-hour-minute","step":"\#(step)","problem":\#(problem)}"#), client: nil).result)
+        return try #require(r["timeline"]?.string).split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    }
+
+    @Test func aCountOverTwelveNumeralsGivesTheStepsLengthEachIterationsStartAndTheEmptyOnesAsOneRow() throws {
+        let rows = try timeline(try TemporaryProject(examples: [clock]), step: "minutes", problem: #"{"hour":7,"minute":25}"#)
+        #expect(rows[0] == "step minutes (10 of 12), hour 7, minute 25: 24.3 s as played, 18 s on its own clock, "
+                + "which stops while held for the voice; ends of lines estimated")
+        #expect(rows.contains { $0.hasPrefix("0-6.3 line says ") })
+        #expect(rows.contains("0-6.3 held for the voice"))
+        #expect(rows.contains("6.3-24.3 count each nums[0-11], 12 times, each waiting for the voice"))
+        let starts = rows.filter { $0.hasPrefix("  ") && $0.contains("] word says") }.map { $0.split(separator: " ")[0] }
+        #expect(starts == ["6.3", "7.8", "9.3", "10.8", "12.3"])
+        #expect(rows.contains("  13.8-24.3 [5-11] nothing: every when is false"))
+        #expect(rows.filter { $0.contains("nothing") }.count == 1)
+        #expect(rows.contains { $0.hasPrefix("6.3-13.8 sweep turn minuteHand") })
+    }
+
+    @Test func aProblemWithNoWaitingIterationsHasNoEmptyRowAndAnOwnClockEqualToItsLength() throws {
+        let rows = try timeline(try TemporaryProject(examples: [clock]), step: "circle", problem: #"{"hour":7,"minute":25}"#)
+        #expect(rows[0] == "step circle (1 of 12), hour 7, minute 25: 3 s as played; ends of lines estimated")
+        #expect(rows.count == 3)
+    }
+
+    /// The seconds the engine's player takes to play step `k` with the stand-in voice, advanced a
+    /// millisecond at a time so that a line's end is found to a thousandth.
+    private func played(_ e: DocumentExplainer, step k: Int) -> Double {
+        let player = ExplainerPlayer(explainer: e, voice: EstimatedVoice(), drivesItself: false)
+        player.show(step: k)
+        var clock = 0.0
+        while case .playing = player.phase, clock < 600 {
+            player.advance(by: 0.001)
+            clock += 0.001
+        }
+        return clock
+    }
+
+    @Test func theTimelinesLengthIsTheTimeThePlayerTakesForEveryStepOfTheExamplesAndTheClock() throws {
+        var steps = 0
+        for file in examples + [clock] {
+            let doc = try #require(ExplainerDocument.read(contentsOf: file).document)
+            for sample in doc.samples {
+                let e = try DocumentExplainer(document: doc, problem: sample)
+                for k in 0..<e.stepCount {
+                    let length = StepTimeline.make(e, step: k).length
+                    let took = played(e, step: k)
+                    #expect(abs(length - took) <= 1.0 / 60, "\(file.lastPathComponent) \(e.resolved.steps[k].name) \(sample): \(length) s against \(took) s")
+                    steps += 1
+                }
+            }
+        }
+        #expect(steps > 40)
     }
 }
