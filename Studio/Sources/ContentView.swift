@@ -76,19 +76,43 @@ struct DocumentList: View {
     }
 }
 
-/// The shown document: its options, its player and its findings.
+/// The shown document: its options, its player and its findings. The player alone is drawn in
+/// the appearance chosen in the options bar; the rest of the window keeps the Mac's.
 struct DocumentPane: View {
     let model: StudioModel
     @State private var arrangement: ScreenArrangement = .automatic
+    /// The appearance chosen for the preview; nil until one is chosen, when the Mac's is used.
+    /// It is the window's, like the arrangement: no document holds it and it is not kept.
+    @State private var chosenAppearance: ColorScheme? = DocumentPane.startingAppearance
+    @Environment(\.colorScheme) private var macAppearance
+
+    private var appearance: Binding<ColorScheme> {
+        Binding(get: { chosenAppearance ?? macAppearance }, set: { chosenAppearance = $0 })
+    }
+
+    /// In a debug build, the launch argument `-StudioPreviewAppearance light` or `dark` starts
+    /// the preview in that appearance, for a session that cannot click the control.
+    private static var startingAppearance: ColorScheme? {
+        #if DEBUG
+        switch UserDefaults.standard.string(forKey: "StudioPreviewAppearance") {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
+        }
+        #else
+        return nil
+        #endif
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             if let shown = model.selected {
-                OptionsBar(model: model, document: shown, arrangement: $arrangement)
+                OptionsBar(model: model, document: shown, arrangement: $arrangement, appearance: appearance)
                 Divider()
                 if let player = model.player {
                     ExplainerView(player: player, labels: .studio, arrangement: arrangement)
                         .id(model.playerSerial)
+                        .environment(\.colorScheme, appearance.wrappedValue)
                         .padding(16)
                 } else {
                     RefusalView(document: shown, findings: model.refusal)

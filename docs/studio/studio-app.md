@@ -85,7 +85,8 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   the question, the line and the controls round the drawing belongs to the app that plays the
   document (EXP-17), and nothing the studio's view controls choose is saved in the document or
   has any bearing on an app that plays it. The options bar therefore keeps two kinds of control
-  apart: the Preview and Arrangement controls sit in one group, with Preview labelled "not saved",
+  apart: the Preview, Appearance and Arrangement controls sit in one group, with Preview labelled
+  "not saved",
   and the ticks for the shapes the explainer is made for, which change the document, stand at
   the end of the row above the line "Saved to document — tells the player app which views it
   can use."
@@ -102,6 +103,14 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   window previews no other ratio; an agent sees any ratio with the helper's `show`. A preview lays the player out for the largest area of
   that ratio inside the pane, centred and framed with a thin line in the `line` role, and
   changes nothing in the document.
+- **Appearance.** The control labelled "Appearance", beside Preview, draws the player in the
+  light or the dark appearance: the sheet, the drawing, the line and the player's controls. It
+  starts at the Mac's own appearance and follows the Mac until Light or Dark is chosen. The
+  sidebar, the options bar and the findings keep the Mac's appearance. A colour that reads well
+  on one sheet may not on the other, so both can be checked without changing the Mac's setting.
+  The choice is the window's: it changes nothing in the document, is not one of Edit > Undo's
+  steps, and is not kept from one launch to the next. In a narrow window the group takes two
+  rows, and then three.
 - **Arrangement.** The menu labelled "App arrangement" previews how an app that plays the
   explainer might arrange the screen round the drawing (EXP-17): **Automatic**, the default,
   puts the caption and controls below the drawing in a pane taller than wide and in a column
@@ -150,7 +159,9 @@ to it as a client would: it lists the documents, reads and edits the equal-group
 it and shows a step, and, in the phase `create`, makes a new document, patches it and shows it.
 Both edit the open project, so run it against a temporary folder: the app's launch arguments
 `-StudioProjectFolder` and `-StudioSocketPath` open a folder and listen on a socket of your choice
-without changing the app's saved settings. In a Debug build, posting the distributed notification
+without changing the app's saved settings. In a Debug build, the launch argument
+`-StudioPreviewAppearance` with `light` or `dark` starts the preview in that appearance, for a
+session that cannot click the control. In a Debug build, posting the distributed notification
 `org.chalkscript.studio.windowPicture` with a file path as its object makes the app write a
 picture of its window to that path, for a session that cannot capture the screen. For a session
 that cannot send keys to another app, `org.chalkscript.studio.newExplainer` opens the New

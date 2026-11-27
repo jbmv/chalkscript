@@ -4,12 +4,14 @@ import SwiftUI
 
 /// The problem the document is played with, chosen from its samples or typed within its
 /// parameters, the wording, language and playback, and whether lines are spoken; then, grouped
-/// apart as view-only, the area the drawing is previewed at and the arrangement an app might give
-/// the screen; and, set apart from both, the Layouts sheet, which changes the document (EXP-17).
+/// apart as view-only, the area the drawing is previewed at, the appearance it is previewed in and
+/// the arrangement an app might give the screen; and, set apart from both, the ticks for the
+/// shapes the explainer is made for, which change the document (EXP-17).
 struct OptionsBar: View {
     let model: StudioModel
     let document: StudioDocument
     @Binding var arrangement: ScreenArrangement
+    @Binding var appearance: ColorScheme
     @State private var drafts: [String: String] = [:]
     @State private var outside: String?
 
@@ -55,15 +57,24 @@ struct OptionsBar: View {
                 Spacer(minLength: 0)
             }
             // One row where the window is wide enough; otherwise the ticks take a row of their
-            // own, so that nothing is squeezed or wrapped.
+            // own, and in a narrower window the view-only group takes two rows and then three, so
+            // that nothing is squeezed or wrapped.
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 10) {
-                    viewOnly
+                    viewOnly(rows: 1)
                     Spacer(minLength: 10)
                     madeFor(alignment: .trailing)
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    viewOnly
+                    viewOnly(rows: 1)
+                    madeFor(alignment: .leading)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    viewOnly(rows: 2)
+                    madeFor(alignment: .leading)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    viewOnly(rows: 3)
                     madeFor(alignment: .leading)
                 }
             }
@@ -75,11 +86,17 @@ struct OptionsBar: View {
         .onChange(of: model.playerSerial) { resetDrafts() }
     }
 
-    /// The Preview menu and the arrangement, in one group marked as changing only the view.
-    private var viewOnly: some View {
-        HStack(spacing: 10) {
-            previewMenu
-            arrangementPicker
+    /// The Preview control, the appearance and the arrangement, in one group marked as changing
+    /// only the view: in one row, in two with the arrangement under the others, or one to a row.
+    private func viewOnly(rows: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                previewMenu
+                if rows < 3 { appearancePicker }
+                if rows == 1 { arrangementPicker }
+            }
+            if rows == 3 { appearancePicker }
+            if rows > 1 { arrangementPicker }
         }
         .fixedSize()
         .padding(.horizontal, 8)
@@ -99,6 +116,18 @@ struct OptionsBar: View {
         .pickerStyle(.segmented)
         .fixedSize()
         .help("The shape of the area the drawing is shown in, framed inside the pane. It changes nothing in the document.")
+    }
+
+    /// Whether the player is previewed as it looks in the light or in the dark. It follows the
+    /// Mac until one is chosen, and is the window's, not the document's.
+    private var appearancePicker: some View {
+        Picker("Appearance", selection: $appearance) {
+            Text("Light").tag(ColorScheme.light)
+            Text("Dark").tag(ColorScheme.dark)
+        }
+        .pickerStyle(.segmented)
+        .fixedSize()
+        .help("Shows the explainer as it looks on a screen set to light or to dark, so you can check that its colours read well in both. It starts as this Mac is set, and changes nothing in the document.")
     }
 
     private var previewedPreset: Preset? {
