@@ -223,9 +223,11 @@ extension DocumentFilm {
         case "counted": look.look = .counted
         default: look.look = .pencil
         }
-        return DrawnInstance(
+        var drawn = DrawnInstance(
             instance: inst, shape: shape, reference: reference, bounds: bounds, fixed: el["fixed"] == .bool(true), start: look, pivot: pivot,
             pivoted: pivoted)
+        if kind == "outline", el["around"] != nil { drawn.hollow = try r.selection(p + "/around", locals: l).isEmpty }
+        return drawn
     }
 
     /// The runs of the entry a text element shows (section 9.2): each placeholder a run, named

@@ -515,7 +515,10 @@ by `pad` on every side; `pad` is by default 12 for `hint` and 0 otherwise. A tex
 bounds are a point, is enclosed as it is drawn: the box of its line of text, with the line's lower
 edge at `at` and its left edge, middle or right edge there for the `anchor` `start`, `middle` or
 `end`. The box is of the text the element shows before the first step. An outline with `around`
-selecting nothing has no instance. The outline styles are:
+selecting nothing has no instance. A repeated outline's `around` is evaluated for each instance with
+its `i`, as `"around": "nums[i]"` rings each of `nums` in turn; one of its instances that selects
+nothing is not drawn, and the element has no instance when none of them selects anything. The
+outline styles are:
 
 | Style | Drawn as | Role |
 |---|---|---|

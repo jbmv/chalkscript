@@ -625,4 +625,46 @@ struct ResolutionTests {
     }
 
     enum ExtentError: Error { case notABox(String) }
+
+    // MARK: a repeated element that selects with its own i
+
+    /// Twelve numerals, a ring repeated round each, and an arrow repeated from the middle to each,
+    /// every one selecting `nums[i]`.
+    @MainActor @Test func aRepeatedElementSelectsWithItsOwnIndex() throws {
+        let doc = try texts(#"""
+            "nums": { "kind": "text", "repeat": 12, "anchor": "middle", "size": 40, "let": { "num": "i + 1" },
+                "at": ["400 + 300 * sin(30 * i + 30)", "420 - 300 * cos(30 * i + 30)"], "text": "numeral" },
+            "rings": { "kind": "outline", "style": "ring", "ink": "multiply", "repeat": 12, "around": "nums[i]", "pad": 6 },
+            "spokes": { "kind": "arrow", "ink": "add", "repeat": 12, "from": [400, 420], "to": "nums[i]" },
+            "tail": { "kind": "outline", "style": "box", "ink": "add", "repeat": 3, "around": "first(i, nums)" }
+            """#.replacingOccurrences(of: "\"numeral\"", with: "\"phrase\""))
+        let e = try explainer(doc)
+        let scene = e.still(after: -1)
+        for k in 0..<12 {
+            let numeral = try #require(Self.words(scene, "nums.\(k)"))
+            let ring = try #require(Self.box(scene, "rings.\(k)"))
+            let set = try setSize("Gigypq", size: 40, display: true)
+            let at = numeral.at
+            let want = CGRect(x: at.x - set.width / 2, y: at.y - set.height, width: set.width, height: set.height).insetBy(dx: -6, dy: -6)
+            #expect(abs(ring.minX - want.minX) < 1 && abs(ring.minY - want.minY) < 1 && abs(ring.width - want.width) < 1,
+                "ring \(k) is \(ring), not \(want)")
+            guard case let .arrow(points, _, _)? = scene.element("spokes.\(k)")?.kind else { Issue.record("no spoke \(k)"); continue }
+            #expect(points.last == CGPoint(x: at.x, y: at.y - 8), "spoke \(k) ends at \(String(describing: points.last))")
+        }
+        // An instance whose selection is empty is not drawn, and one that selects two is round both.
+        #expect(scene.element("tail.0") == nil || Self.box(scene, "tail.0") == nil)
+        let two = try #require(Self.box(scene, "tail.2"))
+        let one = try #require(Self.box(scene, "tail.1"))
+        #expect(two.width > one.width && two.contains(one))
+    }
+
+    static func words(_ scene: Scene, _ id: String) -> Typeset? {
+        if case let .words(_, set)? = scene.element(id)?.kind { return set }
+        return nil
+    }
+
+    static func box(_ scene: Scene, _ id: String) -> CGRect? {
+        if case let .box(r, _, _)? = scene.element(id)?.kind { return r }
+        return nil
+    }
 }

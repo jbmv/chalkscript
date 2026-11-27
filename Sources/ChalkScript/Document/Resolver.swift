@@ -298,7 +298,8 @@ final class Resolver: EvaluationScope {
     }
 
     /// How many instances element `name` has for this problem: its `repeat`, or one, or none
-    /// when its `when` is false or an outline's `around` selects nothing.
+    /// when its `when` is false or an outline's `around` selects nothing (for any of its instances,
+    /// when it repeats).
     func instanceCount(_ name: String) throws(EvalFailure) -> Int {
         if let c = counts[name] { return c }
         guard !countsPending.contains(name) else { throw EvalFailure(path: DocumentPath.join("/elements", name), message: "\(name)'s instances depend on themselves") }
@@ -317,8 +318,14 @@ final class Resolver: EvaluationScope {
             if !b { n = 0 }
         }
         if n > 0, doc.expressions[p + "/around"] != nil {
-            let s = try selection(p + "/around")
-            if s.isEmpty { n = 0 }
+            if doc.expressions[p + "/repeat"] != nil {
+                // Each instance selects with its own `i`; the element has none when none of them selects anything.
+                var selects = false
+                for k in 0..<n where !selects { selects = !(try selection(p + "/around", locals: try instanceLocals(DocumentInstance(name, k)))).isEmpty }
+                if !selects { n = 0 }
+            } else if try selection(p + "/around").isEmpty {
+                n = 0
+            }
         }
         counts[name] = n
         return n

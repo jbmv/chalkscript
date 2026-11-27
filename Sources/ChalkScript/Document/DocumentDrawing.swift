@@ -53,6 +53,9 @@ struct DrawnInstance: Sendable {
     /// reference point. It grows and pulses about it only when `pivoted`.
     var pivot: CGPoint
     var pivoted: Bool
+    /// An outline whose `around` selects nothing for this instance of a repeated element: it is
+    /// not drawn.
+    var hollow = false
 
     /// The scene element's id: the element's name, and the index of a repeated one.
     var id: String { instance.index.map { "\(instance.element).\($0)" } ?? instance.element }
@@ -297,6 +300,7 @@ struct DocumentPainter: Sendable {
         case let .arrow(points, op):
             return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: turned)]
         case let .outline(rect, style, op):
+            if inst.hollow { return [] }
             let r = rect.offsetBy(dx: d.dx, dy: d.dy)
             let k: SceneElement.Kind =
                 switch style {
