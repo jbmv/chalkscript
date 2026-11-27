@@ -131,7 +131,7 @@ the others are optional, and a document without them is complete.
 | `elements` | Required. What is drawn (topic `elements`). |
 | `intro` | The lines before the first step. |
 | `sequence`, `steps` | Required. The step names in order, and the steps (topic `steps`). |
-| `try`, `whatIf` | Later parts: try one, and What if?. |
+| `try`, `whatIf` | Later parts; not played (below). |
 | `style` | Overrides of the standard style: `palette`, `easings`, `motion`. |
 | `plays` | The wording suggested for `paced` and `skippable` playback. |
 | `wording` | Required. Every line, by locale and wording (topic `wording`). |
@@ -142,6 +142,9 @@ Names of elements, steps, actions, parts, shots, layouts, parameters, `let` and 
 and elements share one namespace. Reserved: `and`, `or`, `not`, `true`, `false`, function names,
 and `i`, `n`, `x0`, `y0`, `left`, `areaW`, `areaH`. Steps and elements are maps; order comes from
 `sequence` and from `z`. Colours are never written: name a role (topic `elements`).
+
+Only the watched part plays from a document today: the steps of `sequence`. `try`, `whatIf` and a
+step's `act` and `why` are kept but not played; write none unless the person asks.
 
 ## problem: parameters, computed values and samples
 
@@ -194,9 +197,21 @@ dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
 | `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`. |
 | `ten`, `one`, `stick`, `circle` | Pieces of `components.arithmetic`: `rect`, and `look` `pencil`, `traded` or `counted`. Each has a cross-out, `.cross`. |
 
-Roles: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult`, and the operation roles
-`subtract`, `trade`, `result`, `add`, `multiply`, `divide` (each with `.fill`, `.ink`, `.soft`).
-Each operation keeps its role in every explainer; do not use `subtract` for adding.
+Roles. Without a capability: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult` and
+`result`. With `components.arithmetic` in `requires`, in any form (a bare `add` too): `subtract`,
+`trade`, `add`, `multiply`, `divide`. An operation role is bare (`add`) or has `.fill`, `.ink` or
+`.soft`; the others have no suffix. Each operation keeps its role in every explainer; do not use
+`subtract` for adding. A key takes these forms, and anything else is an error:
+
+| Key | Accepts |
+|---|---|
+| `ink` of `text`, `line` and `shape`; `fill` of `shape` | `text`, `muted`, `line`, `pencil`, `sheet`, or an operation role bare or with a suffix (bare is the ink, or the fill for `fill`) |
+| `ink` of `arrow`, of `outline` (`box` and `ring`; the others take none) and of `tint` | an operation role bare: `add`, not `add.ink` |
+| `ink` of a run | `result` or `text`, in an `equation` text only |
+
+No key draws `paper` or `onResult`, and a document with `style.palette` is refused. A `total` text
+is centred in `result`, and an `equation` text centred in `text`; leave `ink` and `anchor` out of
+both. `label`, `note` and `body` take any `ink` of the first row.
 
 There are no trigonometric functions (topic `expressions`): a point round a circle is computed
 with the functions listed there, or placed by hand.
@@ -210,20 +225,22 @@ quantity: it is never faded below a ghost (0.28), and nothing removes an element
 A step is one change to the picture with one line. Keys: `say` (the step's line, an entry name),
 `actions` (name to action), `when`, `shot`, `duration` (replaces the end of the last action),
 `hold` (seconds after), `counts` (the step counts aloud), `like` (copy another step's keys,
-replacing those given), and `act` and `why`, which the studio keeps but does not play yet.
+replacing those given), and `act` and `why` (not played; see `document`).
 
 An action has `do` (the verb), `target`, `at` (start, seconds or an expression such as
 `"end(arrow) + 0.2"`), `dur` (per instance), `each` (stagger between instances), `reverse`,
 `ease` (a curve name), `when`, `wait: "voice"` and `mark: true` (undone when the next step
 begins, as a tinted digit). An action ends at `at + (n − 1) · each + dur`; the step's timeline
 is the latest end, plus `hold`. Default durations: appear 0.3, draw 0.4, fade 0.35, travel 1.2
-seconds.
+seconds. `wait: "voice"` holds the step's clock at that action's start until the lines said before
+it have been heard (on an `each`, at each instance): use it on an action that should follow the
+line, not seconds guessed for it. The studio's voice is silent; only a speaking player shows it.
 
 | Verb | Kind | Does |
 |---|---|---|
 | `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from), `place` (`split(ten[k])`), `text`. |
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
-| `draw` | draw | A stroked element from progress 0 to 1. |
+| `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. `line` and `arrow` have a fixed stroke width; for a thicker one use a filled `shape` with `points`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
 | `tint` | draw | A pale `ink` role behind a run or element; with `mark`, marks a digit. |
 | `move` | travel | To `to`, or back to its place; `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
@@ -266,6 +283,10 @@ have `everyday` and `formal`). An entry is a string or an object with exactly on
 have `spoken`, `visual: true` (shown, never said), `emphasis` (a placeholder set in the result
 colour), `pronunciation`, `notes` and `maxLength`.
 
+- `select` and `cases` choose a text by an expression; a case's key is `true`, `false`, an
+  integer's digits or a string, and `*` matches the rest (no match is an error):
+  `{"select": "minute == 0", "cases": {"true": "The long hand points straight up.",
+  "false": "Move the long hand to {minute} minutes."}}`.
 - `{name}` inserts a value; `{groups:a}` fills the entry `groups` with `n` set to `a`.
 - The text outside placeholders must contain no digit.
 - In an entry that is said, a number placeholder must not touch a letter: "Count by {b}s" is an

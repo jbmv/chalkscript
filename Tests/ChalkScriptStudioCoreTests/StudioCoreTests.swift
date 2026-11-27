@@ -677,3 +677,202 @@ struct CreateDocumentTests {
         #expect(model.player != nil)
     }
 }
+
+/// What the authoring guide says of colour roles, `select` and `cases`, `draw` and `wait`,
+/// checked against the reader and the player.
+struct GuideStatementTests {
+    /// A complete document of one integer parameter `k`, with `elements`, one step that makes the
+    /// element `e` appear and then `extra` actions, and the wording `entries` (JSON members).
+    private func document(
+        requires: [String] = [], elements: String, extra: String = "", entries: String = "", params: String = #""k": {"type": "int", "min": 1, "max": 9}"#,
+        samples: String = #"{"k": 3}"#, style: String = ""
+    ) -> String {
+        let req = requires.isEmpty ? "" : #""requires": [\#(requires.map { "\"\($0)\"" }.joined(separator: ", "))],"#
+        return """
+        {"format": "chalkscript-explainer", "version": "1.0", "id": "t", "title": "T", "sourceLocale": "en-US",
+         \(req) \(style) "params": {\(params)}, "samples": [\(samples)],
+         "elements": \(elements), "sequence": ["s"],
+         "steps": {"s": {"say": "s", "actions": {"show": {"do": "appear", "target": "e"}\(extra)}}},
+         "wording": {"en-US": {"shared": {"hi": {"text": "hi", "visual": true}, "eq": {"text": "{k} here", "visual": true}},
+                               "everyday": {"s": "A line."\(entries)}}}}
+        """
+    }
+
+    /// The errors of reading the document and playing every sample.
+    private func errors(_ json: String) -> [DocumentFinding] {
+        DocumentCheck.findings(of: ExplainerDocument.read(Data(json.utf8))).errors
+    }
+
+    private let neutral = ["text", "muted", "line", "pencil", "sheet"]
+    private let operations = ["result", "add", "subtract", "trade", "multiply", "divide"]
+    private let forms = ["", ".fill", ".ink", ".soft"]
+    private func needsArithmetic(_ role: String) -> Bool { role.split(separator: ".").first.map { $0 != "result" && operations.contains(String($0)) } ?? false }
+
+    /// Every form of every role, for a key that takes the roles of the table's first row.
+    private var allRoles: [String] { neutral + ["paper", "onResult"] + neutral.map { $0 + ".ink" } + operations.flatMap { op in forms.map { op + $0 } } }
+
+    private func acceptedByFirstRow(_ role: String) -> Bool {
+        neutral.contains(role) || operations.contains { role.hasPrefix($0) && forms.contains(String(role.dropFirst($0.count))) }
+    }
+
+    @Test func theFirstRowOfTheRoleTableIsWhatTheReaderAndPlayerAccept() throws {
+        let kinds: [(String, (String) -> String)] = [
+            ("text ink", { #"{"e": {"kind": "text", "at": [100, 100], "text": "hi", "style": "body", "ink": "\#($0)"}}"# }),
+            ("line ink", { #"{"e": {"kind": "line", "from": [0, 0], "to": [10, 10], "ink": "\#($0)"}}"# }),
+            ("shape ink", { #"{"e": {"kind": "shape", "rect": [0, 0, 10, 10], "ink": "\#($0)"}}"# }),
+            ("shape fill", { #"{"e": {"kind": "shape", "rect": [0, 0, 10, 10], "fill": "\#($0)"}}"# }),
+        ]
+        for (label, element) in kinds {
+            for role in allRoles {
+                for withCapability in [false, true] {
+                    let findings = errors(document(requires: withCapability ? ["components.arithmetic"] : [], elements: element(role)))
+                    let expected = acceptedByFirstRow(role) && (withCapability || !needsArithmetic(role))
+                    #expect(findings.isEmpty == expected, "\(label) \(role) requires arithmetic: \(withCapability): \(findings)")
+                }
+            }
+        }
+    }
+
+    @Test func theSecondRowTakesAnOperationRoleBareOnAnArrowABoxAndATint() throws {
+        let arrow: (String) -> String = { #"{"e": {"kind": "arrow", "from": [0, 0], "to": [10, 10], "ink": "\#($0)"}}"# }
+        let box: (String) -> String = { #"{"e": {"kind": "outline", "rect": [0, 0, 10, 10], "style": "box", "ink": "\#($0)"}}"# }
+        let ring: (String) -> String = { #"{"e": {"kind": "outline", "rect": [0, 0, 10, 10], "style": "ring", "ink": "\#($0)"}}"# }
+        let tint: (String) -> String = {
+            document(elements: #"{"e": {"kind": "text", "style": "equation", "at": [100, 100], "text": "eq"}}"#,
+                     extra: #", "t": {"do": "tint", "target": "e.k", "ink": "\#($0)"}"#)
+        }
+        for role in allRoles {
+            for withCapability in [false, true] {
+                let expected = operations.contains(role) && (withCapability || role == "result")
+                let requires = withCapability ? ["components.arithmetic"] : []
+                for (label, json) in [
+                    ("arrow", document(requires: requires, elements: arrow(role))),
+                    ("box", document(requires: requires, elements: box(role))),
+                    ("ring", document(requires: requires, elements: ring(role))),
+                    ("tint", withCapability ? tint(role).replacingOccurrences(of: #""params""#, with: #""requires": ["components.arithmetic"], "params""#) : tint(role)),
+                ] {
+                    let findings = errors(json)
+                    #expect(findings.isEmpty == expected, "\(label) \(role) requires arithmetic: \(withCapability): \(findings)")
+                }
+            }
+        }
+    }
+
+    @Test func hintAndTargetOutlinesTakeNoInk() throws {
+        for style in ["hint", "target"] {
+            #expect(errors(document(elements: #"{"e": {"kind": "outline", "rect": [0, 0, 10, 10], "style": "\#(style)"}}"#)).isEmpty)
+            #expect(!errors(document(elements: #"{"e": {"kind": "outline", "rect": [0, 0, 10, 10], "style": "\#(style)", "ink": "result"}}"#)).isEmpty)
+        }
+    }
+
+    @Test func aRunsInkIsResultOrTextInAnEquationOnly() throws {
+        func run(_ style: String, _ role: String) -> String {
+            document(elements: #"{"e": {"kind": "text", "style": "\#(style)", "at": [100, 100], "text": "eq", "runs": {"k": {"ink": "\#(role)"}}}}"#)
+        }
+        for role in allRoles {
+            #expect(errors(run("equation", role)).isEmpty == ["result", "text"].contains(role), "equation \(role)")
+            #expect(!errors(run("body", role)).isEmpty, "body \(role)")
+        }
+    }
+
+    @Test func totalAndEquationTextAreCentredInTheirOwnRole() throws {
+        func text(_ style: String, _ extra: String) -> String {
+            document(elements: #"{"e": {"kind": "text", "style": "\#(style)", "at": [100, 100], "text": "hi"\#(extra)}}"#)
+        }
+        // Left out, they are what the guide says; given, only those values are drawn.
+        for style in ["total", "equation"] { #expect(errors(text(style, "")).isEmpty) }
+        #expect(errors(text("total", #", "ink": "result", "anchor": "middle""#)).isEmpty)
+        #expect(errors(text("equation", #", "ink": "text", "anchor": "middle""#)).isEmpty)
+        for extra in [#", "ink": "result.ink""#, #", "ink": "text""#, #", "ink": "muted""#, #", "anchor": "start""#] {
+            #expect(!errors(text("total", extra)).isEmpty, "total \(extra)")
+        }
+        for extra in [#", "ink": "result""#, #", "ink": "muted""#, #", "anchor": "start""#] {
+            #expect(!errors(text("equation", extra)).isEmpty, "equation \(extra)")
+        }
+        for style in ["label", "note", "body"] {
+            for extra in [#", "ink": "result""#, #", "ink": "pencil""#, #", "anchor": "start""#, #", "anchor": "end""#] {
+                #expect(errors(text(style, extra)).isEmpty, "\(style) \(extra)")
+            }
+        }
+    }
+
+    @Test func aDocumentWithAPaletteIsRefusedAsNotDrawn() throws {
+        let json = document(elements: #"{"e": {"kind": "text", "at": [100, 100], "text": "hi"}}"#,
+                            style: ##""style": {"palette": {"light": {"text": "#336699"}, "dark": {"text": "#99BBDD"}}},"##)
+        let findings = errors(json)
+        #expect(findings.map(\.code) == [.capability], "\(findings)")
+        #expect(findings.first?.path == "/style/palette")
+    }
+
+    // MARK: select and cases
+
+    /// The `select` entry the guide gives, as it is printed there.
+    private func guideSelectEntry() throws -> String {
+        let guide = try String(contentsOf: repository.appendingPathComponent("docs/format/authoring-guide.md"), encoding: .utf8)
+        let start = try #require(guide.range(of: #"{"select""#)).lowerBound
+        let end = try #require(guide.range(of: "}}", range: start..<guide.endIndex)).upperBound
+        return String(guide[start..<end]).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+    }
+
+    private func said(_ json: String, minute: Double) throws -> String {
+        let doc = try #require(ExplainerDocument.read(Data(json.utf8)).document)
+        return try DocumentExplainer(document: doc, problem: ["minute": .number(minute)]).resolved.steps[0].line.line.display
+    }
+
+    private func clock(entry: String) -> String {
+        document(elements: #"{"e": {"kind": "text", "at": [100, 100], "text": "hi"}}"#, entries: #", "hand": \#(entry)"#
+                 ).replacingOccurrences(of: #""say": "s""#, with: #""say": "hand""#)
+            .replacingOccurrences(of: #""k": {"type": "int", "min": 1, "max": 9}"#, with: #""minute": {"type": "int", "min": 0, "max": 59}"#)
+            .replacingOccurrences(of: #"{"k": 3}"#, with: #"{"minute": 0}, {"minute": 25}"#)
+    }
+
+    @Test func theGuidesSelectEntryIsReadAndSaysEachCase() throws {
+        let json = clock(entry: try guideSelectEntry())
+        #expect(errors(json).isEmpty, "\(errors(json))")
+        #expect(try said(json, minute: 0) == "The long hand points straight up.")
+        #expect(try said(json, minute: 25) == "Move the long hand to 25 minutes.")
+    }
+
+    @Test func casesAreKeyedByTruthIntegerOrStringAndStarMatchesTheRest() throws {
+        let byInteger = clock(entry: #"{"select": "mod(minute, 5)", "cases": {"0": "On a five.", "*": "Between fives."}}"#)
+        #expect(errors(byInteger).isEmpty)
+        #expect(try said(byInteger, minute: 25) == "On a five.")
+        #expect(try said(byInteger, minute: 26) == "Between fives.")
+        let byString = clock(entry: #"{"select": "minute == 0 ? 'zero' : 'other'", "cases": {"zero": "None.", "other": "Some."}}"#)
+        #expect(try said(byString, minute: 0) == "None.")
+        // A value with no case and no star is an error for that problem.
+        let missing = clock(entry: #"{"select": "mod(minute, 5)", "cases": {"1": "Off by one."}}"#)
+        #expect(errors(missing).first?.code == .eval, "\(errors(missing))")
+    }
+
+    // MARK: draw
+
+    private func hand(_ element: String) throws -> DocumentExplainer {
+        let json = document(elements: #"{"e": \#(element)}"#).replacingOccurrences(of: #""do": "appear""#, with: #""do": "draw""#)
+        let doc = try #require(ExplainerDocument.read(Data(json.utf8)).document)
+        return try DocumentExplainer(document: doc, problem: ["k": .number(3)])
+    }
+
+    @Test func drawSweepsAStrokeButAFillIsWholeFromTheStart() throws {
+        // Both start with progress 0 and are drawn by `draw`; the fill is there before it, the stroke is not.
+        let filled = try hand(#"{"kind": "shape", "points": [[0, 0], [90, 20], [0, 40]], "closed": true, "fill": "pencil", "start": {"progress": 0}}"#)
+        #expect(filled.scene(step: 0, at: 0).element("e")?.isVisible == true)
+        let stroked = try hand(#"{"kind": "shape", "points": [[0, 0], [90, 20], [0, 40]], "closed": true, "ink": "pencil", "start": {"progress": 0}}"#)
+        #expect(stroked.scene(step: 0, at: 0).element("e")?.isVisible == false)
+        #expect(stroked.scene(step: 0, at: 1).element("e")?.isVisible == true)
+        for element in [#"{"kind": "line", "from": [0, 0], "to": [90, 20]"#, #"{"kind": "arrow", "from": [0, 0], "to": [90, 20], "ink": "result""#,
+                        #"{"kind": "outline", "rect": [0, 0, 9, 9], "style": "box", "ink": "result""#] {
+            let d = try hand(element + #", "start": {"progress": 0}}"#)
+            #expect(d.scene(step: 0, at: 0).element("e")?.isVisible == false, "\(element)")
+            #expect(d.scene(step: 0, at: 1).element("e")?.isVisible == true, "\(element)")
+        }
+    }
+
+    @Test func aWaitForTheVoiceHoldsTheClockAtTheActionsStart() throws {
+        let json = document(elements: #"{"e": {"kind": "text", "at": [100, 100], "text": "hi"}}"#,
+                            extra: #", "later": {"do": "fade", "target": "e", "to": 0.5, "at": 0.5, "wait": "voice"}"#)
+        let doc = try #require(ExplainerDocument.read(Data(json.utf8)).document)
+        let d = try DocumentExplainer(document: doc, problem: ["k": .number(3)])
+        #expect(d.resolved.steps[0].waits == [0.5])
+    }
+}
