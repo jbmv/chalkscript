@@ -216,6 +216,8 @@ struct ShapedExplainer: Explainer {
     var stepCount: Int { shown.stepCount }
     var intro: Line { shown.intro }
     var areaUse: AreaUse? { use }
+    /// The document's own, so that the player draws it only in an appearance it is made for (EXP-20).
+    var appearances: Set<Appearance> { made.appearances }
     func script(for step: Int) -> StepScript { shown.script(for: step) }
     func scene(step: Int, at t: Double) -> Scene { framed(shown.scene(step: step, at: t)) }
     func still(after step: Int) -> Scene { framed(shown.still(after: step)) }

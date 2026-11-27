@@ -9,7 +9,8 @@ import UniformTypeIdentifiers
 
 /// The small picture of a step's still that `step.show` returns when asked (section 6.6 of the
 /// helper protocol): laid out for the area of the shape asked for whose longer side is 480
-/// points, at one pixel per point because it is sent to a model, in the light palette. For a
+/// points, at one pixel per point because it is sent to a model, in the light appearance when the document
+/// is made for it and otherwise in the appearance it is made for (EXP-20). For a
 /// shape the document does not declare, the drawing is laid out for the nearest declared shape,
 /// scaled, centred and framed inside that area (EXP-17).
 enum StepPicture {
@@ -26,12 +27,13 @@ enum StepPicture {
         let used = laid.use?.used ?? area
         let scene = laid.still(after: step)
         let drawn = Shapes.ratio(used)
-        let palette = ExplainerStyle.standard.palette(dark: false)
+        let appearance = Appearance.use(asked: .light, madeFor: explainer.appearances)
+        let palette = ExplainerStyle.standard.palette(dark: appearance.used.isDark)
         let size = CGSize(width: area.width.rounded(), height: area.height.rounded())
         let view = ExplainerStage(scene: scene)
             .frame(width: size.width, height: size.height)
             .background(palette.sheet.color)
-            .environment(\.colorScheme, .light)
+            .environment(\.colorScheme, appearance.used.isDark ? .dark : .light)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 1
         guard let image = renderer.cgImage else { return nil }
