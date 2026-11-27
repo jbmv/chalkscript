@@ -3,9 +3,9 @@ import ChalkScriptStudioCore
 import SwiftUI
 
 /// The problem the document is played with, chosen from its samples or typed within its
-/// parameters, and the wording, language and playback; then, grouped apart as view-only, the
-/// area the drawing is previewed at and the arrangement an app might give the screen; and, set
-/// apart from both, the Layouts sheet, which changes the document (EXP-17).
+/// parameters, the wording, language and playback, and whether lines are spoken; then, grouped
+/// apart as view-only, the area the drawing is previewed at and the arrangement an app might give
+/// the screen; and, set apart from both, the Layouts sheet, which changes the document (EXP-17).
 struct OptionsBar: View {
     let model: StudioModel
     let document: StudioDocument
@@ -45,6 +45,13 @@ struct OptionsBar: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .help("Paced plays as a learner sees it; skippable lets you jump to any step with the dots.")
+                Toggle("Speak lines", isOn: Binding(get: { model.speaksLines }, set: { on in
+                    UserDefaults.standard.set(on, forKey: SystemVoice.enabledKey)
+                    model.setSpeaksLines(on)
+                }))
+                .toggleStyle(.checkbox)
+                .fixedSize()
+                .help("Says each line aloud in this Mac's voice while its step plays, so you can hear a draft. It stays as you leave it and changes nothing in the document.")
                 Spacer(minLength: 0)
             }
             // One row where the window is wide enough; otherwise the ticks take a row of their
