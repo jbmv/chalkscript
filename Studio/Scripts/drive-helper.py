@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 """Drives the studio's helper over stdio as an MCP client would, without Claude.
 
-Usage: Studio/Scripts/drive-helper.py HELPER [look|edit|all]
+Usage: Studio/Scripts/drive-helper.py HELPER [look|edit|create|all]
 
 HELPER is the chalkscript-mcp binary, such as the one inside the built app:
   "Studio/build/DerivedData/Build/Products/Release/ChalkScript Studio.app/Contents/Helpers/chalkscript-mcp"
 
-ChalkScript Studio must be running with a project that holds the example equal-groups.
-  look  lists the documents, reads a step and a line of equal-groups, and shows its first step.
-  edit  reads the document's hash, changes a duration and a line by one patch, and shows the step.
-  all   does both (the default).
+ChalkScript Studio must be running with a project that holds the example equal-groups. The phases
+change the project, so open a temporary folder, as the app's launch arguments do:
+  "ChalkScript Studio.app/Contents/MacOS/ChalkScript Studio" \\
+      -StudioProjectFolder /tmp/trial -StudioSocketPath /tmp/trial.sock
+and set CHALKSCRIPT_STUDIO_SOCKET to the socket's path for this script, which the helper inherits.
+The app copies the examples into an empty folder the first time.
+  look    lists the documents, reads a step and a line of equal-groups, and shows its first step.
+  edit    reads the document's hash, changes a duration and a line by one patch, and shows the step.
+  create  makes a document from a title, patches it, shows it with a picture, and makes a second
+          with the same title (named -2), a copy of equal-groups, and one with a name that is taken
+          (which must be refused).
+  all     does all three (the default).
 Each request is printed with "->" and the text of its result with "<-". Uses only the standard
 library.
 """
@@ -72,6 +80,49 @@ def hash_of(text):
     return text.split("\n", 1)[0].removeprefix("hash ").strip()
 
 
+TITLE = "Drive helper trial"
+
+
+def create_phase(helper):
+    """Makes documents with `create`, patches the first and shows it; true when something failed."""
+    failed = False
+    text, error = helper.tool("create", {"title": TITLE})
+    failed = failed or error
+    lines = (text or "").split("\n", 1)
+    created = lines[0].split("; ")
+    if len(created) < 3 or not created[0].startswith("created "):
+        print("   (the first line of the result should be: created <doc>; hash <hash>; <counts>)")
+        return True
+    doc, base = created[0].removeprefix("created "), created[1].removeprefix("hash ")
+    try:
+        json.loads(lines[1])
+    except (IndexError, ValueError):
+        print("   (the second line of the result should be the document as JSON)")
+        failed = True
+    # Changes the starter's placeholder, its place and its line in one patch.
+    _, error = helper.tool("edit", {"doc": doc, "base": base, "ops": [
+        {"op": "replace", "path": "/elements/note/at", "value": [440, 300]},
+        {"op": "replace", "path": "/wording/en-US/shared/placeholder/text", "value": "Made by the drive-helper script."},
+        {"op": "replace", "path": "/wording/en-US/everyday/start", "value": "The script patched this document."},
+    ]})
+    failed = failed or error
+    for name, arguments in [
+        ("check", {"doc": doc}),
+        ("show", {"doc": doc, "step": "start", "image": True, "ratio": 1.1}),
+    ]:
+        _, error = helper.tool(name, arguments)
+        failed = failed or error
+    text, error = helper.tool("create", {"title": TITLE})
+    print("   (the same title again must make a name ending -2)")
+    failed = failed or error or not (text or "").startswith("created %s-2;" % doc)
+    _, error = helper.tool("create", {"title": "Copy of groups", "from": "equal-groups"})
+    failed = failed or error
+    _, error = helper.tool("create", {"title": "Taken", "name": doc})
+    print("   (a name that is taken must be refused)")
+    failed = failed or not error
+    return failed
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__, file=sys.stderr)
@@ -116,6 +167,8 @@ def main():
         ]:
             _, error = helper.tool(name, arguments)
             failed = failed or error
+    if phase in ("create", "all"):
+        failed = create_phase(helper) or failed
     helper.close()
     return 1 if failed else 0
 

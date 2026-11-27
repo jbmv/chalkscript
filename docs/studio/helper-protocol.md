@@ -133,10 +133,10 @@ agent as a tool error.
 | `-32603` | The studio failed in a way it cannot describe. |
 | `1` | `hello` asked for a version the studio does not speak; `data` is `{"supported": [<int>, ...]}`. |
 | `2` | No project is open in the studio. |
-| `3` | No document of that name is in the project. |
+| `3` | No document of that name is in the project, including a `from` of `document.create` that names none. |
 | `4` | The JSON Pointer names no value in the document. |
 | `5` | No step of that name is in the document. |
-| `6` | Any other failure the person or the agent can act on, said in the message. |
+| `6` | Any other failure the person or the agent can act on, said in the message, such as a name for a new document that is taken or malformed, or a `from` that cannot be read. |
 
 A refused patch is not an error: it is a result with `applied: false` (section 6.4), because it
 carries findings in the same form as an accepted one.
@@ -301,6 +301,41 @@ is held by the studio so that it matches the format the studio reads.
 
 An unknown topic is error `6`, whose message lists the topics.
 
+### 6.8 `document.create`
+
+Makes a document in the project's folder and shows it in the window: the studio writes the file in
+the folder's top level, reads the folder again at once, without waiting for any change it would
+notice itself, and selects the document and plays its first step as `step.show` does, at the
+studio's first preview of a document.
+
+| Param | Required | Holds |
+|---|---|---|
+| `title` | yes | The new document's `title`; not empty. |
+| `name` | no | The name to give it, matching `^[a-z][a-z0-9-]{0,63}$`. Without it, the studio makes one from the title: lower case, the ASCII letters and digits kept, every other run of characters turned into one hyphen, hyphens trimmed from the ends, `explainer-` put in front when the result does not begin with a letter, and cut to 64 characters; `-2`, `-3` and so on are added when the name is taken. |
+| `from` | no | A name from `documents.list`; the new document is a copy of it, with its own `id` and `title`. Without it, the studio's starter. |
+
+The name is also the new document's `id`, which the format requires to match the pattern above, so
+the file's name and the `id` agree. A name that is given and is taken or does not match the pattern
+is refused, never replaced by another, so that the agent is not told it made `clock` when it made
+`clock-2`.
+
+The starter is the smallest document the reader accepts without findings: one parameterless
+sample (`params` of `{}` and `samples` of `[{}]`), one `text` element, one step with its line, and
+one layout, `stage`, of 880 by 800 declared in `areas` for the ratios 0.9 to 1.35, which is the
+studio's Square range. It is built by the studio, not read from a file of the project.
+
+| Result | Required | Holds |
+|---|---|---|
+| `doc` | yes | The new document's name. |
+| `hash` | yes | Its hash. |
+| `errors`, `warnings` | yes | The counts of its findings, as `documents.list` gives them. |
+| `value` | yes | The whole document, with its keys in order. |
+
+Errors: `2`; `3`, for a `from` that names no document; `6`, for a `name` that is taken or does
+not match the pattern, a `from` that cannot be read, or a file that cannot be written; and
+`-32602`, for a `title` that is missing or empty or a parameter of the wrong type. Nothing is
+written for any error. Adding the method does not change the protocol's version (section 4).
+
 ## 7. Findings
 
 A finding is an object with the fields of the format reference's section 21:
@@ -339,7 +374,7 @@ first one applied, so a retry never applies an edit twice.
 
 ## 9. What the helper does with each reply
 
-The helper offers six tools. Each maps to one method; the text in the last column is what the
+The helper offers seven tools. Each maps to one method; the text in the last column is what the
 agent receives.
 
 | Tool | Method | Result text |
@@ -349,6 +384,7 @@ agent receives.
 | `edit` | `document.patch` | `applied; hash <hash>; <counts>`, or a tool error: `refused; hash <hash>` and one line per finding. |
 | `check` | `document.check` | `hash <hash>; <counts>`, then one line per finding, at most 40, and how many more there are. |
 | `show` | `step.show` | `showing <step> (<index> of <count>)`, and the picture when one was asked for. |
+| `create` | `document.create` | `created <doc>; hash <hash>; <counts>`, then the new document as compact JSON on one line. |
 | `guide` | `guide.read` | The text. |
 
 The helper checks the arguments' types before forwarding and answers a wrong one with a tool error,
@@ -395,7 +431,7 @@ In a checkout of this repository, `swift build --product chalkscript-mcp` builds
 
 In Claude's desktop app, the helper is installed as a desktop extension: an `.mcpb` archive holding
 the `chalkscript-mcp` binary and a `manifest.json` that declares a `binary` server whose command is
-`${__dirname}/server/chalkscript-mcp`, the platform `darwin`, and the six tools by name and
+`${__dirname}/server/chalkscript-mcp`, the platform `darwin`, and the seven tools by name and
 description. The manifest is `Studio/Extension/manifest.json`, and
 `Studio/Extension/build-extension.sh` packs it with the helper from a built studio
 ([studio-app.md](studio-app.md)). For distribution the binary is to be signed with a Developer ID and

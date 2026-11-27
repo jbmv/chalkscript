@@ -4,7 +4,8 @@ How an agent writes and edits explainer documents through ChalkScript Studio's t
 explainer shows a method one step at a time, with a drawing, motion and one line per step, for a
 problem whose values it is given. The full definition is the format reference,
 `docs/format/explainer-1.0.md`; this guide is the part an agent needs. Read `editing` before the
-first edit, and other topics when a change needs them.
+first edit, and other topics when a change needs them. A document that does not exist yet is made
+with `create`; read `new` before building one.
 
 ## editing: the tools, and how to make a change
 
@@ -23,9 +24,11 @@ redraws as soon as an edit is saved, so an image is rarely needed.
   next base without reading again.
 - `check {doc, pointer?}`: the findings, one per line. Counts include problems found by playing
   each sample, so an edit can be accepted and still report an error for some sample.
+- `create {title, name?, from?}`: makes a new document in the project and shows it in the window
+  (topic `new`). The result gives the document, so it need not be read.
 - `show {doc, step?, problem?, ratio?, image?}`: plays a step in the window. `problem` is an
-  object of parameter values, such as `{"a": 54, "b": 26}`. Ask for `image` only when the person
-  cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
+  object of parameter values, such as `{"a": 54, "b": 26}`; without it the window's current
+  problem is played. Ask for `image` only when the person cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
   picture is laid out for, with a longer side of 480 points; without it, the window's shape.
 - `guide {topic?}`: this guide.
 
@@ -34,30 +37,104 @@ Practice:
 1. `list`, then `read` the steps or entries the request is about.
 2. Make the smallest patch that does what was asked. Several operations may go in one patch.
 3. `show` the step you changed, so the person sees it, and say in a sentence what you did.
-4. Keep ids stable. Renaming an element, step or entry is allowed, but every reference to the
+4. When the person asks for an explainer that is not in the project, make it with `create`; do
+   not rebuild another document into it, which destroys that document.
+5. Keep ids stable. Renaming an element, step or entry is allowed, but every reference to the
    old name must be changed in the same patch.
 
 Editing outside the studio is picked up too: the person may change a file in an editor, and the
 hash changes. A stale base means someone else edited; read again before retrying.
 
+## new: making an explainer from nothing
+
+`create {title}` writes a small document that already checks with no findings, so every patch
+after it starts from a document that plays. It holds `params` of `{}` with one sample `{}`, one
+`text` element `note`, one step `start` with its line, the wording `placeholder` (shown) and
+`start` (said) in `en-US`, and one layout, `stage`, of 880 by 800, declared in `areas` for the
+Square range, 0.9 to 1.35. The studio names the file and the document's `id` from the title
+("Reading the clock" is `reading-the-clock`, and `-2` is added when that is taken), shows it in
+the window and returns it. With `from` the document is a copy of that one, with its own `id`
+and `title`; use it when the person wants to start from an example. `name` sets the name when
+the person has asked for one; a name that is taken or is not lower case letters, digits and
+hyphens is refused, and nothing is made.
+
+Work in this order, one patch for each point or a few:
+
+1. The problem. Agree with the person, in a sentence, what varies. Give `params`, `let`,
+   `samples` (one for each case a step depends on) and, if a capability is used, `requires`.
+2. The layout. Keep the Square stage of 880 by 800 and plan the drawing inside it. Do not add a
+   layout or change `areas` yet.
+3. Elements, steps and wording together. Replace `elements`, `sequence`, `steps` and the
+   `en-US` wording in one patch, so that the starter's `note`, `start`, `placeholder` and
+   `start` line go and nothing refers to them. Afterwards add or change one step at a time, each
+   with its line.
+4. Wording. Write every line in the `everyday` wording; add another wording only when asked.
+5. Check. `check` once the steps are complete.
+6. Show. `show` each step for the person; if you need to see it, ask for `image` with `ratio`
+   1.1, and look at the narrowest and widest shape the person cares about before suggesting
+   that they tick Tall or Wide.
+
+A patch is refused when its result has an error, so a document cannot pass through a broken
+state. Put together in one patch a step and the entries it names, an element and the `let` value
+it uses, and a parameter and every expression that uses it. An accepted patch can still leave an
+error for one sample, which `check` lists.
+
+A first patch against the starter, for dots numbered one up to a number the problem gives:
+
+```json
+[
+  {"op": "replace", "path": "/params", "value": {"howMany": {"type": "int", "min": 2, "max": 8}}},
+  {"op": "replace", "path": "/samples", "value": [{"howMany": 3}, {"howMany": 8}]},
+  {"op": "replace", "path": "/elements", "value": {
+    "dots": {"kind": "shape", "repeat": "howMany", "ellipse": ["440 - 50 * howMany + 100 * i", 340, 60, 60],
+             "fill": "pencil", "start": {"opacity": 0}},
+    "nums": {"kind": "text", "repeat": "howMany", "style": "label", "anchor": "middle",
+             "at": ["470 - 50 * howMany + 100 * i", 450], "text": "numText", "start": {"opacity": 0}},
+    "total": {"kind": "text", "style": "total", "anchor": "middle", "at": [440, 600],
+              "text": "totalText", "ink": "result", "start": {"opacity": 0}}
+  }},
+  {"op": "replace", "path": "/sequence", "value": ["dots", "count", "total"]},
+  {"op": "replace", "path": "/steps", "value": {
+    "dots": {"say": "dots", "actions": {"put": {"do": "appear", "target": "dots", "each": 0.2, "rise": 20}}},
+    "count": {"say": "count", "actions": {"num": {"do": "each", "target": "nums", "gap": 0.2,
+              "let": {"k": "i + 1"}, "then": {"put": {"do": "appear", "text": "numEntry"}}}}},
+    "total": {"say": "total", "actions": {"show": {"do": "appear", "target": "total"}}}
+  }},
+  {"op": "replace", "path": "/wording", "value": {"en-US": {
+    "shared": {"numText": {"text": "", "visual": true}, "numEntry": {"text": "{k}", "visual": true},
+               "totalText": {"text": "{howMany} in all", "visual": true}},
+    "everyday": {"dots": "Put down {howMany} dots, one at a time.", "count": "Count them, one for each dot.",
+                 "total": "There are {howMany} dots."}
+  }}}
+]
+```
+
+There is no tool to rename or remove a document. To retitle one, patch `/title`; its file's name
+and `id` stay as they are, so that the name you are using does not change under you.
+
 ## document: the top-level keys and names
 
-A document is one JSON object in a `.explainer` file.
+A document is one JSON object in a `.explainer` file. Eleven keys are required, marked below;
+the others are optional, and a document without them is complete.
 
 | Key | Holds |
 |---|---|
-| `format`, `version` | `"chalkscript-explainer"`, `"1.0"`. Never edited. |
+| `format`, `version` | Required. `"chalkscript-explainer"`, `"1.0"`. Never edited. |
 | `requires` | Capabilities used, such as `["components.arithmetic"]` for tens, ones and counters. |
-| `id`, `title`, `about` | Identity; `about` changes nothing seen or heard. |
-| `sourceLocale` | The locale written in, such as `en-US`. |
-| `params`, `let`, `vars`, `samples`, `kind` | The problem (topic `problem`). |
+| `id`, `title` | Required. Identity. `id` is the document's name as the studio made it, the same as its file's name; leave it alone in a patch. |
+| `about` | Information that changes nothing seen or heard. |
+| `sourceLocale` | Required. The locale written in, such as `en-US`. |
+| `params`, `samples` | Required. The problem (topic `problem`). |
+| `let`, `vars`, `kind` | Optional parts of the problem. |
 | `areas` | The shapes of drawing area the document is made for (topic `camera`). |
-| `layouts`, `elements`, `parts`, `shots`, `opening` | The drawing and camera (topics `elements`, `camera`). |
-| `intro`, `sequence`, `steps` | The lines before the first step, the step names in order, and the steps (topic `steps`). |
+| `layouts`, `parts`, `shots`, `opening` | The drawing and camera (topics `elements`, `camera`). |
+| `elements` | Required. What is drawn (topic `elements`). |
+| `intro` | The lines before the first step. |
+| `sequence`, `steps` | Required. The step names in order, and the steps (topic `steps`). |
 | `try`, `whatIf` | Later parts: try one, and What if?. |
 | `style` | Overrides of the standard style: `palette`, `easings`, `motion`. |
 | `plays` | The wording suggested for `paced` and `skippable` playback. |
-| `wording` | Every line, by locale and wording (topic `wording`). |
+| `wording` | Required. Every line, by locale and wording (topic `wording`). |
 | `extensions` | Keys named `vendor.feature`; keep any you do not understand. |
 
 Names of elements, steps, actions, parts, shots, layouts, parameters, `let` and `vars` match
@@ -102,22 +179,27 @@ literal string inside one is in single quotes: `"bT > 0 ? str(bT) : ''"`.
 ## elements: what is drawn, and where
 
 The drawing's units start at the top left, *y* down. The layout `stage` is `[1000, 540]` unless
-`layouts.stage.size` says otherwise. Every element has `kind`, and may have `repeat` (count of
+`layouts.stage.size` says otherwise. The core kinds are `text`, `line`, `arrow`, `outline` and
+`shape`. The only capability today is `components.arithmetic`, whose pieces are the last row of
+the table; draw anything else from the core kinds. Every element has `kind`, and may have `repeat` (count of
 instances; `i` is the index in other keys), `when`, `z`, `fixed` (outside the camera, never
 dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
 
 | Kind | Keys |
 |---|---|
-| `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor`. |
+| `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor` (`start`, `middle` or `end`: which point of the baseline `at` is). |
 | `line` | `from`, `to`; `style` `rule` or `divider`; `ink`. |
 | `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required). |
 | `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`. |
-| `shape` | `rect` (with `corner`), `ellipse` or `points` (with `closed`); `fill` and/or `ink`. |
+| `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`. |
 | `ten`, `one`, `stick`, `circle` | Pieces of `components.arithmetic`: `rect`, and `look` `pencil`, `traded` or `counted`. Each has a cross-out, `.cross`. |
 
 Roles: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult`, and the operation roles
 `subtract`, `trade`, `result`, `add`, `multiply`, `divide` (each with `.fill`, `.ink`, `.soft`).
 Each operation keeps its role in every explainer; do not use `subtract` for adding.
+
+There are no trigonometric functions (topic `expressions`): a point round a circle is computed
+with the functions listed there, or placed by hand.
 
 A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` the runs are `a`,
 `b` and `ans`, and `runs.ans.text` fills `ans` from an entry until a verb sets it. A piece is a
@@ -139,7 +221,7 @@ seconds.
 
 | Verb | Kind | Does |
 |---|---|---|
-| `appear` | appear | From opacity 0; `rise`, `grow`, `place` (`split(ten[k])`), `text`. |
+| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from), `place` (`split(ten[k])`), `text`. |
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
 | `draw` | draw | A stroked element from progress 0 to 1. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
@@ -152,6 +234,20 @@ seconds.
 | `pulse` | appear | Grows to 1.15 and back. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
+
+`each` counts or numbers instances. It names a `target`, a `gap` in seconds, optional `let` locals
+evaluated with `i`, the instance's position from 0, in scope, and `then`, the actions run for each
+instance; an action in `then` without a `target` acts on the current instance. To number twelve
+repeated text elements 1 to 12, give the elements `"text": "numText"`, an entry holding nothing,
+and give each the number as it appears:
+
+```json
+"num": {"do": "each", "target": "nums", "gap": 0.2, "let": {"k": "i + 1"},
+        "then": {"put": {"do": "appear", "text": "numEntry"}}}
+```
+
+with the entry `"numEntry": {"text": "{k}", "visual": true}`. A step whose `when` is false for
+the problem is not among that problem's steps, so `show` of it names the steps the problem has.
 
 A duration a person asks for ("slower", "hold longer") is usually `dur`, `each`, `gap` or `hold`.
 
@@ -208,7 +304,7 @@ ratio is seen with margins at the range's ends. When the person is previewing a 
 within the frame the window shows, and check the shape with `show` and `ratio` set to the
 preset's nominal ratio. The format has no presets; `areas` stores them as ranges.
 
-Make an explainer for Square first, in one layout, and let the camera do the framing: a shot
+Make an explainer for Square first (topic `new`), in one layout, and let the camera do the framing: a shot
 that frames what a step is about serves most shapes. Add a layout for another shape only when
 the person asks for a different arrangement there, or when the drawing sets two things side by
 side or one above the other and one shape cannot hold both, as the subtraction example's `tall`
