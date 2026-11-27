@@ -87,8 +87,8 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   has any bearing on an app that plays it. The options bar therefore keeps two kinds of control
   apart: the Preview, Appearance and Arrangement controls sit in one group, with Preview labelled
   "not saved",
-  and the ticks for the shapes the explainer is made for, which change the document, stand at
-  the end of the row above the line "Saved to document — tells the player app which views it
+  and the ticks for the shapes and the appearances the explainer is made for, which change the
+  document, stand at the end of the row above the line "Saved to document — tells the player app which views it
   can use."
 - **Presets.** The studio names three ranges of the drawing area's ratio of width to height:
   **Tall**, 0.6 to 0.9; **Square**, 0.9 to 1.35; **Wide**, 1.35 to 2.2. Each has a nominal ratio,
@@ -108,6 +108,10 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   starts at the Mac's own appearance and follows the Mac until Light or Dark is chosen. The
   sidebar, the options bar and the findings keep the Mac's appearance. A colour that reads well
   on one sheet may not on the other, so both can be checked without changing the Mac's setting.
+  A document that is not made for the appearance chosen is drawn as a player draws it, in the
+  appearance it is made for, with the line and the controls, and the status line says why:
+  "Previewing Light; the explainer is made for dark only, so it is drawn dark." To see such a
+  document in the other appearance, tick it under "Made for", which is one step of Edit > Undo.
   The choice is the window's: it changes nothing in the document, is not one of Edit > Undo's
   steps, and is not kept from one launch to the next. In a narrow window the group takes two
   rows, and then three.
@@ -129,7 +133,28 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   layout is made, removed or given another rule; a different arrangement of the scene for one
   shape is a layout the agent adds to the document. A declared range that lies wholly outside
   the presets' ratios is kept. Unticking the last preset removes `areas`.
-- **The status line.** On its right, the status line names the layout the document is drawn in
+- **Made for: Light and Dark.** Two more ticks, after the shapes and a little apart from them,
+  say which appearances the explainer is made for (EXP-20). Each is ticked when the document is
+  made for that appearance; a document without `appearances` is made for both, so both are
+  ticked. Ticking or unticking one writes one patch through the same path as an agent's edit,
+  so it is checked, saved at once and one step of Edit > Undo. The patch writes `appearances`,
+  placed just before `areas` when it is new. Unticking leaves each colour's value for that
+  appearance in place, unchecked and not drawn, so that ticking again restores it; the
+  warnings about that appearance leave the findings. The last ticked appearance cannot be
+  unticked, since a document is made for at least one.
+- **A value the studio derives.** Ticking an appearance for which a colour of the document's own
+  has no value writes one for each such colour in the same patch, and the status line says so:
+  "Added light values for hour and minute; preview Light to see them." The value keeps the hue
+  and chroma of the colour's value in the other appearance, at a CIELAB lightness of 52 for
+  light or 72 for dark, and is then moved to the nearest colour that keeps 3:1 with the sheet
+  and with its own soft form and is 20 apart from `text`, `pencil` and `line` for every kind of
+  colour vision the reader checks. It is an aid at the moment of ticking: the value is written
+  to the document, where it is checked and can be changed like any other. A colour that names a
+  suggested colour has both values already. No player derives a value.
+- **The status line.** On its left, the status line says what an agent last asked, or, while
+  there is something to say of the document's appearances, that instead: the values a tick has
+  just added, until the document changes or another is shown, or why the preview is not drawn
+  in the appearance chosen. On its right, the status line names the layout the document is drawn in
   and the area shown: "Layout tall · pane 1.04", or "Layout tall · previewing Square at 1.10".
   When that area is not one the document is made for, the document is drawn as a player draws
   it, at the nearest declared shape, and the status line says so, such as "Layout tall · pane

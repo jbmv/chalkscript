@@ -184,3 +184,237 @@ struct StudioAppearanceTests {
         #expect(picture.has(DarkClock.hours) && picture.has(DarkClock.minutes))
     }
 }
+
+/// The Light and Dark ticks, the value a tick derives, the status line's account of an appearance
+/// the document is not made for, and the appearance of an agent's picture (EXP-20).
+@MainActor
+struct AppearanceTickTests {
+    private func saved(_ model: StudioModel) throws -> ExplainerDocument {
+        try #require(ExplainerDocument.read(contentsOf: model.document(named: DarkClock.name)!.url).document)
+    }
+
+    private func colourWarnings(_ model: StudioModel, on sheet: String) -> [DocumentFinding] {
+        (model.selected?.findings ?? []).filter { $0.code == .colour && $0.message.contains("on the \(sheet) sheet") }
+    }
+
+    private func undoing(_ model: StudioModel) -> UndoManager {
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        model.undoManager = undo
+        return undo
+    }
+
+    @Test func untickingLightRemovesItAndItsWarningsAndUndoRestoresBothInOneStep() throws {
+        // Colours bright enough to be pale on the light sheet, in a document that declares nothing.
+        let bright = try DarkClock.text(
+            appearances: nil, hours: ##"{"light": "#FF924A", "dark": "#FF924A", "cue": "the short hand"}"##,
+            minutes: ##"{"light": "#49F6FF", "dark": "#49F6FF", "cue": "the long hand"}"##)
+        let modelProject = try DarkClock.project(bright)
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        let undo = undoing(model)
+        let before = try saved(model)
+        #expect(model.madeForAppearances == [.light, .dark])
+        #expect(!colourWarnings(model, on: "light").isEmpty)
+        // Ticking what is ticked changes nothing.
+        #expect(model.setMadeFor(.light, true).isEmpty)
+        #expect(!undo.canUndo)
+
+        #expect(model.setMadeFor(.light, false).isEmpty)
+        var doc = try saved(model)
+        #expect(doc.json["appearances"] == (try DocJSON.parse(#"["dark"]"#)))
+        #expect(model.madeForAppearances == [.dark])
+        #expect(colourWarnings(model, on: "light").isEmpty)
+        #expect(doc.json["colours"] == before.json["colours"], "the light values stay, for ticking Light again")
+        // The declaration stands just before `areas`.
+        let keys = try #require(doc.json.object?.keys)
+        #expect(keys.firstIndex(of: "appearances").map { $0 + 1 } == keys.firstIndex(of: "areas"))
+        #expect(model.notice == nil)
+        #expect(undo.undoActionName == "Not made for Light")
+
+        // The last appearance stays.
+        #expect(model.setMadeFor(.dark, false).isEmpty)
+        #expect(try saved(model).shortHash == doc.shortHash)
+        #expect(model.madeForAppearances == [.dark])
+
+        undo.undo()
+        doc = try saved(model)
+        #expect(doc.shortHash == before.shortHash && !undo.canUndo)
+        #expect(model.madeForAppearances == [.light, .dark])
+        #expect(!colourWarnings(model, on: "light").isEmpty)
+
+        // Ticking Light again, where every colour has a light value, writes none.
+        undo.redo()
+        #expect(model.setMadeFor(.light, true).isEmpty)
+        #expect(try saved(model).json["colours"] == before.json["colours"])
+        #expect(model.notice == nil)
+    }
+
+    /// The rows of the guide's colour table: a name, its light value and its dark value.
+    private func guideColours() throws -> [(name: String, light: RGB, dark: RGB)] {
+        let guide = try String(contentsOf: repository.appendingPathComponent("docs/format/authoring-guide.md"), encoding: .utf8)
+        return guide.split(separator: "\n").compactMap { line in
+            let cells = line.split(separator: "|").map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " `")) }
+            guard cells.count == 3, let l = RGB(hexString: cells[1]), let d = RGB(hexString: cells[2]) else { return nil }
+            return (cells[0], l, d)
+        }
+    }
+
+    @Test func theValueDerivedForEachOfTheGuidesColoursIsTheOneMeasured() throws {
+        let rows = try guideColours()
+        #expect(rows.map(\.name) == ["orange", "teal", "green", "purple", "pink", "blue"])
+        // Measured apart from the engine, by the same rule: the given hue and chroma at lightness
+        // 72 for dark or 52 for light, then the nearest colour that passes.
+        let dark = ["#FF9033", "#4EBABA", "#5AC672", "#C07BFF", "#FF6FBA", "#6690FF"]
+        let light = ["#CF6C00", "#008A8A", "#159042", "#A25DDB", "#D54593", "#4278E4"]
+        for (k, row) in rows.enumerated() {
+            #expect(AppearanceTicks.derived(from: row.light, for: .dark)?.hex == dark[k], "\(row.name), dark from light")
+            #expect(AppearanceTicks.derived(from: row.dark, for: .light)?.hex == light[k], "\(row.name), light from dark")
+        }
+    }
+
+    @Test func tickingLightOnADarkOnlyDocumentAddsLightValuesInOnePatchAndSaysSo() throws {
+        let modelProject = try DarkClock.project(try DarkClock.text())
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        let undo = undoing(model)
+        let before = try saved(model)
+        model.previewAppearance = .dark
+        #expect(model.setMadeFor(.light, true).isEmpty)
+        let doc = try saved(model)
+        #expect(doc.json["appearances"] == (try DocJSON.parse(#"["light","dark"]"#)))
+        let hours = try #require(AppearanceTicks.derived(from: DarkClock.hours, for: .light))
+        let minutes = try #require(AppearanceTicks.derived(from: DarkClock.minutes, for: .light))
+        #expect(doc.colours["hours"] == DocumentColour(name: "hours", light: hours, dark: DarkClock.hours))
+        #expect(doc.colours["minutes"] == DocumentColour(name: "minutes", light: minutes, dark: DarkClock.minutes))
+        #expect(doc.json.value(at: "/colours/hours/cue") == before.json.value(at: "/colours/hours/cue"))
+        #expect(model.notice == "Added light values for hours and minutes; preview Light to see them.")
+        #expect(colourWarnings(model, on: "light").isEmpty, "a derived value is easy to see: \(model.selected?.findings ?? [])")
+        #expect(model.appearanceStatus == nil)
+
+        // Light is now drawn light, with the values added.
+        model.previewAppearance = .light
+        let player = try #require(model.player)
+        player.layOut(for: CGSize(width: 600, height: 545))
+        player.show(step: player.explainer.stepCount - 1)
+        while case .playing = player.phase { player.advance(by: 0.5) }
+        let screen = try DarkClock.screen(model, asked: .light)
+        #expect(screen.has(hours) && screen.has(minutes))
+        #expect(screen.count(DarkClock.palette(.light).sheet) > 10_000 && !screen.has(DarkClock.palette(.dark).sheet))
+
+        // One step of Undo takes back the declaration and the values, and the notice with them.
+        undo.undo()
+        #expect(try saved(model).shortHash == before.shortHash && !undo.canUndo)
+        #expect(model.notice == nil)
+        undo.redo()
+        #expect(model.notice != nil)
+        // The notice is the shown document's.
+        model.select(nil)
+        #expect(model.notice == nil)
+    }
+
+    @Test func aTickNamesTheAppearanceToPreviewOnlyWhenItIsNotTheOnePreviewed() throws {
+        let modelProject = try DarkClock.project(try DarkClock.text())
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        model.previewAppearance = .light
+        #expect(model.setMadeFor(.light, true).isEmpty)
+        #expect(model.notice == "Added light values for hours and minutes.")
+        #expect(AppearanceTicks.list(["a"]) == "a" && AppearanceTicks.list(["a", "b", "c"]) == "a, b and c")
+    }
+
+    @Test func aColourThatNamesASuggestedColourOrHasAValueIsLeftAsItIs() throws {
+        let text = try DarkClock.text(hours: ##"{"suggested": "orange", "cue": "the short hand"}"##,
+                                      minutes: ##"{"light": "#1B8A8A", "dark": "#49F6FF", "cue": "the long hand"}"##)
+        let modelProject = try DarkClock.project(text)
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        let before = try saved(model)
+        #expect(model.setMadeFor(.light, true).isEmpty)
+        #expect(try saved(model).json["colours"] == before.json["colours"])
+        #expect(model.notice == nil)
+    }
+
+    @Test func theStatusLineSaysWhyAPreviewIsNotDrawnInTheAppearanceChosen() throws {
+        let modelProject = try DarkClock.project(try DarkClock.text())
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        model.previewAppearance = .light
+        #expect(model.appearanceStatus == "Previewing Light; the explainer is made for dark only, so it is drawn dark.")
+        model.previewAppearance = .dark
+        #expect(model.appearanceStatus == nil)
+        let bothProject = try DarkClock.project(try String(contentsOf: DarkClock.fixture, encoding: .utf8))
+        defer { withExtendedLifetime(bothProject) {} }
+        let both = try DarkClock.model(bothProject)
+        both.previewAppearance = .light
+        #expect(both.appearanceStatus == nil && both.madeForAppearances == [.light, .dark])
+        let light = try DarkClock.model(try DarkClock.project(try DarkClock.text(
+            appearances: #"["light"]"#, hours: ##"{"light": "#CF6900", "cue": "the short hand"}"##,
+            minutes: ##"{"light": "#995DE1", "cue": "the long hand"}"##)))
+        light.previewAppearance = .dark
+        #expect(light.appearanceStatus == "Previewing Dark; the explainer is made for light only, so it is drawn light.")
+    }
+
+    private func show(_ model: StudioModel, _ more: String = "") throws -> ChalkScriptMCP.JSONValue {
+        try #require(model.respond(to: Studio.Method.show, params: try params(
+            #"{"doc":"\#(DarkClock.name)","step":"read","image":true\#(more)}"#), client: nil).result)
+    }
+
+    private func pixels(_ r: ChalkScriptMCP.JSONValue) throws -> Pixels {
+        try #require(r["image"]?["data"]?.string.flatMap { Data(base64Encoded: $0) }.flatMap(Pixels.init(png:)))
+    }
+
+    @Test func showReturnsAPictureInTheAppearanceAskedOrTheWindowsPreview() throws {
+        let both = try DarkClock.text(appearances: nil, hours: ##"{"light": "#CF6900", "dark": "#FCA200", "cue": "the short hand"}"##,
+                                      minutes: ##"{"light": "#995DE1", "dark": "#C67EFF", "cue": "the long hand"}"##)
+        let modelProject = try DarkClock.project(both)
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        let light = DarkClock.palette(.light), dark = DarkClock.palette(.dark)
+        // Without an appearance, the window's preview.
+        for preview in Appearance.allCases {
+            model.previewAppearance = preview
+            let r = try show(model)
+            #expect(r["appearance"]?.string == preview.rawValue && r["notMadeFor"] == nil)
+            let picture = try pixels(r)
+            #expect(picture.count(DarkClock.palette(preview).sheet) > 10_000)
+            #expect(picture.has(RGB(hex: preview.isDark ? 0xFCA200 : 0xCF6900)))
+        }
+        // With one, that appearance whatever the window previews.
+        model.previewAppearance = .light
+        let asked = try show(model, #","appearance":"dark""#)
+        #expect(asked["appearance"]?.string == "dark")
+        #expect(try pixels(asked).count(dark.sheet) > 10_000 && !(try pixels(asked).has(light.sheet)))
+        #expect(model.previewAppearance == .light, "the window's preview is not changed")
+        let other = try show(model, #","appearance":"light""#)
+        #expect(try pixels(other).count(light.sheet) > 10_000)
+
+        for bad in [#""sepia""#, "true", "1"] {
+            let reply = model.respond(to: Studio.Method.show, params: try params(
+                #"{"doc":"\#(DarkClock.name)","image":true,"appearance":\#(bad)}"#), client: nil)
+            #expect(reply.errorCode == Studio.RPCError.invalidParams && reply.errorMessage == "appearance must be light or dark.")
+        }
+    }
+
+    @Test func showSaysWhenTheDocumentIsNotMadeForTheAppearanceAsked() throws {
+        let modelProject = try DarkClock.project(try DarkClock.text())
+        defer { withExtendedLifetime(modelProject) {} }
+        let model = try DarkClock.model(modelProject)
+        let r = try show(model, #","appearance":"light""#)
+        #expect(r["appearance"]?.string == "dark" && r["notMadeFor"]?.string == "light")
+        #expect(try pixels(r).count(DarkClock.palette(.dark).sheet) > 10_000)
+        let made = try show(model, #","appearance":"dark""#)
+        #expect(made["notMadeFor"] == nil)
+    }
+
+    @Test func aNewExplainerIsMadeForBothAppearances() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let made = try model.createDocument(title: "Reading the clock")
+        #expect(made.document?.json["appearances"] == (try DocJSON.parse(#"["light","dark"]"#)))
+        #expect(model.madeForAppearances == [.light, .dark])
+        let keys = try #require(made.document?.json.object?.keys)
+        #expect(keys.firstIndex(of: "appearances").map { $0 + 1 } == keys.firstIndex(of: "areas"))
+        #expect(made.errors == 0 && made.warnings == 0)
+    }
+}

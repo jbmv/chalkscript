@@ -59,8 +59,8 @@ public enum DocumentStarter {
 
     /// The smallest complete document the reader accepts without findings, which starts in the
     /// Square range: one parameterless sample, one text element, one step and its line, and one
-    /// layout of 880 by 800 declared for ratios 0.9 to 1.35. Everything in it is a placeholder for
-    /// the author to replace.
+    /// layout of 880 by 800 declared for ratios 0.9 to 1.35. It declares both appearances.
+    /// Everything in it is a placeholder for the author to replace.
     static func starter(id: String, title: String) -> DocJSON {
         // The text is fixed, so a failure to parse it is a fault in this file.
         copy(of: try! DocJSON.parse(text), id: id, title: title)
@@ -83,6 +83,7 @@ public enum DocumentStarter {
       "sourceLocale": "en-US",
       "params": {},
       "samples": [{}],
+      "appearances": ["light", "dark"],
       "areas": [{ "layout": "stage", "ratio": [0.9, 1.35] }],
       "layouts": { "stage": { "size": [880, 800] } },
       "elements": {

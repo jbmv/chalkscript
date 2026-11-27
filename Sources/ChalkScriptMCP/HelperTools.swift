@@ -53,8 +53,8 @@ public enum HelperTools {
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"base":{"type":"string"},"ops":{"type":"array","items":{"type":"object"}}},"required":["doc","base","ops"],"additionalProperties":false}},
     {"name":"check","description":"List a document's errors and warnings, one per line, or only those under a JSON Pointer.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"pointer":{"type":"string"}},"required":["doc"],"additionalProperties":false}},
-    {"name":"show","description":"Play a step in the studio window: the first without step, the current problem without problem. Returns its timeline. With image, also a picture of its end, at ratio (width/height) or the window's shape.",
-     "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"step":{"type":"string"},"problem":{"type":"object"},"ratio":{"type":"number","exclusiveMinimum":0},"image":{"type":"boolean"}},"required":["doc"],"additionalProperties":false}},
+    {"name":"show","description":"Play a step in the studio window: the first without step, the current problem without problem. Returns its timeline. With image, also a picture of its end, at ratio (width/height) and appearance or the window's.",
+     "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"step":{"type":"string"},"problem":{"type":"object"},"ratio":{"type":"number","exclusiveMinimum":0},"appearance":{"enum":["light","dark"]},"image":{"type":"boolean"}},"required":["doc"],"additionalProperties":false}},
     {"name":"create","description":"Make a new explainer from a title and show it in the window. Its name comes from the title; name sets one, from copies a document. Returns the document to patch; read guide topic new first.",
      "inputSchema":{"type":"object","properties":{"title":{"type":"string"},"name":{"type":"string"},"from":{"type":"string"}},"required":["title"],"additionalProperties":false}},
     {"name":"guide","description":"Read the authoring guide to the explainer format and how to edit it. Without a topic, its list of topics.",
@@ -150,6 +150,12 @@ public enum HelperTools {
                     }
                     params["ratio"] = ratio
                 }
+                if let appearance = arguments["appearance"] {
+                    guard let a = appearance.string, a == "light" || a == "dark" else {
+                        throw ArgumentProblem(message: "The argument appearance must be light or dark.")
+                    }
+                    params["appearance"] = appearance
+                }
                 if let image = arguments["image"] {
                     guard image.bool != nil else { throw ArgumentProblem(message: "The argument image must be true or false.") }
                     params["image"] = image
@@ -205,6 +211,8 @@ public enum HelperTools {
             if result["image"] != nil, case .number(let ratio)? = result["ratio"] {
                 text += "; the picture is at ratio \(ratio)"
                 if let layout = result["layout"]?.string { text += " in the layout \(layout)" }
+                if let appearance = result["appearance"]?.string { text += ", drawn \(appearance)" }
+                if let other = result["notMadeFor"]?.string { text += "; the document is not made for \(other)" }
                 if case .number(let drawn)? = result["drawn"] {
                     text += "; \(ratio) is not a shape the document is made for; drawn at \(drawn) inside it"
                 }

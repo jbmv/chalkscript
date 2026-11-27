@@ -77,7 +77,8 @@ struct DocumentList: View {
 }
 
 /// The shown document: its options, its player and its findings. The player alone is drawn in
-/// the appearance chosen in the options bar; the rest of the window keeps the Mac's.
+/// the appearance chosen in the options bar, or, when the document is not made for that one, in
+/// the one it is made for (EXP-20); the rest of the window keeps the Mac's.
 struct DocumentPane: View {
     let model: StudioModel
     @State private var arrangement: ScreenArrangement = .automatic
@@ -125,6 +126,11 @@ struct DocumentPane: View {
             }
             StatusLine(model: model)
         }
+        // The model answers an agent's picture in the appearance previewed, and says in the
+        // status line when the document is not made for it.
+        .onChange(of: appearance.wrappedValue, initial: true) { _, now in
+            model.previewAppearance = now == .dark ? .dark : .light
+        }
     }
 }
 
@@ -148,9 +154,10 @@ struct RefusalView: View {
     }
 }
 
-/// What the agent last asked of the studio, whether the studio can be reached, and the layout
-/// the document is drawn in and the area it is shown at; when that area is not one the document
-/// is made for, it says so and offers to add it (EXP-17).
+/// What the agent last asked of the studio, or what the studio has to say of the document's
+/// appearances; whether the studio can be reached; and the layout the document is drawn in and
+/// the area it is shown at; when that area is not one the document is made for, it says so and
+/// offers to add it (EXP-17).
 struct StatusLine: View {
     let model: StudioModel
     @State private var refused: String?
@@ -160,8 +167,11 @@ struct StatusLine: View {
             Circle()
                 .fill(model.listening != nil ? Color.green : Color.orange)
                 .frame(width: 7, height: 7)
-            Text(refused ?? status).lineLimit(1).truncationMode(.tail)
+            Text(refused ?? said ?? status).lineLimit(1).truncationMode(.tail)
                 .foregroundStyle(refused == nil ? Color.secondary : Color.red)
+                .help(refused ?? said ?? status)
+                // What the studio says of the document is kept whole before the area is.
+                .layoutPriority(said == nil ? 0 : 1)
             Spacer(minLength: 0)
             if let area = model.areaStatus {
                 Text(area).lineLimit(1).truncationMode(.head)
@@ -175,6 +185,10 @@ struct StatusLine: View {
         .padding(.vertical, 5)
         .background(.bar)
     }
+
+    /// What the studio has to say of the shown document's appearances: the values a tick added,
+    /// or why the preview is not drawn in the appearance chosen (EXP-20).
+    private var said: String? { model.notice ?? model.appearanceStatus }
 
     private var status: String {
         if model.listening == nil {

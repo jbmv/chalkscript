@@ -234,6 +234,66 @@ public final class StudioModel {
         return apply(ops, to: shown.name, base: doc.shortHash, actionName: on ? "Made for \(preset.title)" : "Not made for \(preset.title)")
     }
 
+    // MARK: appearances
+
+    /// The appearance the window previews the player in (EXP-17), which the window sets. It is the
+    /// window's, not the document's, and is the appearance of a picture an agent asks for without
+    /// naming one.
+    public var previewAppearance: Appearance = .light
+
+    /// The appearances the shown document is made for (EXP-20): both for one that declares none.
+    public var madeForAppearances: Set<Appearance> { selected?.document?.appearances ?? Appearance.both }
+
+    /// What the last tick of an appearance added to a document, and the document as it then was.
+    private var added: (name: String, hash: String, text: String)?
+
+    /// What the status line says after a tick wrote values for colours that had none, until the
+    /// document changes again or another is shown.
+    public var notice: String? {
+        guard let added, let shown = selected, shown.name == added.name, shown.hash == added.hash else { return nil }
+        return added.text
+    }
+
+    /// What the status line says when the preview is of an appearance the shown document is not
+    /// made for: that it is drawn, as a player draws it, in the one it is made for. Nil otherwise.
+    public var appearanceStatus: String? {
+        guard player != nil, let doc = selected?.document else { return nil }
+        let use = Appearance.use(asked: previewAppearance, madeFor: doc.appearances)
+        guard use.differs else { return nil }
+        let (asked, used) = (use.asked.title, use.used.title.lowercased())
+        return "Previewing \(asked); the explainer is made for \(used) only, so it is drawn \(used)."
+    }
+
+    /// Makes the shown document made for `appearance`, or no longer so, as one patch through the
+    /// patch engine, so that it is checked, saved and one step of Undo. Making it so writes, in
+    /// the same patch, a value for each colour of the document's own that has none in that
+    /// appearance, which `notice` then names. The last appearance a document is made for stays.
+    /// Returns why the patch was refused, or nothing.
+    @discardableResult
+    public func setMadeFor(_ appearance: Appearance, _ on: Bool) -> [DocumentFinding] {
+        guard let shown = selected, let doc = shown.document else { return [] }
+        var appearances = doc.appearances
+        if on { appearances.insert(appearance) } else { appearances.remove(appearance) }
+        guard let change = AppearanceTicks.change(doc, madeFor: appearances) else { return [] }
+        let result = doc.patch(base: doc.shortHash, ops: change.ops)
+        guard result.applied else { return result.findings }
+        do {
+            try replace(shown.name, with: AppearanceTicks.placed(result.document.json),
+                        actionName: on ? "Made for \(appearance.title)" : "Not made for \(appearance.title)")
+        } catch {
+            return [.error(.patch, "", error.message)]
+        }
+        if !change.added.isEmpty, let hash = selected?.hash {
+            var text = change.added.map { "\($0.appearance.rawValue) values for \(AppearanceTicks.list($0.colours))" }.joined(separator: " and ")
+            text = "Added " + text
+            if let first = change.added.first, change.added.count == 1, first.appearance != previewAppearance {
+                text += "; preview \(first.appearance.title) to see them"
+            }
+            added = (shown.name, hash, text + ".")
+        }
+        return []
+    }
+
     private func apply(_ ops: [DocJSON], to name: String, base: String, actionName: String) -> [DocumentFinding] {
         do {
             let result = try patch(name, base: base, ops: ops, actionName: actionName)

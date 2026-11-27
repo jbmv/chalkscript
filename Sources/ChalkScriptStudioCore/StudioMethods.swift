@@ -106,6 +106,13 @@ extension StudioModel {
                 }
                 ratio = n
             }
+            var appearance: Appearance?
+            if let a = params["appearance"] {
+                guard let asked = a.string.flatMap(Appearance.init(rawValue:)) else {
+                    throw MethodError(code: Studio.RPCError.invalidParams, "appearance must be light or dark.")
+                }
+                appearance = asked
+            }
             let shown = try show(name, step: step, problem: problem)
             var reply: WireObject = ["step": .string(shown.step), "index": .int(shown.index + 1), "count": .int(shown.count)]
             if let e = shaped?.shown {
@@ -113,11 +120,15 @@ extension StudioModel {
             }
             // Without a ratio, the picture is at the shape the window is showing.
             let shape = ratio ?? shownRatio ?? Double(Scene.stage.width / Scene.stage.height)
-            if wantsImage, let e = shaped?.made, let picture = StepPicture.png(e, step: shown.index, ratio: shape) {
+            // Without an appearance, the picture is in the one the window is previewing.
+            if wantsImage, let e = shaped?.made,
+               let picture = StepPicture.png(e, step: shown.index, ratio: shape, appearance: appearance ?? previewAppearance) {
                 reply["image"] = .object(["data": .string(picture.png.base64EncodedString()), "mimeType": .string("image/png")])
                 reply["ratio"] = .number(Canonical.number((picture.ratio * 100).rounded() / 100))
                 reply["layout"] = .string(picture.layout)
                 if let drawn = picture.drawn { reply["drawn"] = .number(Canonical.number((drawn * 100).rounded() / 100)) }
+                reply["appearance"] = .string(picture.appearance.used.rawValue)
+                if picture.appearance.differs { reply["notMadeFor"] = .string(picture.appearance.asked.rawValue) }
             }
             note("show \(name) \(shown.step)", client: client)
             return .object(reply)

@@ -262,6 +262,8 @@ struct ToolCallTests {
         ("show", ["doc": .string("subtraction"), "image": .string("yes")] as JSONObject, "The argument image must be true or false."),
         ("show", ["doc": .string("subtraction"), "ratio": .number("0")] as JSONObject,
          "The argument ratio must be a number greater than 0, the area's width over its height."),
+        ("show", ["doc": .string("subtraction"), "appearance": .string("sepia")] as JSONObject,
+         "The argument appearance must be light or dark."),
     ])
     func badArgumentsAreToolErrorsAndReachNoStudio(_ name: String, _ arguments: JSONObject, _ message: String) throws {
         let studio = try RunningStudio()
@@ -528,5 +530,23 @@ struct ShowResultTextTests {
         let bare = try #require(HelperTools.render("show", .object(["step": .string("trade")])))
         #expect(bare.content.count == 1)
         #expect(bare.content[0]["text"]?.string == "showing trade")
+    }
+
+    @Test func thePicturesAppearanceIsNamedAndSoIsOneTheDocumentIsNotMadeFor() throws {
+        var result: JSONObject = ["step": .string("trade"), "index": .int(3), "count": .int(7),
+                                  "image": .object(["data": .string("iVBORw0KGgo="), "mimeType": .string("image/png")]),
+                                  "ratio": .number("1.1"), "layout": .string("stage"), "appearance": .string("dark")]
+        #expect(try #require(HelperTools.render("show", .object(result))).content[0]["text"]?.string
+            == "showing trade (3 of 7); the picture is at ratio 1.1 in the layout stage, drawn dark")
+        result["notMadeFor"] = .string("light")
+        #expect(try #require(HelperTools.render("show", .object(result))).content[0]["text"]?.string
+            == "showing trade (3 of 7); the picture is at ratio 1.1 in the layout stage, drawn dark; the document is not made for light")
+    }
+
+    @Test func showSendsTheAppearanceAsked() throws {
+        let prepared = try HelperTools.prepare("show", ["doc": .string("subtraction"), "appearance": .string("dark"), "image": .bool(true)]).get()
+        #expect(prepared.params["appearance"] == .string("dark"))
+        let none = try HelperTools.prepare("show", ["doc": .string("subtraction")]).get()
+        #expect(none.params["appearance"] == nil)
     }
 }
