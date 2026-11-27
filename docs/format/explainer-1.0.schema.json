@@ -667,6 +667,12 @@
         },
         "ink": {
           "$ref": "#/$defs/role"
+        },
+        "turn": {
+          "$ref": "#/$defs/number"
+        },
+        "pivot": {
+          "$ref": "#/$defs/point"
         }
       },
       "required": [
@@ -726,6 +732,12 @@
         },
         "ink": {
           "$ref": "#/$defs/role"
+        },
+        "turn": {
+          "$ref": "#/$defs/number"
+        },
+        "pivot": {
+          "$ref": "#/$defs/point"
         }
       },
       "required": [
@@ -877,6 +889,12 @@
         },
         "ink": {
           "$ref": "#/$defs/role"
+        },
+        "turn": {
+          "$ref": "#/$defs/number"
+        },
+        "pivot": {
+          "$ref": "#/$defs/point"
         }
       },
       "required": [
@@ -1721,6 +1739,48 @@
       ],
       "additionalProperties": false
     },
+    "action.turn": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "turn"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "wait": {
+          "const": "voice"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "to": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
     "action.say": {
       "type": "object",
       "properties": {
@@ -1822,6 +1882,7 @@
             "set",
             "tag",
             "pulse",
+            "turn",
             "say",
             "each"
           ]
@@ -1958,6 +2019,18 @@
           },
           "then": {
             "$ref": "#/$defs/action.pulse"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "turn"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/action.turn"
           }
         },
         {
@@ -2422,6 +2495,45 @@
       ],
       "additionalProperties": false
     },
+    "innerAction.turn": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "const": "turn"
+        },
+        "target": {
+          "$ref": "#/$defs/selection"
+        },
+        "at": {
+          "$ref": "#/$defs/number"
+        },
+        "dur": {
+          "$ref": "#/$defs/number"
+        },
+        "each": {
+          "$ref": "#/$defs/number"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "ease": {
+          "$ref": "#/$defs/name"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "mark": {
+          "type": "boolean"
+        },
+        "to": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
     "innerAction.say": {
       "type": "object",
       "properties": {
@@ -2472,6 +2584,7 @@
             "set",
             "tag",
             "pulse",
+            "turn",
             "say"
           ]
         }
@@ -2607,6 +2720,18 @@
           },
           "then": {
             "$ref": "#/$defs/innerAction.pulse"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "do": {
+                "const": "turn"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/innerAction.turn"
           }
         },
         {

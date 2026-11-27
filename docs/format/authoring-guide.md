@@ -119,7 +119,7 @@ the others are optional, and a document without them is complete.
 | Key | Holds |
 |---|---|
 | `format`, `version` | Required. `"chalkscript-explainer"`, `"1.0"`. Never edited. |
-| `requires` | Capabilities used, such as `["components.arithmetic"]` for tens, ones and counters. |
+| `requires` | Capabilities used: `components.arithmetic` for tens, ones and counters, and `drawing.turn` to turn a line, arrow or shape (topic `elements`). |
 | `id`, `title` | Required. Identity. `id` is the document's name as the studio made it, the same as its file's name; leave it alone in a patch. |
 | `about` | Information that changes nothing seen or heard. |
 | `sourceLocale` | Required. The locale written in, such as `en-US`. |
@@ -186,8 +186,8 @@ literal string inside one is in single quotes: `"bT > 0 ? str(bT) : ''"`.
 
 The drawing's units start at the top left, *y* down. The layout `stage` is `[1000, 540]` unless
 `layouts.stage.size` says otherwise. The core kinds are `text`, `line`, `arrow`, `outline` and
-`shape`. The only capability today is `components.arithmetic`, whose pieces are the last row of
-the table; draw anything else from the core kinds. Every element has `kind`, and may have `repeat` (count of
+`shape`. There are two capabilities: `components.arithmetic`, whose pieces are the last row of
+the table, and `drawing.turn` (below); draw anything else from the core kinds. Every element has `kind`, and may have `repeat` (count of
 instances; `i` is the index in other keys), `let` (below), `when`, `z`, `fixed` (outside the
 camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
 
@@ -232,6 +232,20 @@ fifth longer, need no approximation and no `each`:
 
 with the entry `"numEntry": {"text": "{k}", "visual": true}`; `{i}` is also shown, from 0.
 
+To make a hand come out from a hub and turn to an angle, list `drawing.turn` in `requires`, draw
+the hand pointing at twelve with no trigonometry, give it a `pivot` at the hub, and turn it in a
+step. The angle is in degrees clockwise from twelve, and the hand turns the way the numbers go: from
+0, `to: 150` is clockwise, and `to: -30` is anticlockwise. `grow: 0` on `appear` brings it out of the
+`pivot`. A `line`, `arrow` or `shape` turns; text and pieces do not. A `turn` on the element draws
+it at that angle with no motion.
+
+```json
+"hand": {"kind": "shape", "closed": true, "fill": "muted", "pivot": [440, 380], "start": {"opacity": 0},
+         "points": [[448, 380], [440, 155], [432, 380], [440, 405]]},
+"out":  {"do": "appear", "target": "hand", "grow": 0},
+"turn": {"do": "turn", "target": "hand", "to": "6 * minute", "at": "end(out)"}
+```
+
 A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` the runs are `a`,
 `b` and `ans`, and `runs.ans.text` fills `ans` from an entry until a verb sets it. A piece is a
 quantity: it is never faded below a ghost (0.28), and nothing removes an element.
@@ -254,17 +268,18 @@ line, not seconds guessed for it. The studio's voice is silent; only a speaking 
 
 | Verb | Kind | Does |
 |---|---|---|
-| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from), `place` (`split(ten[k])`), `text`. |
+| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one), `place` (`split(ten[k])`), `text`. |
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
 | `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. `line` and `arrow` have a fixed stroke width; for a thicker one use a filled `shape` with `points`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
 | `tint` | draw | A pale `ink` role behind a run or element; with `mark`, marks a digit. |
 | `move` | travel | To `to`, or back to its place; `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
 | `gather` | travel | From the positions of `from` to their places. |
+| `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
 | `look` | instant | Sets a piece's `value` look. |
 | `set` | instant | Sets a text or run to the entry `text`. |
 | `tag` | appear | A small card with the entry `text` over each target, which comes and goes. |
-| `pulse` | appear | Grows to 1.15 and back. |
+| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
 
@@ -419,4 +434,4 @@ the problem's values, a time, then the message.
 | `range` | A problem outside the parameters. |
 | `areas` | A warning that a declared range and a layout's `suits` disagree, that no entry names a layout, or that `suits` depends on the area's size; change the range or the layout's `suits`, or add the missing entry. |
 | `patch` | A refused patch: stale base, protected path, or an operation that failed. |
-| `capability` | A kind or verb used without its capability in `requires`, or one this studio does not draw. |
+| `capability` | A kind, verb or key used without its capability in `requires` (`components.arithmetic` or `drawing.turn`), or one this studio does not draw. |

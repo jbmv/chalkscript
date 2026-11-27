@@ -92,10 +92,11 @@ A player that does not implement every capability in `requires` must refuse the 
 each missing capability. It must not draw an approximation. A document that uses a kind, verb, key
 or function of a capability it does not list is in error.
 
-This version defines one capability, `components.arithmetic` (section 9.4). Later versions are
-expected to add capabilities for other kinds of drawing, such as parts placed in a projected space
-for exploded views, and imported vector artwork with named parts. Each will be listed in `requires`
-by the documents that use it, so it cannot change the meaning of a document that does not.
+This version defines two capabilities: `components.arithmetic` (section 9.4) and `drawing.turn`
+(section 9.5). Later versions are expected to add capabilities for other kinds of drawing, such as
+parts placed in a projected space for exploded views, and imported vector artwork with named parts.
+Each will be listed in `requires` by the documents that use it, so it cannot change the meaning of
+a document that does not.
 
 ### 2.4 Unknown keys and extensions
 
@@ -462,7 +463,8 @@ or the `from` of a line or arrow; moving an instance moves its whole geometry wi
 
 The *bounds* of an instance, used by `around`, parts, tags and the reading of marks, are: its
 `rect`; the box round the points of a line, arrow or shape; and for a text element, the point `at`
-with no size.
+with no size. The bounds of a line, arrow or shape that is turned (section 9.5) are the box round
+its turned geometry.
 
 ### 9.2 Text
 
@@ -551,6 +553,36 @@ instances; the *k*-th is placed at (*x* + 1, *y* + *k*·*h*/10 + 1).
 
 A piece must never be faded below a ghost (section 13.2). A piece is a quantity, and a quantity is
 never erased.
+
+### 9.5 The capability `drawing.turn`
+
+This capability adds two keys to lines, arrows and shapes, the verb `turn` (section 13.14), and the
+growing and pulsing of an instance about a point of its own. It is a capability because a player
+that ignored the keys would draw every turned instance at its unturned angle, which is a different
+drawing and not a plainer one. Text elements, outlines and pieces do not turn: a numeral stays
+upright, and a piece's drawing is fixed (section 9.4). A `turn` or `pivot` on one of them is a
+`schema` error.
+
+| Key | On | Holds |
+|---|---|---|
+| `turn` | `line`, `arrow`, `shape` | The angle, in degrees clockwise, at which each instance is drawn about its pivot, at its place. A number or an expression, with `i` and the element's `let` in scope. By default 0. |
+| `pivot` | `line`, `arrow`, `shape` | The point `[x, y]` that each instance turns about, at its place. By default its reference point (section 9.1): the `from` of a line or arrow, the first of a shape's `points`, or the top-left corner of a shape's `rect` or `ellipse`. |
+
+The geometry is given as it is at an angle of 0, and `turn` carries it to its angle. A hand that
+points at twelve is drawn pointing at twelve, and is turned to the time. An arrow's head follows
+the turned path: it points along the arrow's last segment as turned. An angle is not limited to one turn: 390
+is drawn as 30, and a turn from 0 to 390 makes a whole turn and 30 more (section 13.14).
+
+An instance's pivot moves with it: after `move`, it is turned, grown and pulsed about its moved
+pivot. An instance that has a `pivot` grows and pulses about it (sections 13.1 and 13.11), so that
+a filled hand comes out of its hub. One without a `pivot` grows and pulses about the middle of its
+bounds, as every other instance does.
+
+The *bounds* of a turned instance (section 9.1), which `around`, parts, the camera's extent and
+shots use, are the box round its geometry turned about its pivot, at its place: round the turned
+points of a line, arrow or shape with `points`; round the four turned corners of a `rect`; and
+round the turned ellipse of an `ellipse`. The angle is the instance's place's angle (section
+13.14): its `turn` until a step has left another.
 
 ## 10. Parts, shots and the camera
 
@@ -699,7 +731,8 @@ is a pointer, not a piece.
 Each verb belongs to a *kind*, which gives its default duration and curve from the style (section
 16): `appear`, `draw`, `fade` or `travel`, or *instant* (no duration and no curve). The defaults of
 the standard style are, in seconds and by curve name: `appear` 0.3 `linear`, `draw` 0.4 `easeOut`,
-`fade` 0.35 `linear`, `travel` 1.2 `easeInOut`.
+`fade` 0.35 `linear`, `travel` 1.2 `easeInOut`. The verb `turn` (section 13.14) is part of the
+capability `drawing.turn` and is of kind `travel`.
 
 For each verb, *start* is what an instance is at the action's start and *end* is what it is at the
 action's end. Anything not named is unchanged. There is no verb that removes an element.
@@ -711,7 +744,7 @@ Kind `appear`. Targets: elements and runs.
 | Parameter | Holds |
 |---|---|
 | `rise` | A distance: the instance starts this far below its position and rises to it. A negative distance starts it above its position, so that it drops in. |
-| `grow` | A scale from 0 to 1: the instance starts at this size about its middle and grows to its own. |
+| `grow` | A scale from 0 to 1: the instance starts at this size about its middle, or about its `pivot` when it has one (section 9.5), and grows to its own. |
 | `place` | A placement (such as `split(...)`, section 9.4): the instance's position becomes the placement's for it as the action starts. |
 | `text` | An entry: the instance (a text element or a run) takes this text as the action starts. |
 
@@ -791,7 +824,8 @@ end: no tag.
 ### 13.11 `pulse`
 
 Kind `appear`. Targets: elements. The instance grows to 1.15 times its size by *p* = 0.5 and
-returns to its size by *p* = 1. Start and end: unchanged.
+returns to its size by *p* = 1, about its middle, or about its `pivot` when it has one (section 9.5).
+Start and end: unchanged.
 
 ### 13.12 `say`
 
@@ -816,7 +850,24 @@ The actions of `then` must not be `each`, must not have `wait`, and must not use
 `end()`. An `each`'s end is the later of its start plus the sum of its gaps, and the end of the last
 action of any iteration.
 
-## 14. Narration and wording
+### 13.14 `turn`
+
+Part of the capability `drawing.turn` (section 9.5). Kind `travel`. Targets: lines, arrows and
+shapes; a text element, an outline or a piece is not a target.
+
+| Parameter | Holds |
+|---|---|
+| `to` | An angle in degrees. Without it, the instance turns back to its place's angle. |
+
+Start: at its current angle. At eased progress *p* its angle is the start angle plus *p* times the
+difference between `to` and the start angle, so the direction and the number of turns are given by
+the numbers: from 0, `to: 150` turns clockwise and `to: -30` turns anticlockwise, and from 150,
+`to: 360` carries on round to twelve. End: at `to`, which becomes its *place's angle*, as `move`'s
+`to` becomes its place. An instance's place's angle is its `turn` until a step in which a `turn`
+with `to` that is not a mark has run, and then that `to`; it is the angle the instance's place has
+as the step begins, so a turn without `to` in the same step returns to the angle before it.
+
+The turn is about the instance's pivot (section 9.5), which stays still while it turns.
 
 ### 14.1 Lines
 
@@ -1082,9 +1133,9 @@ A player is given the document, a problem, a wording, a locale, the playback opt
 of the drawing area, from which it finds the area it lays the document out for and chooses the
 layout (section 8). When that area is not the one it was given, it says so to whoever gave it.
 
-The *state* of the drawing is, for every instance, its opacity, progress, position, place, size,
-look, text, tint, and whether it is crossed out or ghosted, with the same for each cross-out; and
-the values of `vars`. The state before the first step is given by the elements' keys and `start`.
+The *state* of the drawing is, for every instance, its opacity, progress, position, place, angle,
+size, look, text, tint, and whether it is crossed out or ghosted, with the same for each cross-out;
+and the values of `vars`. The state before the first step is given by the elements' keys and `start`.
 A step plays from the state the previous step ended in, and its actions' selections are evaluated
 against that state as it begins.
 

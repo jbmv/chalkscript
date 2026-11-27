@@ -2,9 +2,12 @@
 
 The schema must accept both examples and refuse a document with an unknown verb, a missing
 required key, a value of the wrong type, or an `areas` entry that lacks `layout` or `ratio`, whose
-`ratio` is not two numbers above 0, an empty `areas`, or an element's `let` that is not an object of
-named values. It must accept an element's `let` of expressions. Each refused document is an example with one
-change, and the check also requires that the schema refuses it at the place that was changed.
+`ratio` is not two numbers above 0, an empty `areas`, an element's `let` that is not an object of
+named values, a `turn` or `pivot` on a text element, an outline or a piece, or a `turn` verb whose `to` is not a
+number. It must accept an element's `let` of expressions, and the keys `turn` and `pivot` of a line, arrow or
+shape and the verb `turn` (the capability `drawing.turn`). Each refused document is an example with one
+change, and the check also requires that the schema refuses it at the place that was changed. That a
+document that uses `drawing.turn` lists it in `requires` is a finding of the reader, not of the schema.
 
 Usage: python3 docs/format/check-schema.py
 
@@ -19,6 +22,8 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 SCHEMA = HERE / "explainer-1.0.schema.json"
+HAND = {"kind": "shape", "closed": True, "fill": "text", "pivot": [200, 300],
+        "points": [[210, 300], [200, 200], [190, 300], [200, 320]]}
 EXAMPLES = [HERE / "examples" / "subtraction.explainer", HERE / "examples" / "equal-groups.explainer"]
 
 ANNOTATIONS = {"$schema", "$defs", "title", "description"}
@@ -254,8 +259,32 @@ def main():
          lambda d: d["elements"]["dot"].update({"let": "i + 1"})),
         ("an element's let value that is not a value", "/elements/dot/let/k",
          lambda d: d["elements"]["dot"].update({"let": {"k": ["i"]}})),
+        ("a turn on a text element", "/elements/equation/turn",
+         lambda d: d["elements"]["equation"].update({"turn": 30})),
+        ("a pivot on a text element", "/elements/equation/pivot",
+         lambda d: d["elements"]["equation"].update({"pivot": [0, 0]})),
+        ("a turn on an outline", "/elements/ring/turn",
+         lambda d: d["elements"]["ring"].update({"turn": 30})),
+        ("a turn on a piece", "/elements/dot/turn",
+         lambda d: d["elements"]["dot"].update({"turn": 30})),
+        ("a turn that is not a number", "/elements/hand/turn",
+         lambda d: d["elements"].update({"hand": dict(HAND, turn=[30])})),
+        ("a pivot that is not a point", "/elements/hand/pivot",
+         lambda d: d["elements"].update({"hand": dict(HAND, pivot=[0])})),
+        ("a turn verb whose to is not a number", "/steps/same/actions/spin/to",
+         lambda d: d["steps"]["same"]["actions"].update({"spin": {"do": "turn", "target": "hand", "to": [90]}})),
     ]
     accepted = [
+        ("a turn and a pivot on a line, an arrow and a shape",
+         lambda d: d["elements"].update({
+             "hand": dict(HAND, turn="30 * 2", pivot=[200, "a"]),
+             "rule": {"kind": "line", "from": [0, 0], "to": [0, 10], "turn": 45},
+             "pointer": {"kind": "arrow", "ink": "multiply", "from": [0, 0], "to": [0, 10], "turn": 45, "pivot": [0, 5]}})),
+        ("the verb turn, with and without to, and inside an each",
+         lambda d: d["steps"]["same"]["actions"].update({
+             "spin": {"do": "turn", "target": "hand", "to": "a * 30", "dur": 1, "ease": "linear", "mark": True},
+             "back": {"do": "turn", "target": "hand", "at": "end(spin)"},
+             "each": {"do": "each", "target": "hand", "gap": 0.2, "then": {"spin": {"do": "turn", "to": 90}}}})),
         ("an element's let of expressions", lambda d: d["elements"]["dot"].update({"let": {"k": "i + 1", "r": "k * 2"}})),
     ]
     for what, change in accepted:

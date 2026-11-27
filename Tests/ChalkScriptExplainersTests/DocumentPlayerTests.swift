@@ -274,4 +274,286 @@ struct DocumentPlayerTests {
             }
         }
     }
+
+    // MARK: a clock whose hands turn to the time (the capability drawing.turn)
+
+    /// Setting a clock: the numerals, the fives and the sixty marks placed with `sin` and `cos`
+    /// and an element's `let`, and each hand drawn pointing at twelve, appearing from the hub and
+    /// turned to the time.
+    static let clock = ExplainerDocument.read(Data(ClockFixture.text.utf8)).document!
+
+    static func clock(_ hour: Int, _ minute: Int) throws -> DocumentExplainer {
+        try DocumentExplainer(document: clock, problem: ["hour": .number(Double(hour)), "minute": .number(Double(minute))])
+    }
+
+    @Test func theClockReadsWithNoFinding() {
+        #expect(Self.clock.findings.isEmpty, "\(Self.clock.findings)")
+        #expect(Self.clock.conforms)
+        // Without the capability, the same document is refused with a finding that names it.
+        let without = ClockFixture.text.replacingOccurrences(of: #""requires": ["drawing.turn"],"#, with: "")
+        let reading = ExplainerDocument.read(Data(without.utf8))
+        #expect(reading.findings.contains { $0.code == .capability && $0.message.contains("drawing.turn") }, "\(reading.findings)")
+    }
+
+    /// Where a hand's tip is, in the drawing, at a moment: the point the hand is drawn with at
+    /// twelve (its second point), through the turn the player draws it at.
+    func tip(_ scene: Scene, _ hand: String) throws -> CGPoint {
+        let element = try #require(scene.element(hand))
+        guard case let .shape(.lines(points, _), _) = element.kind else { throw ClockError.notAShape }
+        return points[1].applying(element.transform)
+    }
+
+    enum ClockError: Error { case notAShape }
+
+    /// Where trigonometry puts the tip of a hand of `length` turned `degrees` from twelve about the hub.
+    func expected(_ length: Double, _ degrees: Double) -> CGPoint {
+        CGPoint(x: 440 + length * sin(degrees * .pi / 180), y: 380 - length * cos(degrees * .pi / 180))
+    }
+
+    @Test(arguments: [(7, 25), (3, 0), (12, 3), (10, 42)])
+    func eachHandEndsWhereTrigonometryPutsItsTip(hour: Int, minute: Int) throws {
+        let e = try Self.clock(hour, minute)
+        let end = e.still(after: e.stepCount - 1)
+        let minuteTip = try tip(end, "minuteHand")
+        let hourTip = try tip(end, "hourHand")
+        let m = expected(225, Double(6 * minute))
+        let h = expected(150, Double(30 * (hour % 12)) + Double(minute) / 2)
+        #expect(hypot(minuteTip.x - m.x, minuteTip.y - m.y) < 1, "minute hand \(minuteTip), not \(m)")
+        #expect(hypot(hourTip.x - h.x, hourTip.y - h.y) < 1, "hour hand \(hourTip), not \(h)")
+        if (hour, minute) == (3, 0) {
+            // Three o'clock: the minute hand points at twelve, and the hour hand is level, at three.
+            #expect(hypot(minuteTip.x - 440, minuteTip.y - 155) < 1e-9 && hypot(hourTip.x - 590, hourTip.y - 380) < 1e-9)
+        }
+    }
+
+    /// Each hand appears at twelve and turns clockwise to the time, and stays there.
+    @Test(arguments: [(7, 25), (3, 0)])
+    func eachHandAppearsAtTwelveAndTurnsClockwiseToTheTime(hour: Int, minute: Int) throws {
+        let e = try Self.clock(hour, minute)
+        let steps = e.resolved.stepNames
+        let target = [("minuteHand", Double(6 * minute)), ("hourHand", Double(30 * (hour % 12)) + Double(minute) / 2)]
+        for (hand, degrees) in target {
+            let name = hand == "minuteHand" ? (minute == 0 ? "minuteTop" : "minute") : (minute == 0 ? "hourOn" : "hourPast")
+            let k = try #require(steps.firstIndex(of: name))
+            let turn = try #require(e.resolved.steps[k].actions.first { $0.name == "turn" })
+            let twelve = expected(hand == "minuteHand" ? 225 : 150, 0)
+            // Before the step the hand is not shown; when its appearing ends it is at twelve.
+            #expect(e.still(after: k - 1).element(hand)?.opacity == 0)
+            let appeared = e.scene(step: k, at: turn.start)
+            let t0 = try tip(appeared, hand)
+            #expect(appeared.element(hand)?.opacity == 1 && hypot(t0.x - twelve.x, t0.y - twelve.y) < 1e-9, "\(hand) at \(t0)")
+            // Then it turns clockwise, through angles that only grow, to the time.
+            var last = 0.0
+            for i in 0...10 {
+                let p = try tip(e.scene(step: k, at: turn.start + turn.duration * Double(i) / 10), hand)
+                var a = atan2(p.x - 440, 380 - p.y) * 180 / .pi
+                if a < -1e-9 { a += 360 }
+                #expect(a >= last - 1e-9, "\(hand) turned back at \(i)")
+                last = a
+            }
+            #expect(abs(last - degrees) < 1e-6, "\(hand) ends at \(last), not \(degrees)")
+        }
+    }
+}
+
+/// The clock document of `DocumentPlayerTests`.
+enum ClockFixture {
+    static let text = #"""
+{
+  "format": "chalkscript-explainer",
+  "version": "1.0",
+  "id": "setting-a-clock",
+  "title": "Setting a clock",
+  "sourceLocale": "en-US",
+  "params": {
+    "hour": { "max": 12, "min": 1, "type": "int" },
+    "minute": { "max": 59, "min": 0, "type": "int" }
+  },
+  "samples": [
+    { "hour": 7, "minute": 25 },
+    { "hour": 3, "minute": 0 },
+    { "hour": 10, "minute": 42 },
+    { "hour": 12, "minute": 3 },
+    { "hour": 1, "minute": 1 }
+  ],
+  "areas": [{ "layout": "stage", "ratio": [0.9, 1.35] }],
+  "layouts": { "stage": { "size": [880, 800] } },
+  "elements": {
+    "digital": {
+      "anchor": "middle",
+      "at": [440, 770],
+      "ink": "result",
+      "kind": "text",
+      "start": { "opacity": 0 },
+      "style": "total",
+      "text": "digitalText",
+      "z": 1
+    },
+    "fiveLabels": {
+      "anchor": "middle",
+      "at": ["440 + 318 * sin(30 * i + 30)", "388 - 318 * cos(30 * i + 30)"],
+      "ink": "muted",
+      "kind": "text",
+      "let": { "k": "5 * (i + 1)" },
+      "repeat": 11,
+      "size": 22,
+      "start": { "opacity": 0 },
+      "style": "label",
+      "text": "fiveEntry",
+      "z": 1
+    },
+    "hourHand": {
+      "closed": true,
+      "fill": "text",
+      "kind": "shape",
+      "pivot": [440, 380],
+      "points": [[452, 380], [440, 230], [428, 380], [440, 400]],
+      "start": { "opacity": 0 },
+      "z": 2
+    },
+    "hub": {
+      "ellipse": [428, 368, 24, 24],
+      "fill": "text",
+      "kind": "shape",
+      "start": { "opacity": 0 },
+      "z": 3
+    },
+    "minuteHand": {
+      "closed": true,
+      "fill": "muted",
+      "kind": "shape",
+      "pivot": [440, 380],
+      "points": [[448, 380], [440, 155], [432, 380], [440, 405]],
+      "start": { "opacity": 0 },
+      "z": 2
+    },
+    "nums": {
+      "anchor": "middle",
+      "at": ["440 + 222 * sin(30 * i + 30)", "394 - 222 * cos(30 * i + 30)"],
+      "kind": "text",
+      "let": { "k": "i + 1" },
+      "repeat": 12,
+      "size": 40,
+      "start": { "opacity": 0 },
+      "style": "body",
+      "text": "numEntry",
+      "z": 1
+    },
+    "rim": {
+      "ellipse": [160, 100, 560, 560],
+      "fill": "sheet",
+      "ink": "line",
+      "kind": "shape",
+      "start": { "opacity": 0 },
+      "z": 0
+    },
+    "ticks": {
+      "from": ["440 + r * sin(6 * i)", "380 - r * cos(6 * i)"],
+      "ink": "muted",
+      "kind": "line",
+      "let": { "r": "mod(i, 5) == 0 ? 254 : 268" },
+      "repeat": 60,
+      "start": { "opacity": 0 },
+      "style": "rule",
+      "to": ["440 + 280 * sin(6 * i)", "380 - 280 * cos(6 * i)"],
+      "z": 1
+    }
+  },
+  "sequence": [
+    "face",
+    "fives",
+    "ones",
+    "minute",
+    "minuteTop",
+    "hourPast",
+    "hourOn",
+    "done",
+    "doneOclock"
+  ],
+  "steps": {
+    "done": {
+      "actions": { "show": { "do": "appear", "rise": 20, "target": "digital" } },
+      "say": "done",
+      "when": "minute > 0"
+    },
+    "doneOclock": { "like": "done", "say": "doneOclock", "when": "minute == 0" },
+    "face": {
+      "actions": {
+        "hub": { "at": 0.4, "do": "appear", "dur": 0.6, "target": "hub" },
+        "num": { "at": 2, "do": "appear", "dur": 0.6, "each": 0.24, "target": "nums" },
+        "rim": { "do": "appear", "dur": 0.6, "grow": 0.9, "target": "rim" },
+        "ticks": { "at": 0.6, "do": "appear", "dur": 0.6, "each": 0.02, "target": "ticks" }
+      },
+      "say": "face"
+    },
+    "fives": {
+      "actions": {
+        "count": { "do": "appear", "each": 0.45, "rise": 10, "target": "first(fives, fiveLabels)" }
+      },
+      "say": "fives",
+      "when": "fives > 0"
+    },
+    "hourOn": { "like": "hourPast", "say": "hourOn", "when": "minute == 0" },
+    "hourPast": {
+      "actions": {
+        "hand": { "do": "appear", "dur": 0.6, "grow": 0, "target": "hourHand" },
+        "turn": { "at": "end(hand)", "do": "turn", "target": "hourHand", "to": "hA" }
+      },
+      "say": "hourPast",
+      "when": "minute > 0"
+    },
+    "minute": {
+      "actions": {
+        "hand": { "do": "appear", "dur": 0.6, "grow": 0, "target": "minuteHand" },
+        "turn": { "at": "end(hand)", "do": "turn", "target": "minuteHand", "to": "mA" }
+      },
+      "say": "minute",
+      "when": "minute > 0"
+    },
+    "minuteTop": { "like": "minute", "say": "minuteTop", "when": "minute == 0" },
+    "ones": {
+      "actions": {
+        "count": {
+          "do": "each",
+          "gap": 0.4,
+          "target": "slice(ticks, 5 * fives + 1, rem)",
+          "then": { "bump": { "do": "pulse" } }
+        }
+      },
+      "say": "ones",
+      "when": "rem > 0"
+    }
+  },
+  "wording": {
+    "en-US": {
+      "everyday": {
+        "done": "Now the clock reads {minutes:minute} past {hour}.",
+        "doneOclock": "Now the clock reads {hour} o'clock.",
+        "face": "This is a clock face. The numbers one to twelve go around the edge, and each small mark between them is one minute.",
+        "fives": "Each number stands for five minutes. Count by fives around the clock, starting from the top.",
+        "hourOn": "The short hand shows the hour. Point it right at the {hour}.",
+        "hourPast": "The short hand shows the hour. Point it between the {hour} and the next number, because it creeps forward as the minutes pass.",
+        "minute": "The long hand shows the minutes. Point it at the mark for {minutes:minute}.",
+        "minuteTop": "The long hand shows the minutes. For zero minutes, point it straight up at the twelve.",
+        "minutes": { "forms": { "one": "{n} minute", "other": "{n} minutes" } },
+        "ones": "Then count on by ones, mark by mark, until you reach {minute}."
+      },
+      "shared": {
+        "digitalText": { "text": "{hour}:{mTens}{mOnes}", "visual": true },
+        "fiveEntry": { "text": "{k}", "visual": true },
+        "numEntry": { "text": "{k}", "visual": true }
+      }
+    }
+  },
+  "requires": ["drawing.turn"],
+  "let": {
+    "fives": "div(minute, 5)",
+    "hA": "30 * mod(hour, 12) + minute / 2",
+    "mA": "6 * minute",
+    "mOnes": "mod(minute, 10)",
+    "mTens": "div(minute, 10)",
+    "rem": "mod(minute, 5)"
+  }
+}
+"""#
 }
