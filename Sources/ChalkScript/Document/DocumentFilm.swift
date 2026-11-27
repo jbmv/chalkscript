@@ -289,10 +289,10 @@ extension DocumentFilm {
         _ step: ResolvedStep, from before: [InstanceLook], instances: [DrawnInstance], index: [DocumentInstance: Int], style: DocumentStyle,
         _ r: Resolver
     ) throws(EvalFailure) -> [Track] {
-        var flat: [(action: ResolvedAction, locals: [String: DocumentValue])] = []
+        var flat: [(action: ResolvedAction, locals: [String: DocumentValue], inEach: Bool)] = []
         for a in step.actions {
-            flat.append((a, [:]))
-            for it in a.iterations { for x in it.actions { flat.append((x, it.locals)) } }
+            flat.append((a, [:], false))
+            for it in a.iterations { for x in it.actions { flat.append((x, it.locals, true)) } }
         }
         let order = flat.indices.sorted { flat[$0].action.start != flat[$1].action.start ? flat[$0].action.start < flat[$1].action.start : $0 < $1 }
         var out: [Track] = []
@@ -302,7 +302,7 @@ extension DocumentFilm {
             return s
         }
         for k in order {
-            let (a, locals) = flat[k]
+            let (a, locals, inEach) = flat[k]
             let p = a.path
             func refuse(_ message: String) -> EvalFailure { EvalFailure(path: p, message: message, code: .capability) }
             if a.verb == "say" || a.verb == "each" { continue }
@@ -317,8 +317,7 @@ extension DocumentFilm {
             if a.verb == "gather" { gatherFrom = try r.selection(p + "/from", locals: locals).instances }
             for (j, target) in a.targets.enumerated() {
                 guard let at = index[target.whole] else { continue }
-                var l = locals
-                l["i"] = .number(Double(j))
+                let l = Resolver.perInstance(locals, j, inEach: inEach)
                 let start = a.starts[j]
                 let effect: Track.Effect
                 switch a.verb {
@@ -396,7 +395,7 @@ extension DocumentFilm {
                     var dest = r.state[target.whole]?.angle ?? instances[at].start.turn
                     if r.doc.expressions[p + "/to"] != nil {
                         dest = try r.number(p + "/to", locals: l, what: "to")
-                        if !a.mark { r.newAngles.append((target.whole, dest)) }
+                        if !a.mark { r.newAngles.append((target.whole, dest, start)) }
                     }
                     effect = .turn(from: now.turn, to: dest)
                 default:

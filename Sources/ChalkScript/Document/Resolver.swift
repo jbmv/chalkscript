@@ -111,8 +111,9 @@ final class Resolver: EvaluationScope {
     var timing: Set<String> = []
     /// Places given by `move` with `to` in the step being resolved, applied when it ends.
     var newPlaces: [(DocumentInstance, CGPoint)] = []
-    /// Angles given by `turn` with `to` in the step being resolved, applied when it ends.
-    var newAngles: [(DocumentInstance, Double)] = []
+    /// Angles given by `turn` with `to` in the step being resolved, each with the moment it starts,
+    /// applied when the step ends in the order of those moments.
+    var newAngles: [(instance: DocumentInstance, angle: Double, start: Double)] = []
 
     // The style the document's timing defaults come from.
     var durations: [String: Double] = [:]
@@ -572,7 +573,7 @@ final class Resolver: EvaluationScope {
         case "fade":
             if o["to"] != .string("ghost") {
                 for (k, t) in targets.enumerated() {
-                    let to = try number(path + "/to", locals: locals.merging(["i": .number(Double(k))]) { $1 }, what: "to")
+                    let to = try number(path + "/to", locals: Self.perInstance(locals, k, inEach: iterationStart != nil), what: "to")
                     if !(0...1).contains(to) { throw EvalFailure(path: path + "/to", message: "to is \(Canonical.number(to)), not from 0 to 1") }
                     if to < Components.ghostOpacity - 1e-12, t.part == nil, element(t.element)?.isPiece == true {
                         throw EvalFailure(path: path + "/to", message: "\(t) is a piece, which is never faded below a ghost")
@@ -587,7 +588,7 @@ final class Resolver: EvaluationScope {
         case "move":
             if doc.expressions[path + "/to/0"] != nil {
                 for (k, t) in targets.enumerated() {
-                    let l = locals.merging(["i": .number(Double(k))]) { $1 }
+                    let l = Self.perInstance(locals, k, inEach: iterationStart != nil)
                     let x = try number(path + "/to/0", locals: l, what: "x")
                     let y = try number(path + "/to/1", locals: l, what: "y")
                     newPlaces.append((t.whole, CGPoint(x: x, y: y)))
@@ -597,7 +598,8 @@ final class Resolver: EvaluationScope {
             // A turn that is a mark leaves nothing, so it does not change the place's angle.
             if doc.expressions[path + "/to"] != nil && o["mark"] != .bool(true) {
                 for (k, t) in targets.enumerated() {
-                    newAngles.append((t.whole, try number(path + "/to", locals: locals.merging(["i": .number(Double(k))]) { $1 }, what: "to")))
+                    let angle = try number(path + "/to", locals: Self.perInstance(locals, k, inEach: iterationStart != nil), what: "to")
+                    newAngles.append((t.whole, angle, starts[k]))
                 }
             }
         case "each":
@@ -633,6 +635,13 @@ final class Resolver: EvaluationScope {
             name: name, path: path, verb: verb, targets: targets, start: start, duration: dur, stagger: each, reverse: reverse, fade: fade,
             end: end, ease: ease, mark: o["mark"] == .bool(true), waitsForVoice: o["wait"] == .string("voice"), starts: starts, text: text,
             iterations: iterations)
+    }
+
+    /// The locals a per-instance key of an action is evaluated with for the instance at position
+    /// `k` of its selection: `i` is that position, except in an `each`'s `then`, where it is the
+    /// iteration's own (section 13.13).
+    static func perInstance(_ locals: [String: DocumentValue], _ k: Int, inEach: Bool) -> [String: DocumentValue] {
+        inEach ? locals : locals.merging(["i": .number(Double(k))]) { $1 }
     }
 
     /// The step's actions, each after those its `at` names through `start()` and `end()`.
@@ -717,7 +726,10 @@ final class Resolver: EvaluationScope {
         }
         for (t, p) in newPlaces { state[t, default: InstanceState()].place = p }
         newPlaces = []
-        for (t, angle) in newAngles { state[t, default: InstanceState()].angle = angle }
+        // In the order of their moments, so that the last turn to start leaves its angle.
+        for (t, angle, _) in newAngles.enumerated().sorted(by: { ($0.element.start, $0.offset) < ($1.element.start, $1.offset) }).map(\.element) {
+            state[t, default: InstanceState()].angle = angle
+        }
         newAngles = []
     }
 }

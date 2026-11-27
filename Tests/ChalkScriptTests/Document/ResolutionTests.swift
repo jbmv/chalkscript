@@ -509,4 +509,46 @@ struct ResolutionTests {
         let down = points[1].applying(after.transform)
         #expect(abs(down.x - 200) < 1e-9 && abs(down.y - 400) < 1e-9, "\(down)")
     }
+
+    // MARK: several turns of one target in one step
+
+    /// Twelve small places, for a hand an `each` turns from one to the next.
+    static let places = #", "places": { "kind": "shape", "repeat": 12, "ellipse": ["20 * i", 0, 10, 10], "fill": "muted" }"#
+
+    /// A hand turned by an `each` over the first five of twelve places, with `i` in its `to`,
+    /// ends at the fifth place's angle, and passes through each place's angle on the way.
+    @Test func turnsInAnEachChainFromOnePlaceToTheNext() throws {
+        let each = #"""
+            { "count": { "do": "each", "gap": 1, "target": "first(5, places)",
+                "then": { "go": { "do": "turn", "target": "hand", "to": "30 * (i + 1)", "dur": 0.5, "ease": "linear" } } } }
+            """#
+        let e = try explainer(try handDocument(extra: ResolutionTests.places, steps: [each]))
+        equal(try angle(e.scene(step: 0, at: 0)), 0)
+        for place in 0..<5 {
+            let t = Double(place)
+            equal(try angle(e.scene(step: 0, at: t + 0.25)), Double(30 * place) + 15, "half-way to place \(place + 1)")
+            equal(try angle(e.scene(step: 0, at: t + 0.5)), Double(30 * (place + 1)), "at place \(place + 1)")
+        }
+        equal(try angle(e.still(after: 0)), 150, "the hand ends at the fifth place")
+        // Its place's angle is the last `to`, so a turn without `to` in the next step goes back to it.
+        let back = try explainer(try handDocument(extra: ResolutionTests.places, steps: [
+            each, #"{ "go": { "do": "turn", "target": "hand", "to": 10, "dur": 1 }, "back": { "do": "turn", "target": "hand", "at": "end(go)", "dur": 1 } }"#,
+        ]))
+        equal(try angle(back.scene(step: 1, at: 0)), 150, "the next step starts at the fifth place")
+        equal(try angle(back.still(after: 1)), 150)
+    }
+
+    /// Turns that are timed in the order opposite to the document's leave the angle of the last
+    /// to start, and each starts from the angle the one before left.
+    @Test func turnsOfOneTargetTakeEffectInTheOrderOfTheirTimes() throws {
+        let later = #"""
+            { "second": { "do": "turn", "target": "hand", "at": 2, "to": 50, "dur": 1, "ease": "linear" },
+              "first": { "do": "turn", "target": "hand", "at": 0, "to": 120, "dur": 1, "ease": "linear" } }
+            """#
+        let e = try explainer(try handDocument(steps: [later, #"{ "back": { "do": "turn", "target": "hand", "dur": 1, "ease": "linear" } }"#]))
+        equal(try angle(e.scene(step: 0, at: 1.5)), 120)
+        equal(try angle(e.scene(step: 0, at: 2.5)), 85, "the second turn starts from 120")
+        equal(try angle(e.still(after: 0)), 50)
+        equal(try angle(e.scene(step: 1, at: 0)), 50, "the place's angle is the last to start, not the last in the document")
+    }
 }
