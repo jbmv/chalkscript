@@ -15,6 +15,7 @@ public enum Studio {
         public static let check = "document.check"
         public static let show = "step.show"
         public static let guide = "guide.read"
+        public static let create = "document.create"
     }
 
     /// Error codes the studio answers with, beside JSON-RPC's own.

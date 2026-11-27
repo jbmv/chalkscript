@@ -53,8 +53,10 @@ public enum HelperTools {
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"base":{"type":"string"},"ops":{"type":"array","items":{"type":"object"}}},"required":["doc","base","ops"],"additionalProperties":false}},
     {"name":"check","description":"List a document's errors and warnings, one per line, or only those under a JSON Pointer.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"pointer":{"type":"string"}},"required":["doc"],"additionalProperties":false}},
-    {"name":"show","description":"Play a step in the studio window for the person to watch: the first step without step, a sample problem without problem. With image true, returns a picture of the step's end at ratio (width/height) or the window's shape.",
+    {"name":"show","description":"Play a step in the studio window for the person to watch: the first step without step, the current problem without problem. With image, returns a picture of the step's end at ratio (width/height) or the window's shape.",
      "inputSchema":{"type":"object","properties":{"doc":{"type":"string"},"step":{"type":"string"},"problem":{"type":"object"},"ratio":{"type":"number","exclusiveMinimum":0},"image":{"type":"boolean"}},"required":["doc"],"additionalProperties":false}},
+    {"name":"create","description":"Make a new explainer from a title and show it in the window. Its name comes from the title; name sets one, from copies a document. Returns the document to patch; read guide topic new first.",
+     "inputSchema":{"type":"object","properties":{"title":{"type":"string"},"name":{"type":"string"},"from":{"type":"string"}},"required":["title"],"additionalProperties":false}},
     {"name":"guide","description":"Read the authoring guide to the explainer format and how to edit it. Without a topic, its list of topics.",
      "inputSchema":{"type":"object","properties":{"topic":{"type":"string"}},"additionalProperties":false}}
     ]
@@ -130,6 +132,11 @@ public enum HelperTools {
                 params["doc"] = try string("doc", required: true)
                 params["pointer"] = try pointer()
                 return .success((Studio.Method.check, params))
+            case "create":
+                params["title"] = try string("title", required: true)
+                params["name"] = try string("name", required: false)
+                params["from"] = try string("from", required: false)
+                return .success((Studio.Method.create, params))
             case "show":
                 params["doc"] = try string("doc", required: true)
                 params["step"] = try string("step", required: false)
@@ -188,6 +195,9 @@ public enum HelperTools {
             let errors = result["errors"]?.int ?? findings.filter { $0.severity == "error" }.count
             let warnings = result["warnings"]?.int ?? findings.filter { $0.severity == "warning" }.count
             return .text((["hash \(hash); \(counts(errors, warnings))"] + lines(findings)).joined(separator: "\n"))
+        case "create":
+            guard let doc = result["doc"]?.string, let hash = result["hash"]?.string, let value = result["value"] else { return nil }
+            return .text("created \(doc); hash \(hash); \(counts(result["errors"]?.int, result["warnings"]?.int))\n\(value.serialized)")
         case "show":
             guard let step = result["step"]?.string else { return nil }
             var text = "showing \(step)"

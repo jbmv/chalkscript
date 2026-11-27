@@ -266,7 +266,7 @@ struct StudioMethodTests {
         #expect(!editing.contains("## document"))
         let unknown = model.respond(to: Studio.Method.guide, params: try params(#"{"topic":"nope"}"#), client: nil)
         #expect(unknown.errorCode == Studio.ErrorCode.failed)
-        #expect(unknown.errorMessage?.contains("editing, document") == true)
+        #expect(unknown.errorMessage?.contains("editing, new, document") == true)
     }
 
     @Test func anUnknownMethodIsMethodNotFound() throws {
@@ -457,5 +457,223 @@ struct ConnectCommandTests {
         #expect(ConnectCommand.claudeCode(helper: ConnectCommand.helper(inApp: app))
                 == "claude mcp add --transport stdio --scope user chalkscript -- '/Applications/ChalkScript Studio.app/Contents/Helpers/chalkscript-mcp'")
         #expect(ConnectCommand.quoted("it's") == #"'it'\''s'"#)
+    }
+}
+
+/// Making a document (section 6.8 of the helper protocol).
+@MainActor
+struct CreateDocumentTests {
+    func create(_ model: StudioModel, _ text: String) throws -> StudioReply {
+        model.respond(to: Studio.Method.create, params: try params(text), client: nil)
+    }
+
+    /// The names of the files in the project folder's top level.
+    func files(_ project: TemporaryProject) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: project.folder.path).sorted()
+    }
+
+    @Test func aTitleAloneWritesTheStarterAndShowsItSquare() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.defaultPreview = .ratio(Preset.square.nominal)
+        let reply = try create(model, #"{"title":"Reading the clock"}"#)
+        let r = try #require(reply.result)
+        #expect(r["doc"]?.string == "reading-the-clock")
+        #expect(r["errors"]?.int == 0 && r["warnings"]?.int == 0)
+        #expect(r["hash"]?.string == model.document(named: "reading-the-clock")?.hash)
+        #expect(r["value"]?["id"]?.string == "reading-the-clock")
+        #expect(r["value"]?.object?.keys.prefix(4) == ["format", "version", "id", "title"])
+        // The file is in the folder's top level, and the studio lists, selects and shows it without
+        // the watcher (the model was opened without one).
+        #expect(try files(project).contains("reading-the-clock.explainer"))
+        #expect(model.documents.map(\.name).contains("reading-the-clock"))
+        #expect(model.selectedName == "reading-the-clock")
+        #expect(model.preview == .ratio(1.1))
+        #expect(model.player != nil)
+        #expect(model.shownLayout == "stage")
+        #expect(model.stepNames == ["start"])
+        #expect(model.madeFor == [.square])
+    }
+
+    @Test func theStarterIsReadWithNoFindingsAndIsMadeForSquareAtItsOwnSize() throws {
+        let json = DocumentStarter.starter(id: "reading-the-clock", title: "Reading the clock")
+        let reading = ExplainerDocument.read(Data(DocumentText.format(json).utf8))
+        #expect(reading.findings.isEmpty, "\(reading.findings)")
+        let doc = try #require(reading.document)
+        #expect(DocumentCheck.findings(of: reading).isEmpty)
+        #expect(doc.json.value(at: "/id") == .string("reading-the-clock"))
+        #expect(doc.json.value(at: "/title") == .string("Reading the clock"))
+        #expect(doc.json.value(at: "/areas") == (try DocJSON.parse(#"[{"layout":"stage","ratio":[0.9,1.35]}]"#)))
+        #expect(doc.json.value(at: "/layouts") == (try DocJSON.parse(#"{"stage":{"size":[880,800]}}"#)))
+        #expect(Shapes.madeFor(doc) == [.square])
+        // Square's nominal ratio is the stage's own.
+        #expect(Preset.square.nominal == 880.0 / 800.0)
+        // A title with characters JSON escapes is kept as it is.
+        let odd = DocumentStarter.starter(id: "odd", title: "Say \"hi\" \\ there\n")
+        #expect(odd.value(at: "/title") == .string("Say \"hi\" \\ there\n"))
+        #expect(ExplainerDocument.read(Data(DocumentText.format(odd).utf8)).findings.isEmpty)
+    }
+
+    @Test func aNameIsMadeFromATitle() {
+        let cases: [(String, String)] = [
+            ("Reading the clock", "reading-the-clock"),
+            ("  Reading -- the  CLOCK!  ", "reading-the-clock"),
+            ("Café au lait", "caf-au-lait"),
+            ("2 + 3 = 5", "explainer-2-3-5"),
+            ("!!!", "explainer"),
+            ("日本語", "explainer"),
+            (String(repeating: "a", count: 80), String(repeating: "a", count: 64)),
+            (String(repeating: "ab ", count: 30), String(String(repeating: "ab-", count: 30).prefix(64))),
+            // A cut that ends on a hyphen drops it.
+            (String(repeating: "a", count: 63) + " b", String(repeating: "a", count: 63)),
+        ]
+        for (title, name) in cases {
+            #expect(DocumentStarter.name(forTitle: title) == name, "\(title)")
+            #expect(DocumentStarter.isValid(name: DocumentStarter.name(forTitle: title)), "\(title)")
+        }
+        #expect(DocumentStarter.available("clock") { $0 == "clock" || $0 == "clock-2" } == "clock-3")
+        // The suffix keeps the whole within 64 characters.
+        let long = String(repeating: "a", count: 64)
+        #expect(DocumentStarter.available(long) { $0 == long }.count == 64)
+        #expect(DocumentStarter.available(long) { $0 == long } == String(repeating: "a", count: 62) + "-2")
+        for name in ["a", "reading-the-clock", "a1-b2"] { #expect(DocumentStarter.isValid(name: name)) }
+        for name in ["", "Clock", "1a", "-a", "a_b", "a b", "é", String(repeating: "a", count: 65)] {
+            #expect(!DocumentStarter.isValid(name: name), "\(name)")
+        }
+    }
+
+    @Test func aSecondCreateWithTheSameTitleEndsInTwo() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        #expect(try create(model, #"{"title":"Reading the clock"}"#).result?["doc"]?.string == "reading-the-clock")
+        let second = try create(model, #"{"title":"Reading the clock"}"#).result
+        #expect(second?["doc"]?.string == "reading-the-clock-2")
+        #expect(second?["value"]?["id"]?.string == "reading-the-clock-2")
+        #expect(second?["value"]?["title"]?.string == "Reading the clock")
+        #expect(try create(model, #"{"title":"Reading the clock"}"#).result?["doc"]?.string == "reading-the-clock-3")
+        // A file the studio has not read yet takes its name too.
+        try "{}".write(to: project.url("fresh"), atomically: true, encoding: .utf8)
+        #expect(try create(model, #"{"title":"Fresh"}"#).result?["doc"]?.string == "fresh-2")
+    }
+
+    @Test func aNameThatIsTakenOrMalformedIsErrorSixAndWritesNoFile() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let before = try files(project)
+        let hashes = model.documents.map(\.hash)
+        let taken = try create(model, #"{"title":"Again","name":"subtraction"}"#)
+        #expect(taken.errorCode == Studio.ErrorCode.failed)
+        #expect(taken.errorMessage?.contains("subtraction") == true)
+        #expect(model.document(named: "subtraction")?.title == "Two-digit subtraction by trading a ten")
+        // One the folder holds that the studio has not read.
+        try "{}".write(to: project.url("unread"), atomically: true, encoding: .utf8)
+        let unread = try files(project)
+        #expect(try create(model, #"{"title":"Again","name":"unread"}"#).errorCode == Studio.ErrorCode.failed)
+        #expect(try String(contentsOf: project.url("unread"), encoding: .utf8) == "{}")
+        for name in ["Clock", "1clock", "a_b", "", "-x", String(repeating: "a", count: 65)] {
+            let reply = try create(model, #"{"title":"Again","name":\#(ChalkScriptMCP.JSONValue.string(name).serialized)}"#)
+            #expect(reply.errorCode == Studio.ErrorCode.failed, "\(name)")
+        }
+        #expect(try files(project) == unread)
+        #expect(Set(unread).subtracting(before) == ["unread.explainer"])
+        #expect(model.documents.filter { $0.name != "unread" }.map(\.hash) == hashes)
+        // A valid name is used as given.
+        #expect(try create(model, #"{"title":"Again","name":"my-own-name"}"#).result?["doc"]?.string == "my-own-name")
+    }
+
+    @Test func aMissingOrEmptyTitleIsInvalidParams() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let before = try files(project)
+        for text in [#"{}"#, #"{"title":""}"#, #"{"title":"   "}"#, #"{"title":3}"#, #"{"title":"A","name":3}"#, #"{"title":"A","from":false}"#] {
+            #expect(try create(model, text).errorCode == Studio.RPCError.invalidParams, "\(text)")
+        }
+        #expect(try files(project) == before)
+    }
+
+    @Test func noProjectIsErrorTwo() throws {
+        let model = StudioModel(guide: AuthoringGuide(text: ""), drivesPlayer: false)
+        #expect(model.respond(to: Studio.Method.create, params: try params(#"{"title":"A"}"#), client: nil).errorCode
+                == Studio.ErrorCode.noProject)
+    }
+
+    @Test func fromMakesACopyWithItsOwnIdAndTitleThatPlaysAsTheOriginalDoes() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let original = try Data(contentsOf: project.url("subtraction"))
+        model.select("subtraction")
+        let steps = model.stepNames
+        let originalJSON = try #require(model.document(named: "subtraction")?.document?.json)
+        let r = try #require(try create(model, #"{"title":"Adding tens","from":"subtraction"}"#).result)
+        #expect(r["doc"]?.string == "adding-tens")
+        #expect(r["value"]?["id"]?.string == "adding-tens")
+        #expect(r["value"]?["title"]?.string == "Adding tens")
+        #expect(model.selectedName == "adding-tens")
+        #expect(!steps.isEmpty)
+        #expect(model.stepNames == steps)
+        // Everything but the two keys is the original's, in its order.
+        var copy = try #require(model.document(named: "adding-tens")?.document?.json.object)
+        var source = try #require(originalJSON.object)
+        #expect(copy.keys == source.keys)
+        for key in ["id", "title"] { copy[key] = nil; source[key] = nil }
+        #expect(copy == source)
+        #expect(model.document(named: "adding-tens")?.errors == 0)
+        // The original's file and the studio's reading of it are unchanged.
+        #expect(try Data(contentsOf: project.url("subtraction")) == original)
+        #expect(model.document(named: "subtraction")?.document?.json == originalJSON)
+        #expect(model.document(named: "subtraction")?.title == "Two-digit subtraction by trading a ten")
+        // A copy takes a name given too, and a document in a folder can be copied.
+        #expect(try create(model, #"{"title":"Again","from":"subtraction","name":"again"}"#).result?["doc"]?.string == "again")
+    }
+
+    @Test func aFromThatNamesNoDocumentIsErrorThreeAndWritesNoFile() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let before = try files(project)
+        let reply = try create(model, #"{"title":"Adding tens","from":"nonesuch"}"#)
+        #expect(reply.errorCode == Studio.ErrorCode.noDocument)
+        #expect(try files(project) == before)
+        // A document that cannot be read cannot be copied; that is error 6.
+        try "not json".write(to: project.url("broken"), atomically: true, encoding: .utf8)
+        let broken = try create(model, #"{"title":"Adding tens","from":"broken"}"#)
+        #expect(broken.errorCode == Studio.ErrorCode.failed)
+        #expect(!(try files(project)).contains("adding-tens.explainer"))
+    }
+
+    @Test func theGuidesFirstPatchIsAcceptedByANewDocumentAndPlays() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let guide = try #require(model.respond(to: Studio.Method.guide, params: try params(#"{"topic":"new"}"#), client: nil).result?["text"]?.string)
+        let fence = "```json\n"
+        let start = try #require(guide.range(of: fence)).upperBound
+        let end = try #require(guide.range(of: "\n```", range: start..<guide.endIndex)).lowerBound
+        let ops = try #require(try DocJSON.parse(String(guide[start..<end])).array)
+        let made = try model.createDocument(title: "Counting dots")
+        let result = try model.patch(made.name, base: made.hash, ops: ops)
+        #expect(result.applied, "\(result.findings)")
+        let after = try #require(model.document(named: made.name))
+        #expect(after.errors == 0)
+        #expect(after.warnings == 0)
+        #expect(model.stepNames == ["dots", "count", "total"])
+        #expect(model.player != nil)
+    }
+
+    @Test func theWindowCanCallItWithATitleAlone() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let made = try model.createDocument(title: "Counting up")
+        #expect(made.name == "counting-up")
+        #expect(model.selectedName == "counting-up")
+        #expect(throws: (any Error).self) { try model.createDocument(title: "") }
+    }
+
+    @Test func theFirstDocumentOfAnEmptyProjectIsShownAtTheDefaultPreview() throws {
+        let project = try TemporaryProject(examples: [])
+        let model = try openModel(project)
+        model.defaultPreview = .ratio(Preset.square.nominal)
+        try model.createDocument(title: "Alpha")
+        #expect(model.selectedName == "alpha")
+        #expect(model.preview == .ratio(1.1))
+        #expect(model.player != nil)
     }
 }

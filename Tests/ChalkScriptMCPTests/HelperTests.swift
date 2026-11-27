@@ -22,7 +22,7 @@ struct InitialisationTests {
         helper.send(#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#)
 
         let list = helper.request("tools/list")
-        #expect(list?["result"]?["tools"]?.array?.count == 6)
+        #expect(list?["result"]?["tools"]?.array?.count == 7)
         #expect(list?["result"]?["resultType"] == nil)
     }
 
@@ -52,7 +52,7 @@ struct InitialisationTests {
 
         let list = try #require(helper.modern("tools/list")?["result"])
         #expect(list["resultType"] == .string("complete"))
-        #expect(list["tools"]?.array?.compactMap { $0["name"]?.string } == ["list", "read", "edit", "check", "show", "guide"])
+        #expect(list["tools"]?.array?.compactMap { $0["name"]?.string } == ["list", "read", "edit", "check", "show", "create", "guide"])
     }
 
     @Test func modernRequestForAnUnsupportedRevisionIsRefusedWithTheSupportedOnes() throws {
@@ -196,6 +196,29 @@ struct ToolCallTests {
                 + "0.75 is not a shape the document is made for; drawn at 0.9 inside it")
     }
 
+    @Test func createForwardsItsArgumentsAndWritesTheNewDocumentAfterItsHash() throws {
+        let handler = CreatingStudio()
+        let path = temporarySocketPath()
+        let listener = StudioListener(path: path, app: Implementation(name: "stand-in", version: "1"), handler: handler)
+        try listener.start()
+        defer { listener.stop() }
+        let helper = try HelperProcess(socket: path)
+        let call = helper.tool("create", ["title": .string("Reading the clock"), "from": .string("subtraction")])
+        #expect(!call.isError)
+        #expect(call.text == "created reading-the-clock; hash cccccccccccc; ok\n"
+                + #"{"id":"reading-the-clock","title":"Reading the clock","steps":{}}"#)
+        let request = try #require(handler.requests.last)
+        #expect(request.method == "document.create")
+        #expect(request.params["title"] == .string("Reading the clock"))
+        #expect(request.params["from"] == .string("subtraction"))
+        #expect(request.params["name"] == nil)
+        // The name is passed as given, and a studio's refusal is the tool's error.
+        let named = helper.tool("create", ["title": .string("Reading the clock"), "name": .string("Clock")])
+        #expect(named.isError)
+        #expect(named.text == "The name Clock is not valid.")
+        #expect(handler.requests.last?.params["name"] == .string("Clock"))
+    }
+
     @Test func guideIsFetchedFromTheStudio() throws {
         let studio = try RunningStudio()
         let helper = try HelperProcess(socket: studio.path)
@@ -232,6 +255,10 @@ struct ToolCallTests {
          "The argument ops is required and must be an array of operations."),
         ("edit", ["doc": .string("subtraction"), "base": .string("x"), "ops": .array([.int(1)])] as JSONObject,
          "Each operation in ops must be an object."),
+        ("create", [:] as JSONObject, "The argument title is required."),
+        ("create", ["title": .string("")] as JSONObject, "The argument title must not be empty."),
+        ("create", ["title": .string("A"), "name": .int(1)] as JSONObject, "The argument name must be a string."),
+        ("create", ["title": .string("A"), "from": .bool(true)] as JSONObject, "The argument from must be a string."),
         ("show", ["doc": .string("subtraction"), "image": .string("yes")] as JSONObject, "The argument image must be true or false."),
         ("show", ["doc": .string("subtraction"), "ratio": .number("0")] as JSONObject,
          "The argument ratio must be a number greater than 0, the area's width over its height."),
@@ -463,5 +490,27 @@ struct StudioListenerTests {
         listener.stop()
         #expect(!FileManager.default.fileExists(atPath: path))
         #expect(StudioClient(socketPath: path).call(Studio.Method.list) == .notRunning)
+    }
+}
+
+/// A stand-in for the studio that answers `document.create` only: it refuses a name that is not
+/// lower case and otherwise reports a document made.
+final class CreatingStudio: StudioHandler, @unchecked Sendable {
+    private let lock = NSLock()
+    private var received: [(method: String, params: JSONObject)] = []
+
+    var requests: [(method: String, params: JSONObject)] { lock.withLock { received } }
+
+    func respond(to method: String, params: JSONObject, client: Implementation?) -> StudioReply {
+        lock.withLock { received.append((method, params)) }
+        guard method == Studio.Method.create else {
+            return .error(code: Studio.RPCError.methodNotFound, message: "No method \(method).")
+        }
+        if let name = params["name"]?.string, name != name.lowercased() {
+            return .error(code: Studio.ErrorCode.failed, message: "The name \(name) is not valid.")
+        }
+        let value = try! JSONValue.parse(#"{"id":"reading-the-clock","title":"Reading the clock","steps":{}}"#)
+        return .result(.object(["doc": .string("reading-the-clock"), "hash": .string("cccccccccccc"),
+                                "errors": .int(0), "warnings": .int(0), "value": value]))
     }
 }

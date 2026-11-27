@@ -314,6 +314,79 @@ public final class StudioModel {
         return d
     }
 
+    // MARK: making a document
+
+    /// Makes a document in the project folder's top level, reads the folder again at once rather
+    /// than waiting for the watcher, and selects and plays its first step (section 6.8 of the
+    /// helper protocol).
+    ///
+    /// - Parameters:
+    ///   - title: The new document's `title`; the name and `id` are made from it.
+    ///   - name: The name to give it instead; refused if it is taken or is not a valid `id`.
+    ///   - from: The name of a document of the project to copy, with its own `id` and `title`;
+    ///     without it, the studio's starter.
+    /// - Returns: The new document, as read back from its file.
+    /// - Throws: An error whose description says why nothing was made.
+    @discardableResult
+    public func createDocument(title: String, name: String? = nil, from source: String? = nil) throws -> StudioDocument {
+        try make(title: title, name: name, from: source)
+    }
+
+    func make(title: String, name requested: String?, from source: String?) throws(MethodError) -> StudioDocument {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw MethodError(code: Studio.RPCError.invalidParams, "The parameter title must not be empty.")
+        }
+        guard let folder else { throw MethodError.noProject }
+        // Another program may have added files since the folder was last read.
+        reload()
+        let copied: DocJSON?
+        if let source {
+            let original = try existing(source)
+            guard let doc = original.document else { throw MethodError.unreadable(original) }
+            copied = doc.json
+        } else {
+            copied = nil
+        }
+        func target(_ name: String) -> URL { folder.appendingPathComponent(name + "." + ProjectFolder.fileExtension) }
+        func isTaken(_ name: String) -> Bool {
+            documents.contains { $0.name == name } || FileManager.default.fileExists(atPath: target(name).path)
+        }
+        let name: String
+        if let requested {
+            guard DocumentStarter.isValid(name: requested) else {
+                throw MethodError(code: Studio.ErrorCode.failed,
+                                  "The name \(requested) is not valid; a name is lower case letters, digits and hyphens, "
+                                  + "begins with a letter and has at most 64 characters, as in reading-the-clock.")
+            }
+            guard !isTaken(requested) else {
+                throw MethodError(code: Studio.ErrorCode.failed, "A document named \(requested) is already in the project.")
+            }
+            name = requested
+        } else {
+            name = DocumentStarter.available(DocumentStarter.name(forTitle: title), isTaken: isTaken)
+        }
+        let json = copied.map { DocumentStarter.copy(of: $0, id: name, title: title) }
+            ?? DocumentStarter.starter(id: name, title: title)
+        do {
+            try Data(DocumentText.format(json).utf8).write(to: target(name), options: .atomic)
+        } catch {
+            throw MethodError(code: Studio.ErrorCode.failed, "The studio could not save \(name): \(error.localizedDescription)")
+        }
+        reload()
+        guard let made = document(named: name) else {
+            throw MethodError(code: Studio.ErrorCode.failed, "The studio saved \(name) but could not find it in the project folder.")
+        }
+        if selectedName == name {
+            // The folder's first document is selected when none was, and then keeps the old preview.
+            preview = defaultPreview
+            rebuild(keepStep: false)
+        } else {
+            select(name)
+        }
+        player?.show(step: 0)
+        return made
+    }
+
     // MARK: showing a step
 
     /// Shows the document and plays a step of it (section 6.6). Returns the step's name and
@@ -390,7 +463,9 @@ public final class StudioModel {
 
 /// A request the studio cannot carry out, as an error code of the helper protocol and one
 /// sentence for the agent.
-struct MethodError: Error {
+struct MethodError: Error, LocalizedError {
+    var errorDescription: String? { message }
+
     var code: Int
     var message: String
 

@@ -119,6 +119,19 @@ extension StudioModel {
             note("show \(name) \(shown.step)", client: client)
             return .object(reply)
 
+        case Studio.Method.create:
+            let title = try Self.string(params, "title")
+            let name = try Self.string(params, "name", required: false)
+            let source = try Self.string(params, "from", required: false)
+            let made = try make(title: title, name: name, from: source)
+            guard let doc = made.document else { throw MethodError.unreadable(made) }
+            note("create \(made.name)", client: client)
+            return .object([
+                "doc": .string(made.name), "hash": .string(made.hash),
+                "errors": .int(made.errors), "warnings": .int(made.warnings),
+                "value": Bridge.wire(doc.json),
+            ])
+
         case Studio.Method.guide:
             let topic = try Self.string(params, "topic", required: false)
             note("guide \(topic ?? "")", client: client)

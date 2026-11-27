@@ -37,7 +37,11 @@
     },
     {
       "name": "show",
-      "description": "Play a step in the studio window for the person to watch: the first step without step, a sample problem without problem. With image true, returns a picture of the step's end at ratio (width/height) or the window's shape."
+      "description": "Play a step in the studio window for the person to watch: the first step without step, the current problem without problem. With image, returns a picture of the step's end at ratio (width/height) or the window's shape."
+    },
+    {
+      "name": "create",
+      "description": "Make a new explainer from a title and show it in the window. Its name comes from the title; name sets one, from copies a document. Returns the document to patch; read guide topic new first."
     },
     {
       "name": "guide",
