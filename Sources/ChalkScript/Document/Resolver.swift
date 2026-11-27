@@ -319,6 +319,17 @@ final class Resolver: EvaluationScope {
         return n
     }
 
+    /// The locals one instance's keys and entries are evaluated with (section 6.5): `i` when its
+    /// element repeats, and the values of the element's `let` for this instance, each after the
+    /// values it names.
+    func instanceLocals(_ instance: DocumentInstance) throws(EvalFailure) -> [String: DocumentValue] {
+        var l: [String: DocumentValue] = instance.index.map { ["i": .number(Double($0))] } ?? [:]
+        guard let lets = root["elements"]?[instance.element]?["let"]?.object else { return l }
+        let p = DocumentPath.join("/elements", instance.element)
+        for key in letOrder(lets, p) { l[key] = try eval(DocumentPath.join(p, "let", key), locals: l) }
+        return l
+    }
+
     // MARK: the watched part
 
     func resolve() throws(EvalFailure) -> ResolvedExplainer {

@@ -540,6 +540,15 @@
         "fixed": {
           "type": "boolean"
         },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
         "start": {
           "type": "object",
           "properties": {
@@ -623,6 +632,15 @@
         "fixed": {
           "type": "boolean"
         },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
         "start": {
           "type": "object",
           "properties": {
@@ -676,6 +694,15 @@
         "fixed": {
           "type": "boolean"
         },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
         "start": {
           "type": "object",
           "properties": {
@@ -726,6 +753,15 @@
         },
         "fixed": {
           "type": "boolean"
+        },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
         },
         "start": {
           "type": "object",
@@ -795,6 +831,15 @@
         },
         "fixed": {
           "type": "boolean"
+        },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
         },
         "start": {
           "type": "object",
@@ -886,6 +931,15 @@
         "fixed": {
           "type": "boolean"
         },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
         "start": {
           "type": "object",
           "properties": {
@@ -928,6 +982,15 @@
         },
         "fixed": {
           "type": "boolean"
+        },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
         },
         "start": {
           "type": "object",
@@ -972,6 +1035,15 @@
         "fixed": {
           "type": "boolean"
         },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
         "start": {
           "type": "object",
           "properties": {
@@ -1014,6 +1086,15 @@
         },
         "fixed": {
           "type": "boolean"
+        },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
         },
         "start": {
           "type": "object",

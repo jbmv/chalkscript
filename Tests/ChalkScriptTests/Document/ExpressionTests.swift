@@ -132,6 +132,45 @@ struct ExpressionTests {
         for (source, want) in cases { #expect(try evaluate(source) == want, "\(source)") }
     }
 
+    /// `sin` and `cos` take degrees, reduce the angle modulo 360, and are exact where the value is
+    /// 0, 0.5, -0.5, 1 or -1 at a multiple of 30 (section 6.4).
+    @Test func sineAndCosineAreInDegreesAndExactWhereTheValueIsSimple() throws {
+        let exact: [(String, Double)] = [
+            ("sin(30)", 0.5), ("cos(90)", 0), ("sin(-90)", -1), ("sin(390)", 0.5), ("sin(0)", 0), ("cos(0)", 1), ("sin(90)", 1),
+            ("sin(150)", 0.5), ("sin(180)", 0), ("sin(210)", -0.5), ("sin(270)", -1), ("sin(330)", -0.5), ("sin(360)", 0),
+            ("cos(60)", 0.5), ("cos(120)", -0.5), ("cos(180)", -1), ("cos(240)", -0.5), ("cos(270)", 0), ("cos(300)", 0.5),
+            ("cos(360)", 1), ("cos(-60)", 0.5), ("cos(780)", 0.5), ("sin(-30)", -0.5), ("sin(-390)", -0.5), ("sin(3600)", 0),
+            ("sin(30 * 13)", 0.5), ("cos(30 * 16)", -0.5), ("sin(6 * 5)", 0.5),
+        ]
+        for (source, want) in exact {
+            let got = try evaluate(source)
+            #expect(got == .number(want), "\(source) is \(got)")
+        }
+        // Elsewhere the platform's value, to within rounding.
+        let near: [(String, Double)] = [
+            ("sin(60)", 0.8660254037844386), ("cos(30)", 0.8660254037844386), ("sin(45)", 0.7071067811865476), ("sin(1)", 0.01745240643728351),
+            ("sin(-60)", -0.8660254037844386), ("cos(135)", -0.7071067811865476), ("sin(7.5)", 0.13052619222005157),
+        ]
+        for (source, want) in near {
+            guard case let .number(got) = try evaluate(source) else { Issue.record("\(source) is not a number"); continue }
+            #expect(abs(got - want) < 1e-12, "\(source) is \(got)")
+        }
+        // A point round a centre, clockwise from twelve with y downward.
+        #expect(try evaluate("440 + 100 * sin(90)") == .number(540) && evaluate("380 - 100 * cos(180)") == .number(480))
+        #expect(try evaluate("floor(100 * sin(30))") == .number(50) && evaluate("sin(30) == 0.5") == .truth(true))
+    }
+
+    @Test func sineAndCosineTakeOneNumber() {
+        for f in ["sin", "cos"] {
+            for source in ["\(f)()", "\(f)(1, 2)"] {
+                let e = failure(source)
+                #expect(e?.at == 0 && e?.message.contains("takes 1 argument, an angle in degrees, not") == true, "\(source): \(e?.message ?? "")")
+            }
+            #expect(failure("\(f)('a')")?.message.contains("not a number") == true)
+            #expect(failure("\(f)(true)")?.message.contains("not a number") == true)
+        }
+    }
+
     @Test func selections() throws {
         #expect(try evaluate("ten") == sel(ten(0), ten(1), ten(2)))
         #expect(try evaluate("ten[1]") == sel(ten(1)))

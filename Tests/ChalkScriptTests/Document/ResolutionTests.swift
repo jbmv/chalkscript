@@ -260,4 +260,73 @@ struct ResolutionTests {
         #expect(PluralRules.category(2, language: "ar") == "two" && PluralRules.category(5, language: "ja") == "other")
         #expect(PluralRules.category(3, language: "xx") == nil)
     }
+
+    // MARK: an element's own let, and the entry its text shows
+
+    /// `tiny` with the element `nums` added, and `numeral` as the entry it shows.
+    func numerals(_ element: String, entry: String) throws -> ExplainerDocument {
+        let json = try JSONValue.parse(element)
+        let entryValue = try JSONValue.parse(entry)
+        let doc = DocumentFixture.tiny.setting("/elements/nums", json).setting("/wording/en-US/shared/numeral", entryValue)
+        return try #require(ExplainerDocument.read(doc.data).document)
+    }
+
+    func shown(_ doc: ExplainerDocument, _ prefix: String) throws -> [String] {
+        let e = try DocumentExplainer(document: doc, problem: DocumentFixture.values(("a", 1)))
+        return e.still(after: 0).elements(prefix).compactMap { if case let .words(text, _) = $0.kind { text } else { nil } }
+    }
+
+    /// A repeated text element shows `{k}` from its own `let`, here the numerals 1 to 12.
+    @Test func aRepeatedTextElementShowsTheValuesOfItsOwnLet() throws {
+        let doc = try numerals(
+            #"{"kind": "text", "repeat": 12, "let": {"k": "i + 1"}, "at": ["30 * k", 100], "text": "numeral"}"#, entry: #"{"text": "{k}", "visual": true}"#)
+        #expect(doc.conforms, "\(doc.findings)")
+        #expect(try shown(doc, "nums") == (1...12).map(String.init))
+        // The let's value places each instance, too.
+        let e = try DocumentExplainer(document: doc, problem: DocumentFixture.values(("a", 1)))
+        let at: [CGFloat] = e.still(after: 0).elements("nums.").compactMap { x -> CGFloat? in
+            if case let .words(_, set) = x.kind { return set.at.x }
+            return nil
+        }
+        #expect(at == (1...12).map { CGFloat(30 * $0) })
+    }
+
+    /// The reference lets a repeated element's own entry show `{i}`; the player once refused it.
+    @Test func aRepeatedTextElementShowsItsIndex() throws {
+        let doc = try numerals(#"{"kind": "text", "repeat": 3, "at": ["30 * i", 100], "text": "numeral"}"#, entry: #"{"text": "{i}", "visual": true}"#)
+        #expect(doc.conforms, "\(doc.findings)")
+        #expect(try shown(doc, "nums") == ["0", "1", "2"])
+    }
+
+    /// Values of an element's `let` may name one another, and are ordered by dependency; an
+    /// element without `repeat` has no `i`.
+    @Test func anElementsLetValuesAreOrderedByDependency() throws {
+        let doc = try numerals(
+            #"{"kind": "text", "let": {"b": "a2 * 2", "a2": "a + 1"}, "at": ["b", 100], "text": "numeral"}"#, entry: #"{"text": "{b}-{a2}", "visual": true}"#)
+        #expect(doc.conforms, "\(doc.findings)")
+        #expect(try shown(doc, "nums") == ["4-2"])
+    }
+
+    /// A clock's marks: sixty ticks, every fifth longer, placed with `sin` and `cos` and an
+    /// element's `let` for the inner radius; the four at the quarters are exact.
+    @Test func ticksAreRoundTheFaceWithSineAndCosine() throws {
+        let doc = try numerals(
+            #"""
+            {"kind": "line", "repeat": 60, "let": {"r": "mod(i, 5) == 0 ? 254 : 268"},
+             "from": ["440 + r * sin(6 * i)", "380 - r * cos(6 * i)"], "to": ["440 + 280 * sin(6 * i)", "380 - 280 * cos(6 * i)"]}
+            """#, entry: #"{"text": "{a}", "visual": true}"#)
+        #expect(doc.conforms, "\(doc.findings)")
+        let e = try DocumentExplainer(document: doc, problem: DocumentFixture.values(("a", 1)))
+        let ticks = e.still(after: 0).elements("nums.").compactMap { x -> [CGPoint]? in
+            if case let .shape(.lines(points, _), _) = x.kind { return points }
+            return nil
+        }
+        #expect(ticks.count == 60)
+        #expect(ticks[0] == [CGPoint(x: 440, y: 126), CGPoint(x: 440, y: 100)])
+        #expect(ticks[15] == [CGPoint(x: 694, y: 380), CGPoint(x: 720, y: 380)])
+        #expect(ticks[30] == [CGPoint(x: 440, y: 634), CGPoint(x: 440, y: 660)])
+        #expect(ticks[45] == [CGPoint(x: 186, y: 380), CGPoint(x: 160, y: 380)])
+        let lengths = ticks.map { hypot($0[1].x - $0[0].x, $0[1].y - $0[0].y) }
+        for (k, length) in lengths.enumerated() { #expect(abs(length - (k % 5 == 0 ? 26 : 12)) < 1e-9, "tick \(k) is \(length) long") }
+    }
 }

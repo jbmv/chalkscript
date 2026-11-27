@@ -2,8 +2,9 @@
 
 The schema must accept both examples and refuse a document with an unknown verb, a missing
 required key, a value of the wrong type, or an `areas` entry that lacks `layout` or `ratio`, whose
-`ratio` is not two numbers above 0, or an empty `areas`. Each refused document is an example with one change,
-and the check also requires that the schema refuses it at the place that was changed.
+`ratio` is not two numbers above 0, an empty `areas`, or an element's `let` that is not an object of
+named values. It must accept an element's `let` of expressions. Each refused document is an example with one
+change, and the check also requires that the schema refuses it at the place that was changed.
 
 Usage: python3 docs/format/check-schema.py
 
@@ -249,7 +250,21 @@ def main():
          lambda d: d["areas"][0].update({"ratio": [0, 2.2]})),
         ("an empty areas", "/areas",
          lambda d: d.update({"areas": []})),
+        ("an element's let that is not an object", "/elements/dot/let",
+         lambda d: d["elements"]["dot"].update({"let": "i + 1"})),
+        ("an element's let value that is not a value", "/elements/dot/let/k",
+         lambda d: d["elements"]["dot"].update({"let": {"k": ["i"]}})),
     ]
+    accepted = [
+        ("an element's let of expressions", lambda d: d["elements"]["dot"].update({"let": {"k": "i + 1", "r": "k * 2"}})),
+    ]
+    for what, change in accepted:
+        found = errors(changed(groups, change))
+        print(f"{'accepted' if not found else 'REFUSED'}: {what}")
+        for p, m in found[:10]:
+            print(f"    {p}: {m}")
+        failures += bool(found)
+
     for what, where, change in refused:
         found = errors(changed(groups, change))
         named = any(p == where for p, _ in found)

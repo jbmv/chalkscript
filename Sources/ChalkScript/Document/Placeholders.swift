@@ -128,6 +128,6 @@ enum DocumentNames {
 
     /// Names that must not name a parameter, a `let`, a `vars` value, an element or a local
     /// (section 3).
-    static let reserved: Set<String> = ExpressionFunction.keywords.union(ExpressionFunction.arity.keys)
+    static let reserved: Set<String> = ExpressionFunction.keywords.union(Set(ExpressionFunction.arity.keys).subtracting(ExpressionFunction.added))
         .union(["i", "x0", "y0", "left", "areaW", "areaH", "n"])
 }

@@ -381,8 +381,7 @@ final class DocumentChecker {
                 return
             }
             if !arity.contains(args.count) {
-                let want = arity.upperBound == Int.max ? "\(arity.lowerBound) or more" : "\(arity.lowerBound)"
-                error(.expr, path, at: n.at, "\(f)() takes \(want) argument\(arity.lowerBound == 1 && arity.upperBound == 1 ? "" : "s"), not \(args.count)")
+                error(.expr, path, at: n.at, ExpressionFunction.wrongCount(f, arity, args.count))
             }
             if let cap = ExpressionFunction.capability[f] { used.append((cap, path)) }
             if f == "start" || f == "end" {
@@ -735,7 +734,7 @@ final class DocumentChecker {
                 if el["kind"] == nil { error(.schema, p, "element \(name) has no 'kind', which it requires") }
                 continue
             }
-            let common = ["kind", "repeat", "when", "z", "fixed", "start"]
+            let common = ["kind", "repeat", "when", "z", "fixed", "start", "let"]
             let byKind: [String: (known: [String], required: [String])] = [
                 "text": (["at", "text", "runs", "style", "ink", "size", "anchor"], ["at"]),
                 "line": (["from", "to", "style", "ink"], ["from", "to"]),
@@ -752,7 +751,12 @@ final class DocumentChecker {
             if Self.pieceKinds.contains(kind) { used.append(("components.arithmetic", p + "/kind")) }
             object(.object(el), p, known: common + spec.known, required: spec.required)
             let fixedScope = SlotScope(values: .paramsAndLets)
-            let scope = SlotScope(values: .all, locals: el["repeat"] != nil ? ["i"] : [])
+            // The element's own `let` names are locals of every key but `repeat` and `when`, which
+            // fix how many instances there are and so cannot depend on one.
+            let letNames = Set(el["let"]?.object?.keys ?? [])
+            var scope = SlotScope(values: .all, locals: el["repeat"] != nil ? ["i"] : [])
+            if el["let"] != nil { checkElementLet(el, p, scope) }
+            scope.locals.formUnion(letNames)
             slot(el["repeat"], p + "/repeat", .number, fixedScope)
             slot(el["when"], p + "/when", .truth, fixedScope)
             slot(el["z"], p + "/z", .number, scope)
@@ -817,6 +821,27 @@ final class DocumentChecker {
                 _ = oneOf(el, "look", p, ["pencil", "traded", "counted"])
             }
         }
+    }
+
+    /// An element's `let` (section 9.1): names for values computed for each instance, with `i`
+    /// in scope when the element repeats. A name must not be any other name of the first
+    /// namespace, so that a reader that does not know the key reports each use as an unknown
+    /// name and never reads a document value of the same name.
+    func checkElementLet(_ el: JSONObject, _ p: String, _ scope: SlotScope) {
+        let names = Set(el["let"]?.object?.keys ?? [])
+        var graph: [String: Set<String>] = [:]
+        for (name, x, lp) in map(el["let"], p + "/let") {
+            if DocumentNames.reserved.contains(name) {
+                error(.schema, lp, "'\(name)' is reserved and cannot name a local")
+            } else if params[name] != nil || lets[name] != nil || vars.contains(name) || elements[name] != nil {
+                error(.schema, lp, "'\(name)' is already a name of the document; an element's let must not reuse a parameter, let, vars value or element")
+            }
+            var inner = scope
+            inner.locals.formUnion(names)
+            slot(x, lp, .value, inner)
+            graph[name] = dependencies(lp).intersection(names)
+        }
+        reportCycle(graph, what: "the element's let values") { DocumentPath.join(p, "let", $0) }
     }
 
     func checkPartsAndShots() {

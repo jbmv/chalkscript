@@ -201,6 +201,87 @@ struct DocumentReaderTests {
         #expect(read(tiny.setting("/elements/label/repeat", .number(3)).setting("/elements/label/at/0", .string("10 + i * 20"))).conforms)
     }
 
+    @Test func sineAndCosineAreFunctionsAndNotReservedAsNames() throws {
+        // A document with an element named sin, a value named cos and a call of each reads with no
+        // finding: a call always names a function and a bare name never does.
+        let text = try JSONValue.parse(#"{"kind": "text", "at": ["10 + 20 * sin(30)", 20], "text": "label"}"#)
+        let doc = tiny.setting("/elements/sin", text).setting("/let/cos", .string("cos(a * 60)")).setting("/steps/show/actions/in/target", .string("sin"))
+            .setting("/steps/show/hold", .string("cos + sin(90)"))
+        let r = read(doc)
+        #expect(r.conforms && r.findings.isEmpty, "\(r.findings)")
+        // The functions of the first draft stay reserved.
+        has(read(tiny.setting("/elements/abs", text)), .error, .schema, "/elements/abs", "reserved")
+        has(read(tiny.setting("/let/floor", .number(1))), .error, .schema, "/let/floor", "reserved")
+        // The wrong number of arguments, and a name that is not a function.
+        for f in ["sin", "cos"] {
+            has(read(tiny.setting("/steps/show/hold", .string("\(f)(1, 2)"))), .error, .expr, "/steps/show/hold", at: 0, "takes 1 argument, an angle in degrees, not 2")
+            has(read(tiny.setting("/steps/show/hold", .string("\(f)()"))), .error, .expr, "/steps/show/hold", at: 0, "takes 1 argument, an angle in degrees, not 0")
+        }
+        has(read(tiny.setting("/steps/show/hold", .string("tan(1)"))), .error, .expr, "/steps/show/hold", at: 0, "unknown function")
+        // A bare name that is no value is unknown, as for any name.
+        has(read(tiny.setting("/steps/show/hold", .string("cos + 1"))), .error, .expr, "/steps/show/hold", at: 0, "unknown name 'cos'")
+    }
+
+    /// `tiny` with a repeated text element `nums` that has the `let` given.
+    func withElementLet(_ lets: String, repeat count: JSONValue? = .number(3)) throws -> JSONValue {
+        let element = try JSONValue.parse(#"{"kind": "text", "at": [10, 20], "text": "numeral"}"#)
+            .setting("/repeat", count).setting("/let", try JSONValue.parse(lets))
+        return tiny.setting("/elements/nums", element).setting("/wording/en-US/shared/numeral", try JSONValue.parse(#"{"text": "{k}", "visual": true}"#))
+    }
+
+    @Test func anElementsLetNamesLocalsAndIsReadWithItsKeys() throws {
+        let ok = try withElementLet(#"{"k": "i + 1", "j": "k * 2"}"#)
+            .setting("/elements/nums/at/0", .string("10 * k + j"))
+            .setting("/elements/nums/z", .string("j"))
+            .setting("/elements/nums/start", try JSONValue.parse(#"{"opacity": "k > 1 ? 1 : 0"}"#))
+            .setting("/elements/nums/size", .string("20 + k"))
+        let r = read(ok)
+        #expect(r.conforms && r.findings.isEmpty, "\(r.findings)")
+        // The same let and an entry that shows a name the element's let does not have.
+        let wrong = try withElementLet(#"{"j": "i + 1"}"#)
+        has(read(wrong), .error, .wording, "/wording/en-US/shared/numeral/text", "{k} cannot be filled")
+        // The names of an element's let are a part of the first namespace for that element only:
+        // two elements may name the same local.
+        let twice = try withElementLet(#"{"k": "i"}"#).setting("/elements/more", tiny["elements"]!["label"]!
+            .setting("/repeat", .number(2)).setting("/let", try JSONValue.parse(#"{"k": "i * 2"}"#)))
+        #expect(read(twice).findings.isEmpty, "\(read(twice).findings)")
+    }
+
+    @Test func anElementsLetMayNotReuseANameOfTheDocument() throws {
+        let cases: [(String, String)] = [
+            ("a", "a parameter"), ("twice", "a let of the document"), ("label", "an element"), ("nums", "the element itself"), ("v", "a vars value"),
+        ]
+        for (name, what) in cases {
+            let doc = try withElementLet("{\"\(name)\": \"i\"}").setting("/vars/v", .number(1))
+            has(read(doc), .error, .schema, "/elements/nums/let/\(name)", "already a name of the document")
+            #expect(!read(doc).conforms, "\(what)")
+        }
+        // Nor a reserved name: the index, a function of the first draft, a keyword.
+        for name in ["i", "abs", "and", "left", "n"] {
+            has(read(try withElementLet("{\"\(name)\": 1}")), .error, .schema, "/elements/nums/let/\(name)", "reserved")
+        }
+        // An element's let is an object of expressions, in a name's own form.
+        has(read(try withElementLet(#"{"k": "i +"}"#)), .error, .expr, "/elements/nums/let/k")
+        has(read(try withElementLet(#"{"Bad name": 1}"#)), .error, .schema, "/elements/nums/let/Bad name", "not a valid name")
+        has(read(tiny.setting("/elements/label/let", .number(1))), .error, .schema, "/elements/label/let", "not an object")
+        // Its values may name one another, but not in a cycle.
+        has(read(try withElementLet(#"{"k": "j + 1", "j": "k + 1"}"#)), .error, .expr, "/elements/nums/let/j", "cycle")
+    }
+
+    @Test func anElementsLetNamesAreUnknownOutsideItsKeys() throws {
+        let doc = try withElementLet(#"{"k": "i + 1"}"#)
+        // The name of another element's let is an unknown name.
+        let other = doc.setting("/elements/rule/to/0", .string("k"))
+        has(read(other), .error, .expr, "/elements/rule/to/0", at: 0, "unknown name 'k'")
+        has(read(doc.setting("/steps/show/hold", .string("k"))), .error, .expr, "/steps/show/hold", at: 0, "unknown name 'k'")
+        // The names of an element's let are unknown in its own repeat and when, which fix how
+        // many instances there are.
+        has(read(try withElementLet(#"{"k": "i + 1"}"#, repeat: .string("k"))), .error, .expr, "/elements/nums/repeat", at: 0, "unknown name 'k'")
+        has(read(doc.setting("/elements/nums/when", .string("k > 1"))), .error, .expr, "/elements/nums/when", at: 0, "unknown name 'k'")
+        // i is a local of the let only when the element repeats.
+        has(read(try withElementLet(#"{"k": "i + 1"}"#, repeat: nil)), .error, .expr, "/elements/nums/let/k", at: 0, "not in scope")
+    }
+
     @Test func wordingIsChecked() {
         has(read(tiny.setting("/wording/en-US/plain/show", .string("This is 5."))), .error, .wording, "/wording/en-US/plain/show", at: 8, "numeral")
         has(read(tiny.setting("/wording/en-US/plain/show", .string("Count by {a}s."))), .error, .wording, "/wording/en-US/plain/show", at: 12,

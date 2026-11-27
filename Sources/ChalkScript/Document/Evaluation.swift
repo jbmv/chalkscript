@@ -265,7 +265,7 @@ struct Evaluator {
     private func call(_ f: String, _ args: [ExpressionNode], at: Int) throws(ExpressionError) -> DocumentValue {
         guard let arity = ExpressionFunction.arity[f] else { throw ExpressionError("unknown function '\(f)'", at: at) }
         guard arity.contains(args.count) else {
-            throw ExpressionError("\(f)() takes \(arity.upperBound == Int.max ? "\(arity.lowerBound) or more" : "\(arity.lowerBound)") arguments, not \(args.count)", at: at)
+            throw ExpressionError(ExpressionFunction.wrongCount(f, arity, args.count), at: at)
         }
         switch f {
         case "div", "mod":
@@ -281,6 +281,9 @@ struct Evaluator {
                 best = f == "min" ? Swift.min(best, x) : Swift.max(best, x)
             }
             return .number(best)
+        case "sin", "cos":
+            let a = try number(args[0], "the argument of \(f)()")
+            return .number(Self.trigonometric(f == "sin", degrees: a))
         case "abs": return .number(Swift.abs(try number(args[0], "the argument of abs()")))
         case "floor": return .number((try number(args[0], "the argument of floor()")).rounded(.down))
         case "round": return .number((try number(args[0], "the argument of round()")).rounded(.toNearestOrAwayFromZero))
@@ -323,6 +326,21 @@ struct Evaluator {
         default:
             throw ExpressionError("unknown function '\(f)'", at: at)
         }
+    }
+
+    /// The sine or cosine of an angle in degrees (section 6.4): the angle is reduced modulo 360
+    /// first, and the value is exactly 0, 0.5, -0.5, 1 or -1 at the multiples of 30 where it is
+    /// those; elsewhere it is the platform's.
+    static func trigonometric(_ sine: Bool, degrees: Double) -> Double {
+        let r = degrees - 360 * (degrees / 360).rounded(.down)
+        // The sine at each multiple of 30 from 0 to 330, where it is exact; nil where it is not.
+        let exact: [Double?] = [0, 0.5, nil, 1, nil, 0.5, 0, -0.5, nil, -1, nil, -0.5]
+        if r.truncatingRemainder(dividingBy: 30) == 0 {
+            let k = Int(r / 30) % 12
+            if let v = exact[sine ? k : (k + 3) % 12] { return v }
+        }
+        let radians = r * Double.pi / 180
+        return sine ? Foundation.sin(radians) : Foundation.cos(radians)
     }
 
     private func index(_ base: ExpressionNode, _ k: ExpressionNode, at: Int) throws(ExpressionError) -> DocumentValue {

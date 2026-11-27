@@ -88,20 +88,19 @@ A first patch against the starter, for dots numbered one up to a number the prob
   {"op": "replace", "path": "/elements", "value": {
     "dots": {"kind": "shape", "repeat": "howMany", "ellipse": ["440 - 50 * howMany + 100 * i", 340, 60, 60],
              "fill": "pencil", "start": {"opacity": 0}},
-    "nums": {"kind": "text", "repeat": "howMany", "style": "label", "anchor": "middle",
-             "at": ["470 - 50 * howMany + 100 * i", 450], "text": "numText", "start": {"opacity": 0}},
+    "nums": {"kind": "text", "repeat": "howMany", "let": {"k": "i + 1"}, "style": "label", "anchor": "middle",
+             "at": ["470 - 50 * howMany + 100 * i", 450], "text": "numEntry", "start": {"opacity": 0}},
     "total": {"kind": "text", "style": "total", "anchor": "middle", "at": [440, 600],
               "text": "totalText", "ink": "result", "start": {"opacity": 0}}
   }},
   {"op": "replace", "path": "/sequence", "value": ["dots", "count", "total"]},
   {"op": "replace", "path": "/steps", "value": {
     "dots": {"say": "dots", "actions": {"put": {"do": "appear", "target": "dots", "each": 0.2, "rise": 20}}},
-    "count": {"say": "count", "actions": {"num": {"do": "each", "target": "nums", "gap": 0.2,
-              "let": {"k": "i + 1"}, "then": {"put": {"do": "appear", "text": "numEntry"}}}}},
+    "count": {"say": "count", "actions": {"num": {"do": "appear", "target": "nums", "each": 0.2}}},
     "total": {"say": "total", "actions": {"show": {"do": "appear", "target": "total"}}}
   }},
   {"op": "replace", "path": "/wording", "value": {"en-US": {
-    "shared": {"numText": {"text": "", "visual": true}, "numEntry": {"text": "{k}", "visual": true},
+    "shared": {"numEntry": {"text": "{k}", "visual": true},
                "totalText": {"text": "{howMany} in all", "visual": true}},
     "everyday": {"dots": "Put down {howMany} dots, one at a time.", "count": "Count them, one for each dot.",
                  "total": "There are {howMany} dots."}
@@ -171,7 +170,11 @@ literal string inside one is in single quotes: `"bT > 0 ? str(bT) : ''"`.
 - Functions: `div(a, b)` (floor), `mod(a, b)` (sign of `b`), `min`, `max`, `abs`, `floor`,
   `round` (half away from zero), `str(a)`; selections `first(n, s)`, `last(n, s)`,
   `slice(s, start, n)`, `whole(s)`; times `start(action)`, `end(action)`; `split(s)` as an
-  `appear`'s `place`.
+  `appear`'s `place`; `sin(a)` and `cos(a)` with *a* in degrees, exact at 0, ±0.5 and ±1, so that
+  `sin(30)` is 0.5 and `cos(90)` is 0.
+- A point at angle *a* clockwise from twelve o'clock and distance *r* from `[cx, cy]` is
+  `[cx + r * sin(a), cy - r * cos(a)]` (*y* is down). Mark *i* of sixty round a clock is at
+  `a = 6 * i`, and numeral *i* + 1 of twelve at `a = 30 * i + 30`. Write no approximation of a sine.
 - At most 256 nodes and 24 levels. Division by zero, an index outside a family, or a selection
   function asked for more than there is, is an error for that problem.
 - Selections: `ten` is every instance of `ten`; `ten[k]` one instance; `equation.ans` a run of
@@ -185,8 +188,8 @@ The drawing's units start at the top left, *y* down. The layout `stage` is `[100
 `layouts.stage.size` says otherwise. The core kinds are `text`, `line`, `arrow`, `outline` and
 `shape`. The only capability today is `components.arithmetic`, whose pieces are the last row of
 the table; draw anything else from the core kinds. Every element has `kind`, and may have `repeat` (count of
-instances; `i` is the index in other keys), `when`, `z`, `fixed` (outside the camera, never
-dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
+instances; `i` is the index in other keys), `let` (below), `when`, `z`, `fixed` (outside the
+camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
 
 | Kind | Keys |
 |---|---|
@@ -213,8 +216,21 @@ No key draws `paper` or `onResult`, and a document with `style.palette` is refus
 is centred in `result`, and an `equation` text centred in `text`; leave `ink` and `anchor` out of
 both. `label`, `note` and `body` take any `ink` of the first row.
 
-There are no trigonometric functions (topic `expressions`): a point round a circle is computed
-with the functions listed there, or placed by hand.
+An element's `let` names values computed for each instance, with `i` in scope. The names may be
+used in the element's other keys, except `repeat` and `when`, and as placeholders in its entry;
+they must not be a parameter, `let`, `vars` value, element or reserved name, and a name of
+another element's `let` is unknown. Twelve numerals round a clock, and sixty marks with every
+fifth longer, need no approximation and no `each`:
+
+```json
+"nums": {"kind": "text", "repeat": 12, "let": {"k": "i + 1"}, "text": "numEntry",
+         "at": ["440 + 318 * sin(30 * i + 30)", "388 - 318 * cos(30 * i + 30)"]},
+"ticks": {"kind": "line", "repeat": 60, "let": {"r": "mod(i, 5) == 0 ? 254 : 268"},
+          "from": ["440 + r * sin(6 * i)", "380 - r * cos(6 * i)"],
+          "to": ["440 + 280 * sin(6 * i)", "380 - 280 * cos(6 * i)"]}
+```
+
+with the entry `"numEntry": {"text": "{k}", "visual": true}`; `{i}` is also shown, from 0.
 
 A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` the runs are `a`,
 `b` and `ans`, and `runs.ans.text` fills `ans` from an entry until a verb sets it. A piece is a
@@ -252,19 +268,13 @@ line, not seconds guessed for it. The studio's voice is silent; only a speaking 
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
 
-`each` counts or numbers instances. It names a `target`, a `gap` in seconds, optional `let` locals
-evaluated with `i`, the instance's position from 0, in scope, and `then`, the actions run for each
-instance; an action in `then` without a `target` acts on the current instance. To number twelve
-repeated text elements 1 to 12, give the elements `"text": "numText"`, an entry holding nothing,
-and give each the number as it appears:
-
-```json
-"num": {"do": "each", "target": "nums", "gap": 0.2, "let": {"k": "i + 1"},
-        "then": {"put": {"do": "appear", "text": "numEntry"}}}
-```
-
-with the entry `"numEntry": {"text": "{k}", "visual": true}`. A step whose `when` is false for
-the problem is not among that problem's steps, so `show` of it names the steps the problem has.
+`each` counts instances, or sets a number that changes within the step. It names a `target`, a
+`gap` in seconds, optional `let` locals evaluated with `i`, the instance's position from 0, in
+scope, and `then`, the actions run for each instance; an action in `then` without a `target` acts
+on the current instance. Numerals that do not change are not set by a verb: number repeated text
+elements with the element's own `let` (topic `elements`) and bring them in with `appear` and
+`each: 0.24`, a stagger. A step whose `when` is false for the problem is not among that problem's
+steps, so `show` of it names the steps the problem has.
 
 A duration a person asks for ("slower", "hold longer") is usually `dur`, `each`, `gap` or `hold`.
 

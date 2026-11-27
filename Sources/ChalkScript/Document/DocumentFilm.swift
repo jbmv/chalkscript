@@ -46,7 +46,7 @@ extension DocumentFilm {
             let repeated = r.root["elements"]?[name]?["repeat"] != nil
             for k in 0..<n {
                 let instance = DocumentInstance(name, repeated ? k : nil)
-                let z = try r.number(DocumentPath.join("/elements", name, "z"), locals: repeated ? ["i": .number(Double(k))] : [:], default: 0, what: "z")
+                let z = try r.number(DocumentPath.join("/elements", name, "z"), locals: try r.instanceLocals(instance), default: 0, what: "z")
                 drawn.append((z, Array(name.unicodeScalars.map(\.value)), k, try Self.instance(instance, r)))
             }
         }
@@ -105,7 +105,7 @@ extension DocumentFilm {
         let p = DocumentPath.join("/elements", name)
         let el = r.root["elements"]?[name]?.object ?? JSONObject()
         let kind = el["kind"]?.string ?? ""
-        let l: [String: DocumentValue] = inst.index.map { ["i": .number(Double($0))] } ?? [:]
+        let l = try r.instanceLocals(inst)
         func number(_ key: String, _ d: Double? = nil) throws(EvalFailure) -> Double { try r.number(p + "/" + key, locals: l, default: d, what: key) }
         func point(_ key: String) throws(EvalFailure) -> CGPoint { CGPoint(x: try number(key + "/0"), y: try number(key + "/1")) }
         func refuse(_ key: String, _ message: String) -> EvalFailure { EvalFailure(path: key.isEmpty ? p : p + "/" + key, message: message, code: .capability) }
@@ -147,7 +147,7 @@ extension DocumentFilm {
                     throw refuse("runs/\(run)/ink", "this player draws a run's own role only in an equation, and only the result role")
                 }
             }
-            if let entry = el["text"]?.string { text = try runs(of: name, entry: entry, el: el, r) }
+            if let entry = el["text"]?.string { text = try runs(of: name, entry: entry, el: el, locals: l, r) }
             shape = .text(at: at, style: style, size: size, ink: ink, anchor: anchor)
             reference = at
         case "line":
@@ -221,8 +221,11 @@ extension DocumentFilm {
 
     /// The runs of the entry a text element shows (section 9.2): each placeholder a run, named
     /// by the placeholder or by its phrase entry, and the literal text between them.
-    static func runs(of element: String, entry name: String, el: JSONObject, _ r: Resolver) throws(EvalFailure) -> [TextRun] {
+    static func runs(of element: String, entry name: String, el: JSONObject, locals: [String: DocumentValue], _ r: Resolver) throws(EvalFailure) -> [TextRun] {
         let p = DocumentPath.join("/elements", element)
+        // The entry is filled with the instance's own locals: its `i` and its element's `let`.
+        r.locals.append(locals)
+        defer { r.locals.removeLast() }
         guard let (entry, _, _) = r.filler.lookup(name) else {
             throw EvalFailure(path: p + "/text", message: "there is no entry '\(name)'", code: .ref)
         }

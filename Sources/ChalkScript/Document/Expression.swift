@@ -129,8 +129,25 @@ public enum ExpressionFunction {
     public static let arity: [String: ClosedRange<Int>] = [
         "div": 2...2, "mod": 2...2, "min": 2...Int.max, "max": 2...Int.max, "abs": 1...1, "floor": 1...1,
         "round": 1...1, "str": 1...1, "first": 2...2, "last": 2...2, "slice": 3...3, "whole": 1...1,
-        "start": 1...1, "end": 1...1, "split": 1...1,
+        "start": 1...1, "end": 1...1, "split": 1...1, "sin": 1...1, "cos": 1...1,
     ]
+
+    /// Functions added after the first draft of the format. A name is reserved (section 3) only
+    /// if it was a function in the first draft, so that a document with an element or a value
+    /// named `sin` keeps its meaning; a call always names a function and a bare name never does.
+    public static let added: Set<String> = ["sin", "cos"]
+
+    /// What a function's argument is, where an agent could take it for something else: the
+    /// angle of `sin` and `cos` is in degrees.
+    static let argument: [String: String] = ["sin": "an angle in degrees", "cos": "an angle in degrees"]
+
+    /// The message for a call to `f` with `count` arguments, which it does not take.
+    static func wrongCount(_ f: String, _ arity: ClosedRange<Int>, _ count: Int) -> String {
+        let want = arity.upperBound == Int.max ? "\(arity.lowerBound) or more" : "\(arity.lowerBound)"
+        let plural = arity.lowerBound == 1 && arity.upperBound == 1 ? "" : "s"
+        let what = argument[f].map { ", \($0)," } ?? ""
+        return "\(f)() takes \(want) argument\(plural)\(what) not \(count)"
+    }
 
     /// Functions a capability adds, by capability.
     public static let capability: [String: String] = ["split": "components.arithmetic"]

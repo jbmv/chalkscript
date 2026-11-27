@@ -19,7 +19,7 @@ extension Resolver {
         }
         boundsPending.insert(instance)
         defer { boundsPending.remove(instance) }
-        let l: [String: DocumentValue] = instance.index.map { ["i": .number(Double($0))] } ?? [:]
+        let l = try instanceLocals(instance)
         func point(_ key: String) throws(EvalFailure) -> CGPoint {
             CGPoint(x: try number(p + "/\(key)/0", locals: l, what: "x"), y: try number(p + "/\(key)/1", locals: l, what: "y"))
         }

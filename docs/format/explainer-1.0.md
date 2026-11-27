@@ -69,10 +69,12 @@ since JSON parsers disagree about which value wins.
 
 `version` is a string `"MAJOR.MINOR"`, such as `"1.0"`.
 
-- A minor version adds and never changes. It may add verbs, element kinds, inputs and optional
-  keys. An optional key added in a minor version is one whose absence keeps the earlier meaning, so
-  a player that ignores it plays the document as the earlier version defines. A key whose effect
-  must not be lost is added with a capability instead (section 2.3).
+- A minor version adds and never changes. It may add verbs, element kinds, inputs, functions and
+  optional keys. An optional key added in a minor version is one whose absence keeps the earlier
+  meaning, so a player that ignores it plays the document as the earlier version defines. A key
+  whose effect must not be lost is added with a capability instead (section 2.3). A function added
+  in a minor version is not reserved as a name (section 3), so that no earlier document gains an
+  error; a reader that lacks it reports an `expr` error for a call and refuses the document.
 - A major version may change meaning. It comes with a converter from the previous major version.
 - A reader refuses a document whose major version it does not implement.
 - A reader that meets a document with a higher minor version than its own reads it, lists the
@@ -129,9 +131,17 @@ There are four separate namespaces:
 - **Actions**, one namespace per step (and per `each`, for the actions in its `then`).
 
 The following are reserved and must not name a parameter, a `let`, a `vars` value, an element or a
-local: `and`, `or`, `not`, `true`, `false`, the function names of section 6.4, and the locals `i`,
-`x0`, `y0`, `left`, `areaW` and `areaH`. The local `n` is reserved in the first namespace; an
-`each` may define it (section 13.13).
+local: `and`, `or`, `not`, `true`, `false`, the function names of section 6.4 that the first draft
+of this version defined (`div`, `mod`, `min`, `max`, `abs`, `floor`, `round`, `str`, `first`,
+`last`, `slice`, `whole`, `start`, `end` and `split`), and the locals `i`, `x0`, `y0`, `left`,
+`areaW` and `areaH`. The local `n` is reserved in the first namespace; an `each` may define it
+(section 13.13). A call always names a function and a bare name never does, so a function added
+later, such as `sin` and `cos`, is not reserved, and an element or a value may be named `sin`.
+
+The names of an element's `let` (section 9.1) are locals, and must not be any other name of the
+first namespace: a parameter, a `let` of the document, a `vars` value or an element. A reader that
+does not know the key then reports every use of one as an unknown name, and never plays the
+document with a document value of the same name.
 
 An id is stable for the life of the thing it names. Renaming is an edit like any other; the reader
 then reports every reference the rename broke.
@@ -324,8 +334,12 @@ The short-circuit rules are part of the language: `dT > 1 ? room / (dT - 1) : 40
 | `whole(s)` | Section 7. |
 | `start(a)`, `end(a)` | Times; section 12.3. |
 | `split(s)` | A placement, in `components.arithmetic` (section 9.4). |
+| `sin(a)`, `cos(a)` | The sine and cosine of the angle *a*, in degrees. The angle is reduced modulo 360 first, and the result is exactly 0, 0.5, −0.5, 1 or −1 at the multiples of 30 and 90 where that is the true value, so that `sin(30) == 0.5` and `floor` and `round` of such a result are never a unit out. Elsewhere a player may use its own library, and two players may differ in the last place. |
 
 A call with the wrong number or types of arguments is an error.
+
+A point at angle *a*, clockwise from twelve o'clock, and distance *r* from (*cx*, *cy*), with *y*
+increasing downward, is `[cx + r * sin(a), cy - r * cos(a)]`.
 
 ### 6.5 Names and scope
 
@@ -335,7 +349,8 @@ table below); then the parameters, `let` values (with the layout's replacements,
 
 | Local | In scope |
 |---|---|
-| `i` | In the keys of an element with `repeat`, other than `repeat` and `when`: the instance's index, from 0. In an action's per-instance keys, `rise`, `grow`, `to` and `via`: the instance's position in the action's selection, from 0. In an `each`: the position of the current instance. |
+| `i` | In the keys of an element with `repeat`, other than `repeat` and `when`, and in the entries its text and runs show (section 14.3): the instance's index, from 0. In an action's per-instance keys, `rise`, `grow`, `to` and `via`: the instance's position in the action's selection, from 0. In an `each`: the position of the current instance. |
+| the names of an element's `let`, such as `k` | In that element's keys other than `repeat` and `when`, which fix how many instances there are, and in the entries its text and runs show. Their expressions may name `i`, when the element has `repeat`, and one another. |
 | the names of an `each`'s `let`, such as `n` | In that `each`'s `gap` and in its `then` actions and their lines. |
 | `x0`, `y0` | In a `move`'s `via`: the instance's position as the move begins (section 13.6). |
 | `n` | In a `forms` entry and in a phrase entry: the value it is filled with (section 14.3). |
@@ -437,6 +452,7 @@ reader checks this (section 21, `areas`).
 | `z` | Draw order; lower is drawn first. By default 0. Ties are drawn in the order of element names by code point, then by instance index, so every player draws the same. |
 | `fixed` | `true` if the element is drawn outside the camera and never dimmed (section 10.3). By default `false`. |
 | `start` | The starting `opacity` (0 to 1, by default 1) and, for a stroked kind, the starting `progress` (0 to 1, by default 1) of every instance. |
+| `let` | An object of names to expressions, evaluated for each instance, each after the values it names, with `i` (when the element has `repeat`) and the document's values in scope. The names are locals of the element's other keys except `repeat` and `when`, and of the entries its text and runs show (section 6.5), and must not be any other name of the first namespace (section 3). For example, `"repeat": 12, "let": {"k": "i + 1"}` with the entry `{k}` shows the numerals 1 to 12. |
 
 Colours are given only as *roles* (section 16.1), never as colour values.
 
@@ -835,7 +851,8 @@ A placeholder is `{name}`, or `{entry:name}` for a *phrase*. Braces have no othe
 ### 14.3 Filling an entry
 
 A line is filled from the names in scope where it is said or shown: the document's values, the
-locals of section 6.5 and, for a text element, its runs.
+locals of section 6.5 and, for a text element, its runs. The entries a text element shows are
+filled for each instance with that instance's locals: its `i` and the names of its `let`.
 
 - `{name}` takes the value of `name`. An integer is shown in ASCII digits, with `-` if negative and
   no grouping separator. A string is inserted unchanged. Any other value is an error.
