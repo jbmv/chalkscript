@@ -135,6 +135,28 @@ struct StudioMethodTests {
         #expect(e.resolved.steps[0].line.line.display == "Make 2 groups. Put 2 in each one.")
     }
 
+    /// The window plays with the stand-in voice, so a step whose action waits for the voice lasts
+    /// longer than its motion.
+    @Test func theWindowPlaysWithTheStandInVoiceSoAStepLastsAsSpoken() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.select("equal-groups")
+        let player = try #require(model.player)
+        let e = try #require((player.explainer as? ShapedExplainer)?.shown)
+        var longer: [String] = []
+        for (k, step) in e.resolved.steps.enumerated() where !step.waits.isEmpty {
+            player.show(step: k)
+            var clock = 0.0
+            while case .playing = player.phase, clock < 600 {
+                player.advance(by: 1.0 / 60)
+                clock += 1.0 / 60
+            }
+            #expect(player.phase == .paused(k), "step \(step.name) ended")
+            if clock > e.script(for: k).duration + 0.5 { longer.append(step.name) }
+        }
+        #expect(!longer.isEmpty, "a step with a wait for the voice lasts longer than its motion alone")
+    }
+
     @Test func aStalePatchIsRefusedWithTheCurrentHash() throws {
         let project = try TemporaryProject()
         let model = try openModel(project)

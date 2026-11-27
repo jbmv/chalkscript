@@ -269,3 +269,81 @@ struct PlayerTests {
         #expect(p.phase == .paused(0))
     }
 }
+
+/// One step that says a six-word line at 0, then holds its one action, which waits for the voice,
+/// until the line has been heard: the action's start is where the step's clock leaves 0.
+private struct WaitingExplainer: Explainer {
+    static let line = Line(key: "waiting.line", display: "Six words say this line.", spoken: "Six words say this line now")
+    var version: ExplainerVersion { .child }
+    var stepCount: Int { 1 }
+    var intro: Line { Line(key: "waiting.intro", display: "One step.", spoken: nil) }
+    func script(for step: Int) -> StepScript {
+        StepScript(duration: 1, events: [StepEvent(0, .say(Self.line, caption: true)), StepEvent(0, .waitForVoice)])
+    }
+    func scene(step: Int, at t: Double) -> Scene { still(after: step) }
+    func still(after step: Int) -> Scene { Scene(elements: []) }
+}
+
+/// The estimate of a line's time to say (ReadingTime) and the stand-in voice that takes it.
+@MainActor
+struct EstimatedVoiceTests {
+    @Test func aLinesEstimateIsAThirdOfASecondAWordAfterAShortLead() {
+        // "twenty-five" counts as two words.
+        #expect(abs(ReadingTime.seconds("Now the clock says seven twenty-five!") - (0.3 + 7.0 / 3)) < 1e-9)
+        #expect(ReadingTime.words(in: "Now the clock says seven twenty-five!") == 7)
+        #expect(ReadingTime.seconds("") == 0)
+        #expect(ReadingTime.seconds("... 12 !") == 0, "parts with no letter are not words")
+        #expect(ReadingTime.seconds(Line(key: "k", display: "Seven.", spoken: nil)) == 0, "a line with no spoken form takes no time")
+        let spoken = Line(key: "k", display: "7", spoken: "seven")
+        #expect(ReadingTime.seconds(spoken) == ReadingTime.seconds("seven"))
+    }
+
+    /// The wall-clock seconds, in steps of 0.01, at which the step's clock first leaves 0, driving
+    /// the player as its own driver does: the clock moves by the wall time times the pace.
+    private func start(voice: any ExplainerVoice, pace: Double = 1) -> Double {
+        let p = ExplainerPlayer(explainer: WaitingExplainer(), voice: voice, drivesItself: false)
+        p.pace = pace
+        p.primary()
+        var wall = 0.0
+        while p.time == 0, wall < 10 {
+            p.advance(by: 0.01 * pace)
+            wall += 0.01
+        }
+        return wall - p.time / pace
+    }
+
+    @Test func anActionThatWaitsForTheVoiceStartsWhenTheLinesEstimateHasPassed() {
+        let estimate = ReadingTime.seconds(WaitingExplainer.line)
+        #expect(abs(estimate - 2.3) < 1e-9)
+        #expect(start(voice: SilentVoice()) < 0.02)
+        #expect(abs(start(voice: EstimatedVoice()) - estimate) < 0.02)
+        // At pace 2 the clock runs twice as fast, and the line takes half the time.
+        #expect(abs(start(voice: EstimatedVoice(), pace: 2) - estimate / 2) < 0.02)
+    }
+
+    @Test func aLineWithNoSpokenFormFinishesAtOnceAndNothingFinishesAfterStop() {
+        let voice = EstimatedVoice()
+        var finished = 0
+        voice.say(Line(key: "k", display: "7:25", spoken: nil)) { finished += 1 }
+        #expect(finished == 1)
+        voice.say(WaitingExplainer.line) { finished += 1 }
+        voice.advance(by: 1)
+        #expect(finished == 1, "not before its estimate")
+        voice.stop()
+        voice.advance(by: 10)
+        #expect(finished == 1, "never after stop")
+        voice.say(WaitingExplainer.line) { finished += 1 }
+        voice.advance(by: 2.4)
+        #expect(finished == 2)
+    }
+
+    @Test func aStoppedPlayerNeverFinishesItsLine() {
+        let p = ExplainerPlayer(explainer: WaitingExplainer(), voice: EstimatedVoice(), drivesItself: false)
+        p.primary()
+        p.advance(by: 1)
+        p.stop()
+        p.advance(by: 10)
+        #expect(p.phase == .paused(0))
+        #expect(p.time == 1, "the clock was not moved on once the player was stopped")
+    }
+}

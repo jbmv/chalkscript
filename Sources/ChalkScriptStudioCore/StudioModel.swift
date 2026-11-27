@@ -57,6 +57,11 @@ public final class StudioModel {
         self.drivesPlayer = drivesPlayer
     }
 
+    /// The voice the window plays with. The stand-in says nothing and takes the time a line
+    /// would take to say, so that `wait: "voice"` holds and a step lasts as it would spoken.
+    /// A voice that speaks is chosen here.
+    @ObservationIgnored var makeVoice: @MainActor () -> any ExplainerVoice = { EstimatedVoice() }
+
     // MARK: the project
 
     /// Opens a project folder and watches it for changes made by other programs.
@@ -257,7 +262,7 @@ public final class StudioModel {
                 playback: DocumentPlayback(control: control))
             var ratio: Double?
             if case let .ratio(r) = preview { ratio = r }
-            let p = ExplainerPlayer(explainer: ShapedExplainer(e, ratio: ratio), voice: SilentVoice(), drivesItself: drivesPlayer)
+            let p = ExplainerPlayer(explainer: ShapedExplainer(e, ratio: ratio), voice: makeVoice(), drivesItself: drivesPlayer)
             if let area { p.layOut(for: area) }
             if let stepName, let k = e.resolved.stepNames.firstIndex(of: stepName) { p.show(step: k) }
             player = p

@@ -264,7 +264,7 @@ begins, as a tinted digit). An action ends at `at + (n − 1) · each + dur`; th
 is the latest end, plus `hold`. Default durations: appear 0.3, draw 0.4, fade 0.35, travel 1.2
 seconds. `wait: "voice"` holds the step's clock at that action's start until the lines said before
 it have been heard (on an `each`, at each instance): use it on an action that should follow the
-line, not seconds guessed for it. The studio's voice is silent; only a speaking player shows it.
+line, not seconds guessed for it. The studio plays with a stand-in voice that says nothing and takes the time a line would take to say: 0.3 seconds and a third of a second for each word of its spoken form, at the player's pace. `wait: "voice"` therefore holds in the studio for about as long as it would with a spoken line, which is an estimate and not the time of any particular voice.
 
 | Verb | Kind | Does |
 |---|---|---|

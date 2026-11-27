@@ -178,7 +178,7 @@ Each step has one line, which is spoken and shown as text. A template is given i
 - Every line of a part is heard to its end.
 - One voice reads every line of an explainer.
 
-*In the package:* `ExplainerVoice` is the protocol an app's voice meets; `SilentVoice` is the muted case; `NumberWords` gives the spoken form of a number.
+*In the package:* `ExplainerVoice` is the protocol an app's voice meets; `SilentVoice` is the muted case; `EstimatedVoice` says nothing and takes the time a line would take to say, estimated by `ReadingTime.seconds`, so that a wait for the voice holds (the studio plays with it); `NumberWords` gives the spoken form of a number.
 
 ## EXP-8. The learner sets the pace, step by step
 

@@ -215,6 +215,7 @@ final class MotionRunner {
         guard running, let motion, !advancing else { return }
         advancing = true
         defer { advancing = false }
+        voice.advance(by: max(0, dt))
         let duration = motion.script.duration
         var budget = reduceMotion && !keepsTime ? Double.infinity : max(0, dt)
         while true {

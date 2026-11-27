@@ -19,9 +19,14 @@ public protocol ExplainerVoice: AnyObject {
     /// Calls `then` once `line` would start at once when said: now, for a voice with nothing to
     /// make.
     func whenReady(_ line: Line, _ then: @escaping @MainActor () -> Void)
+    /// Tells the voice that the player's clock has moved on by `seconds` while a step plays. A
+    /// voice that makes real audio keeps its own time and ignores it; `EstimatedVoice` keeps
+    /// time by it.
+    func advance(by seconds: Double)
 }
 
 extension ExplainerVoice {
+    public func advance(by seconds: Double) {}
     public func expect(_ lines: [Line]) {}
     public func whenReady(_ line: Line, _ then: @escaping @MainActor () -> Void) { then() }
 }
@@ -33,6 +38,44 @@ public final class SilentVoice: ExplainerVoice {
     public init() {}
     public func say(_ line: Line, onFinish: @escaping @MainActor () -> Void) { onFinish() }
     public func stop() {}
+}
+
+/// A voice that says nothing and finishes each line once the line's estimated time
+/// (`ReadingTime.seconds`) has passed on the player's clock, so that a step lasts as it would
+/// spoken and `wait: "voice"` holds. The player's clock already runs at its `pace`, so a line
+/// takes its estimate divided by the pace in real time. A line with no spoken form finishes at
+/// once, and nothing finishes after `stop`.
+@MainActor
+public final class EstimatedVoice: ExplainerVoice {
+    private var remaining = 0.0
+    private var finish: (@MainActor () -> Void)?
+
+    public init() {}
+
+    public func say(_ line: Line, onFinish: @escaping @MainActor () -> Void) {
+        let seconds = ReadingTime.seconds(line)
+        guard seconds > 0 else { return onFinish() }
+        remaining = seconds
+        finish = onFinish
+    }
+
+    public func advance(by seconds: Double) {
+        guard finish != nil else { return }
+        remaining -= seconds
+        if remaining <= 1e-9 { done() }
+    }
+
+    public func stop() {
+        finish = nil
+        remaining = 0
+    }
+
+    private func done() {
+        let call = finish
+        finish = nil
+        remaining = 0
+        call?()
+    }
 }
 
 /// The paced player (EXP-8). Before the first step it shows the problem and one Watch control.
