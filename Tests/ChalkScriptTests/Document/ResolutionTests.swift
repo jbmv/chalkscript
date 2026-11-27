@@ -717,8 +717,8 @@ struct DocumentColourDrawingTests {
     @Test(arguments: [false, true]) func theInkFillAndSoftFormsAreDrawnInTheAppearance(dark: Bool) throws {
         let e = try explainer()
         let scene = e.still(after: -1)
-        let hour = dark ? Self.hour.dark : Self.hour.light
-        let minute = dark ? Self.minute.dark : Self.minute.light
+        let hour = Self.hour.value(dark: dark)!
+        let minute = Self.minute.value(dark: dark)!
         let sheet = ExplainerStyle.standard.palette(dark: dark).sheet
         guard case let .shape(_, hand)? = scene.element("hand")?.kind, case let .shape(_, tint)? = scene.element("tint")?.kind,
             case let .words(_, set)? = scene.element("words")?.kind, case let .shape(_, rule)? = scene.element("rule")?.kind,
@@ -735,8 +735,8 @@ struct DocumentColourDrawingTests {
 
     @Test(arguments: [false, true]) func aTagAndATintedRunTakeTheirColoursAndAnEquationRunItsOwn(dark: Bool) throws {
         let e = try explainer()
-        let hour = dark ? Self.hour.dark : Self.hour.light
-        let minute = dark ? Self.minute.dark : Self.minute.light
+        let hour = Self.hour.value(dark: dark)!
+        let minute = Self.minute.value(dark: dark)!
         let scene = e.scene(step: 0, at: 1)
         guard case let .hueTag(_, _, _, tagHue)? = scene.element("words.tag")?.kind else { Issue.record("no tag in a hue of its own"); return }
         #expect(rgb(.ink(tagHue), dark: dark) == hour)

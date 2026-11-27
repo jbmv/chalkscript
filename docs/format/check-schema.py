@@ -4,8 +4,8 @@ The schema must accept both examples and refuse a document with an unknown verb,
 required key, a value of the wrong type, or an `areas` entry that lacks `layout` or `ratio`, whose
 `ratio` is not two numbers above 0, an empty `areas`, an element's `let` that is not an object of
 named values, a `turn` or `pivot` on a text element, an outline or a piece, or a `turn` verb whose `to` is not a
-number, a document colour without both values or with a value that is not `#RRGGBB`, a `profile` that is not a name, and a
-`style.palette`. It must accept a `profile`, `colours` by values and by a suggested colour, a `tag` with an `ink`, an element's `let` of expressions, and the keys `turn` and `pivot` of a line, arrow or
+number, a document colour with no value and no suggested colour or with a value that is not `#RRGGBB`, an `appearances` that is empty, repeats a name, is not an array or names anything but `light` and `dark`, a `profile` that is not a name, and a
+`style.palette`. It must accept a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, an element's `let` of expressions, and the keys `turn` and `pivot` of a line, arrow or
 shape and the verb `turn` (the capability `drawing.turn`). Each refused document is an example with one
 change, and the check also requires that the schema refuses it at the place that was changed. That a
 document that uses `drawing.turn` lists it in `requires` is a finding of the reader, not of the schema.
@@ -274,8 +274,16 @@ def main():
          lambda d: d["elements"].update({"hand": dict(HAND, pivot=[0])})),
         ("a turn verb whose to is not a number", "/steps/same/actions/spin/to",
          lambda d: d["steps"]["same"]["actions"].update({"spin": {"do": "turn", "target": "hand", "to": [90]}})),
-        ("a document colour without a dark value", "/colours/hour",
-         lambda d: d.update({"colours": {"hour": {"light": "#B5481F", "cue": "the short hand"}}})),
+        ("a document colour with neither value nor a suggested colour", "/colours/hour",
+         lambda d: d.update({"colours": {"hour": {"cue": "the short hand"}}})),
+        ("an appearance that is not light or dark", "/appearances/0",
+         lambda d: d.update({"appearances": ["sepia"]})),
+        ("an empty appearances", "/appearances",
+         lambda d: d.update({"appearances": []})),
+        ("a repeated appearance", "/appearances",
+         lambda d: d.update({"appearances": ["dark", "dark"]})),
+        ("appearances that is not an array", "/appearances",
+         lambda d: d.update({"appearances": "dark"})),
         ("a document colour that is not #RRGGBB", "/colours/hour/light",
          lambda d: d.update({"colours": {"hour": {"light": "red", "dark": "#F59623"}}})),
         ("a profile that is not a name", "/profile",
@@ -299,6 +307,10 @@ def main():
              "hour": {"light": "#B5481F", "dark": "#F59623", "cue": "the short hand"},
              "minute": {"suggested": "purple", "cue": "the long hand"}}}),
              d["steps"]["same"]["actions"].update({"card": {"do": "tag", "target": "equation", "text": "same", "ink": "hour"}}))),
+        ("appearances of one, with a document colour that gives only that value",
+         lambda d: d.update({"appearances": ["dark"], "colours": {"hour": {"dark": "#F59623", "cue": "the short hand"}}})),
+        ("appearances of both",
+         lambda d: d.update({"appearances": ["light", "dark"]})),
         ("an element's let of expressions", lambda d: d["elements"]["dot"].update({"let": {"k": "i + 1", "r": "k * 2"}})),
     ]
     for what, change in accepted:

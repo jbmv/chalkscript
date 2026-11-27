@@ -95,9 +95,12 @@ public protocol Explainer: Sendable {
     /// The area this explainer was laid out for and the one it was given, or nil when it has not
     /// been laid out for an area (EXP-17). By default, nil.
     var areaUse: AreaUse? { get }
+    /// The appearances this explainer is made for (EXP-20). By default, both.
+    var appearances: Set<Appearance> { get }
 }
 
 extension Explainer {
     public func laidOutExplainer(for area: CGSize) -> any Explainer { self }
     public var areaUse: AreaUse? { nil }
+    public var appearances: Set<Appearance> { Appearance.both }
 }

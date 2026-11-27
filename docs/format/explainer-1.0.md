@@ -164,6 +164,7 @@ then reports every reference the rename broke.
 | `vars` | no | Values a viewer's actions may change (section 5.3). |
 | `samples` | yes | The problems a reviewer is shown (section 5.4). |
 | `kind` | no | Which other problems are of the same kind (section 5.5). |
+| `appearances` | no | The appearances the document is made for, `light`, `dark` or both; both when absent (section 16.6). |
 | `areas` | no | The shapes of drawing area the document is made for (section 8.2). |
 | `layouts` | no | The drawing's size, and alternative layouts (section 8). |
 | `elements` | yes | What is drawn (section 9). |
@@ -1096,8 +1097,8 @@ operation role named alone is its `ink` for a stroke or text and its `fill` for 
 The standard style defines the operation roles `subtract`, `trade`, `result`, `add`, `multiply`
 and `divide`. A document names the neutral roles and `result` in any case, and the others when it
 requires `components.arithmetic` (section 2.3), in every profile. A document's own colours (section
-16.5) are named in the same keys and have the same three forms. A document does not define a role
-in its `style`.
+16.5) are named in the same keys and have the same three forms. A document names a role in each
+appearance it is made for (section 16.6). A document does not define a role in its `style`.
 
 ### 16.2 The standard style
 
@@ -1153,8 +1154,9 @@ made for `open`. A profile the reader does not have is a `ref` error that names 
 never draws a document under another profile.
 
 A document's top-level `colours` gives each colour of its own a name that is not a role of the
-style (section 3's pattern) and either `light` and `dark`, two values written `#RRGGBB`, or
-`suggested`, the name of one of its profile's suggested colours, and `cue`, a sentence saying what
+style (section 3's pattern) and either a value written `#RRGGBB` under `light` and under `dark` for
+each appearance the document is made for (section 16.6), or `suggested`, the name of one of its
+profile's suggested colours, which has both, and `cue`, a sentence saying what
 tells the colour's marks apart without colour, such as length, width or place. The name is then used
 in every key that takes a role (sections 9.2, 9.3, 13.5 and 13.10), as `hour`, `hour.fill`,
 `hour.ink` or `hour.soft`. A colour has one value for fill and ink, and its soft form is derived as
@@ -1169,19 +1171,44 @@ a suggested colour's is.
 ```
 
 The reader reports the following as `colour` warnings (section 21), each in plain words with the
-measurement after it, and none stops a document playing. Colours compared are those the document
+measurement after it, and none stops a document playing. The checks are made in each appearance the
+document is made for (section 16.6), and in no other. Colours compared are those the document
 draws: the roles it names and the roles the format gives by default. A colour that already has a
 contrast warning in one appearance is not also compared there.
 
 | Check | Warning |
 |---|---|
-| An ink keeps less than 3:1 contrast with the sheet, or on its own soft form, in light or in dark | The message names the contrast and the nearest colour that passes. |
+| An ink keeps less than 3:1 contrast with the sheet, or on its own soft form, in an appearance the document is made for | The message names the contrast and the nearest colour that passes. |
 | Two colours drawn, one of them the document's own, are under 20 apart in CIELAB (D65, CIE76), with normal vision or a simulated protanopia, deuteranopia or tritanopia (Machado, Oliveira and Fernandes 2009) | One warning for the pair, naming both, the appearance and the condition. |
 | In the `maths` profile, a colour is under 20 from an operation colour with normal vision | The colour may be read as that operation. |
 | A colour has no `cue` | The message says what a cue is. |
 
-A value that is not `#RRGGBB`, a colour with neither or both forms, and a suggested colour the
-profile does not have are errors.
+A value that is not `#RRGGBB`, a colour with neither or both forms, a colour without a value for an
+appearance the document is made for, and a suggested colour the profile does not have are errors.
+
+### 16.6 The appearances a document is made for
+
+A document is drawn in one of two *appearances*, `light` and `dark`, each with its own palette
+(section 16.2). `appearances` lists the appearances the document is made for, as an array of unique
+names with at least one. A document without it is made for both. A name other than `light` and
+`dark`, an empty array and a repeated name are `schema` errors.
+
+A player is asked to draw in an appearance, usually the device's. If the document is made for it,
+the player draws in it. Otherwise the player draws in the appearance the document is made for, and
+says so to whoever asked (section 18). Anything the player draws round the drawing, such as a
+caption and controls, is drawn in the same appearance. A player never derives a colour for one
+appearance from a colour given for another.
+
+A colour of the document's own (section 16.5) gives a value for each appearance the document is
+made for. A value for another appearance may be given; it is not checked and not drawn. The reader's
+`colour` checks are made in each appearance the document is made for, and in no other.
+
+```json
+"appearances": ["dark"],
+"colours": {
+  "hour": {"dark": "#FF924A", "cue": "the short, wide hand"}
+}
+```
 
 ## 17. Playback options
 
@@ -1207,6 +1234,8 @@ options together. A review of a document names all of them.
 A player is given the document, a problem, a wording, a locale, the playback options and the size
 of the drawing area, from which it finds the area it lays the document out for and chooses the
 layout (section 8). When that area is not the one it was given, it says so to whoever gave it.
+It is also given the appearance it is asked to draw in, from which it finds the one it draws in
+(section 16.6); when they differ, it says so to whoever asked.
 
 The *state* of the drawing is, for every instance, its opacity, progress, position, place, angle,
 size, look, text, tint, and whether it is crossed out or ghosted, with the same for each cross-out;
@@ -1281,7 +1310,7 @@ A reader and a validator report *findings*. Each has:
 | `eval` | An evaluation error for a problem (section 6.6). |
 | `range` | A problem outside the parameters' ranges. |
 | `areas` | A declared shape at which another layout is chosen, a layout no entry names, or a `suits` that depends on the area's size (warnings). |
-| `colour` | A colour of the document's that may not be seen or told from another, or that has no `cue` (warnings; section 16.5). |
+| `colour` | A colour of the document's that may not be seen or told from another in an appearance the document is made for, or that has no `cue` (warnings; section 16.5). |
 | `patch` | A patch refused: a stale base, a protected path, or an operation that failed. |
 
 A validator adds its own codes for the checks it computes. One finding is written on one line as
@@ -1299,7 +1328,7 @@ error wording /wording/en-US/everyday/skip @12: number {b} is followed by letter
 A document *conforms* when a reader finds no error in it. It is *sound* for a problem when nothing
 evaluated for that problem fails. A reader conforms when it reports what sections 2 to 21 make an
 error or a warning. A player conforms when, for a conforming document and a problem for which it is
-sound, it lays the document out for the area section 8.2 gives and plays the steps, timing, camera, lines and interaction this reference defines, and
+sound, it lays the document out for the area section 8.2 gives, draws it in the appearance section 16.6 gives, and plays the steps, timing, camera, lines and interaction this reference defines, and
 refuses what section 2 says it must refuse.
 
 Beside this reference:
@@ -1309,7 +1338,7 @@ Beside this reference:
 | `explainer-1.0.schema.json` | The JSON Schema (draft 2020-12) of a version 1.x document. It checks structure and types; it does not parse expressions or resolve references, which a reader does. |
 | `examples/subtraction.explainer` | Two-digit subtraction, trading a ten when the ones are too few, with two English wordings and do it with me. It uses a tall layout with the camera, and declares the shapes 0.6 to 1.35 (tall) and 1.35 to 2.2 (stage). |
 | `examples/equal-groups.explainer` | Multiplication as equal groups, counted on group by group, with two English wordings. Its places are named values, which a tall layout replaces to stack the groups in rows; it declares the shapes 0.6 to 0.9 (tall) and 0.9 to 2.2 (stage). |
-| `check-schema.py` | Checks that the schema accepts both examples and refuses documents with an unknown verb, a missing required key, a value of the wrong type and an `areas` entry whose `ratio` is not two numbers. Run it with `python3 docs/format/check-schema.py`. It uses the `jsonschema` package when it is installed and otherwise a validator of the schema keywords it uses. |
+| `check-schema.py` | Checks that the schema accepts both examples and refuses documents with an unknown verb, a missing required key, a value of the wrong type, an `areas` entry whose `ratio` is not two numbers and an `appearances` that is not a list of `light` and `dark`. Run it with `python3 docs/format/check-schema.py`. It uses the `jsonschema` package when it is installed and otherwise a validator of the schema keywords it uses. |
 
 ## 23. Prior art
 

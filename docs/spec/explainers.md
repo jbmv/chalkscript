@@ -108,7 +108,7 @@ Subtract, the answer and the fill for trade are Okabe-Ito colours. Add, multiply
 - Every coloured mark has its second cue. An explainer reads correctly in greyscale.
 - Pieces are drawn in pencil and are not coloured by place value.
 - Thin strokes and text use the ink value, which keeps at least 3:1 contrast with the paper.
-- Any two colours shown together stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in light and dark. A test checks this for the colours each explainer draws.
+- Any two colours shown together stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in each appearance the explainer is made for (EXP-20), which is light and dark unless its document declares otherwise. A test checks this for the colours each explainer draws.
 - Every colour drawn is one of these roles, resolved from the style, or a colour of the document's own (EXP-20). A style with other values changes every colour of a role, with no change to an explainer's code, and is held to the same checks.
 - In a document made for the maths profile, a colour of its own within 20 of an operation colour with normal vision is reported as a warning, since a learner may read it as that operation.
 
@@ -121,18 +121,22 @@ governs: Sources/ChalkScript/Resources/profiles/, Sources/ChalkScript/Drawing/Co
 
 A document declares the style profile it is made for: `maths` or `open`, or a later profile added as a style file. A document that declares none is made for `open`. A profile says which colours have a fixed meaning and offers suggested colours. The maths profile fixes the operation colours (EXP-6) and offers none. The open profile fixes none, and suggests `orange`, `green` and `purple`. In a profile that fixes no colour, a document may give colours of its own, each by light and dark values or by naming a suggested colour, and states for each what tells its marks apart without colour.
 
+A document may declare the appearances it is made for, light, dark or both, and is made for both when it declares none. A colour of its own gives a value for each appearance the document is made for, and a value for another is optional and not checked. The document is drawn only in the appearances it is made for, with the screen round the drawing (EXP-17), and no colour is derived for another appearance.
+
 **Why:** a fixed colour for each operation helps a learner of arithmetic and is a constraint in other subjects. What every document needs is that its colours can be seen and told apart, which is the same for all profiles.
 
 **Acceptance:**
 - An unknown profile is an error that names it, so that a player does not draw a document under another profile.
 - Every coloured mark has a second cue that does not depend on colour. An explainer reads correctly in greyscale. A colour of a document's own has a `cue` that says what the cue is; a missing one is reported as a warning.
-- Thin strokes and text keep at least 3:1 contrast with the sheet and on their own tint.
-- Any two colours drawn together, one of them a colour of the document's own, stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in light and dark.
+- Thin strokes and text keep at least 3:1 contrast with the sheet and on their own tint, in each appearance the document is made for.
+- Any two colours drawn together, one of them a colour of the document's own, stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in each appearance the document is made for.
 - The reader reports each failure as a warning that explains it in plain words and, for contrast, names the nearest colour that passes. The studio advises and does not refuse, and a warning does not stop a document playing.
 - The suggested colours of a profile keep the contrast of the first criterion with each sheet and are 20 apart from each other and from the neutral roles, in the same conditions; tests check them.
-- A document colour is drawn as given, in light and in dark, wherever a role is taken.
+- A document colour is drawn as given, in each appearance the document is made for, wherever a role is taken.
+- A document without `appearances` is made for both. A colour without a value for an appearance the document is made for is an error; a value for another appearance is not checked and gives no finding. An unknown name, an empty list and a repeated name in `appearances` are errors, and the schema refuses them.
+- A player asked for an appearance the document is not made for draws it in one it is made for, whatever the device's setting, and tells its host which appearance it used. `chalkscript-render` does the same and prints a line saying so.
 
-*In the package:* `ExplainerStyle.profiles` reads the profile files in `Resources/profiles/`; `ColourVision` is the simulation, and `ColourChecks` the contrast measure and the search for the nearest colour that passes; the reader reports the warnings with the code `colour`. A player that accepts only some profiles, or replaces one with its own, is not built.
+*In the package:* `ExplainerStyle.profiles` reads the profile files in `Resources/profiles/`; `ColourVision` is the simulation, and `ColourChecks` the contrast measure and the search for the nearest colour that passes; the reader reports the warnings with the code `colour`. `Appearance.use` finds the appearance a player draws in, and `ExplainerDocument.appearances` is what the document declares. A player that accepts only some profiles, or replaces one with its own, is not built.
 
 ## EXP-13. One visual language across explainers
 
@@ -296,8 +300,9 @@ The arrangement of the question, line and controls round the drawing is the app'
 - A document may declare the shapes of area it is made for; in another area it is laid out for the nearest declared shape, and drawn within that shape, scaled and centred.
 - Handedness is right or left, and right by default.
 - While a touch is on the drawing, and for one second after, the column's controls ignore presses.
+- The screen round the drawing, its caption, the progress dots and the controls, is drawn in the appearance the drawing is drawn in (EXP-20), which for a document made for one appearance is that one whatever the device's setting.
 
-*In the package:* `ScreenLayout`, `ScreenArrangement` (`automatic`, `captionBelow`, `captionBeside`), `ExplainerScreen.drawingArea`, `WritingHand` and `PalmGuard`. Subtraction is laid out again for a tall area; the other explainers are scaled to fit.
+*In the package:* `ExplainerView` draws the whole screen in the appearance it finds from the colour scheme asked and the explainer's `appearances`, and tells its host through `onAppearance`. `ScreenLayout`, `ScreenArrangement` (`automatic`, `captionBelow`, `captionBeside`), `ExplainerScreen.drawingArea`, `WritingHand` and `PalmGuard`. Subtraction is laid out again for a tall area; the other explainers are scaled to fit.
 
 ## EXP-12. Explainers are drawn at run time from the template's model
 
@@ -318,7 +323,7 @@ Export of an explainer to a video file is not built.
 status: draft
 governs: docs/format/explainer-1.0.md, docs/format/explainer-1.0.schema.json, Sources/ChalkScript/Style/ExplainerStyle.swift, Sources/ChalkScript/Style/ExplainerMotion.swift, Sources/ChalkScript/Style/FormatReading.swift, Sources/ChalkScriptExplainers/Resources/subtraction-motion.json
 
-An explainer is a document in one documented format, the explainer document format. A document is one JSON file, ending `.explainer`, that holds everything needed to play the explainer: the problem's values and what is computed from them, what is drawn, the colours it names for itself and the profile it is made for, the steps and their timing and easing, the camera's shots, the narration in each of its wordings and languages, what the viewer may do on a step, and overrides of the standard style. Its reference is [docs/format/explainer-1.0.md](../format/explainer-1.0.md), with a JSON Schema and two example documents beside it. Version 1.0 of the format is a draft.
+An explainer is a document in one documented format, the explainer document format. A document is one JSON file, ending `.explainer`, that holds everything needed to play the explainer: the problem's values and what is computed from them, what is drawn, the colours it names for itself, the profile and the appearances it is made for, the steps and their timing and easing, the camera's shots, the narration in each of its wordings and languages, what the viewer may do on a step, and overrides of the standard style. Its reference is [docs/format/explainer-1.0.md](../format/explainer-1.0.md), with a JSON Schema and two example documents beside it. Version 1.0 of the format is a draft.
 
 **Why:** a person or a tool can then write or change an explainer without changing code, and another app can play it from the reference alone. A wrong value is reported and does not fail silently.
 
@@ -350,7 +355,7 @@ A motion file (`<explainer>-motion.json`):
 A document holds what a motion file holds, so motion files are not part of the format.
 
 **Acceptance:**
-- The JSON Schema accepts the example documents and refuses a document with an unknown verb, a missing required key or a value of the wrong type (`docs/format/check-schema.py`).
+- The JSON Schema accepts the example documents and refuses a document with an unknown verb, a missing required key, a value of the wrong type or an `appearances` other than a list of `light` and `dark` (`docs/format/check-schema.py`).
 - A style with other values changes every colour drawn, with no change to code.
 - A value left out of a motion file falls back to the style, and a value left out of a style to the bundled style.
 - A missing, unknown or unreadable value is listed with its path.

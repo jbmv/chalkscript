@@ -29,7 +29,8 @@ let usage = """
                              longer side of 1000 points; the layout is the one the player would
                              use at that shape. Not with --area.
       --scale NUMBER         pixels per point (default: 2)
-      --dark                 draw in the style's dark palette
+      --dark                 draw in the style's dark palette. A document made for one
+                             appearance is drawn in it whichever is asked for, and a line says so.
 
     """
 
@@ -119,6 +120,13 @@ if let use = explainer.areaUse, !use.isGiven {
         "note: the document does not declare this shape; laid out for \(Int(use.used.width.rounded())) by \(Int(use.used.height.rounded())) points inside \(Int(use.given.width.rounded())) by \(Int(use.given.height.rounded()))\n".utf8))
 }
 
+// A document is drawn only in an appearance it is made for (EXP-20), with its line.
+let appearance = Appearance.use(asked: dark ? .dark : .light, madeFor: document.appearances)
+if appearance.differs {
+    FileHandle.standardError.write(Data(
+        "note: asked for \(appearance.asked.rawValue), but the document is made for \(appearance.used.rawValue) only, so it is drawn \(appearance.used.rawValue)\n".utf8))
+}
+
 let directory = URL(fileURLWithPath: positional[1], isDirectory: true)
 do {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -146,7 +154,7 @@ struct Still: View {
                 .padding(.vertical, 20)
         }
         .background(palette.paper.color)
-        .environment(\.colorScheme, dark ? .dark : .light)
+        .environment(\.colorScheme, appearance.used.isDark ? .dark : .light)
     }
 
     /// The line, with its emphasis (the answer) in the result colour, as the player shows it.
@@ -163,7 +171,7 @@ struct Still: View {
 
 @MainActor
 func render() {
-    let palette = ExplainerStyle.standard.palette(dark: dark)
+    let palette = ExplainerStyle.standard.palette(dark: appearance.used.isDark)
     let width = explainer.areaUse?.used.width ?? Scene.stage.width
     var pictures: [(String, Scene, Line)] = [("00-intro", explainer.still(after: -1), explainer.intro)]
     for k in 0..<explainer.stepCount {

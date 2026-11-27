@@ -31,7 +31,10 @@ public struct ExplainerLabels: Sendable {
 /// one column on the side of the writing hand (`hand`) holds the dots, the line and the controls,
 /// and the drawing has the rest at full height. Automatic, the default, puts the caption below in
 /// a space taller than wide and beside it in a wider one. The picture is scaled to fit and centred
-/// in the area the explainer was laid out for (`ExplainerPlayer.areaUse`). While a touch is on the
+/// in the area the explainer was laid out for (`ExplainerPlayer.areaUse`). The whole screen is
+/// drawn in an appearance the explainer is made for: the one the environment's colour scheme asks
+/// for if it is one, and otherwise the one it is made for, which `onAppearance` tells the host
+/// (EXP-20). While a touch is on the
 /// drawing and just after, presses on the controls do nothing (`PalmGuard`). Only where too little
 /// height is left for the drawing (a phone in landscape) does it scroll.
 public struct ExplainerView: View {
@@ -41,6 +44,7 @@ public struct ExplainerView: View {
     private let debugState: Bool
     private let hand: WritingHand
     private let arrangement: ScreenArrangement
+    private let onAppearance: (@MainActor (AppearanceUse) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -57,8 +61,10 @@ public struct ExplainerView: View {
     /// right by default.
     public init(
         player: ExplainerPlayer, labels: ExplainerLabels, forceStill: Bool = false, debugState: Bool = false,
-        hand: WritingHand = .right, arrangement: ScreenArrangement = .automatic
+        hand: WritingHand = .right, arrangement: ScreenArrangement = .automatic,
+        onAppearance: (@MainActor (AppearanceUse) -> Void)? = nil
     ) {
+        self.onAppearance = onAppearance
         self.player = player
         self.labels = labels
         self.forceStill = forceStill
@@ -67,7 +73,8 @@ public struct ExplainerView: View {
         self.arrangement = arrangement
     }
 
-    private var palette: ExplainerPalette { style.palette(dark: colorScheme == .dark) }
+    private var appearance: AppearanceUse { Appearance.use(asked: colorScheme == .dark ? .dark : .light, madeFor: player.appearances) }
+    private var palette: ExplainerPalette { style.palette(dark: appearance.used.isDark) }
     private var still: Bool { systemReduceMotion || forceStill }
 
     public var body: some View {
@@ -82,6 +89,7 @@ public struct ExplainerView: View {
             controls: { inColumn in controls(inColumn: inColumn) }
         )
         .overlay(alignment: .bottomLeading) { stateElement }
+        .drawn(in: appearance, tell: onAppearance)
         .onAppear { player.reduceMotion = still }
         .onChange(of: still) { player.reduceMotion = still }
         .onDisappear { player.stop() }
@@ -337,5 +345,15 @@ extension Scene {
         // The shot the camera holds on, or is moving to (EXP-18).
         if let camera { parts.append("shot=\(camera.shot ?? "")") }
         return parts.joined(separator: ";")
+    }
+}
+
+extension View {
+    /// Draws this view and everything in it in `use.used`, and tells `host` the appearance used when
+    /// it appears and whenever it changes (EXP-20).
+    func drawn(in use: AppearanceUse, tell host: (@MainActor (AppearanceUse) -> Void)?) -> some View {
+        environment(\.colorScheme, use.used.isDark ? .dark : .light)
+            .onAppear { host?(use) }
+            .onChange(of: use) { _, now in host?(now) }
     }
 }

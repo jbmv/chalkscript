@@ -117,6 +117,8 @@ public final class ExplainerPlayer {
     /// The area the explainer is laid out for, and whether that is the area given (EXP-17); nil
     /// before the first area. A host app may show it, log it or ignore it.
     public var areaUse: AreaUse? { explainer.areaUse }
+    /// The appearances the explainer is made for (EXP-20), which `ExplainerView` draws in.
+    public var appearances: Set<Appearance> { made.appearances }
     public private(set) var phase: Phase = .ready
     /// The line shown under the drawing.
     public private(set) var caption: Line

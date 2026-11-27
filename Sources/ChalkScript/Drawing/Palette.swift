@@ -17,18 +17,50 @@ public enum ExplainerOperation: String, CaseIterable, Sendable {
     case divide
 }
 
-/// A colour a document names for itself (EXP-20): one value for fill and ink in each appearance,
-/// with the soft form derived from the ink over the sheet.
+/// One of the two appearances a document is drawn in (EXP-20), each with its own palette.
+public enum Appearance: String, CaseIterable, Hashable, Sendable {
+    case light, dark
+
+    public var isDark: Bool { self == .dark }
+
+    /// The appearances a document is made for when it declares none.
+    public static let both: Set<Appearance> = [.light, .dark]
+
+    /// The appearance a player draws in when asked for `asked` (EXP-20): the one asked for when the
+    /// document is made for it, and otherwise the one it is made for. Nothing is derived from the
+    /// appearance not drawn.
+    public static func use(asked: Appearance, madeFor: Set<Appearance>) -> AppearanceUse {
+        if madeFor.contains(asked) || madeFor.isEmpty { return AppearanceUse(asked: asked, used: asked) }
+        return AppearanceUse(asked: asked, used: asked == .dark ? .light : .dark)
+    }
+}
+
+/// The appearance a player was asked to draw in and the one it drew in, which it tells its host
+/// (EXP-20).
+public struct AppearanceUse: Equatable, Hashable, Sendable {
+    public var asked: Appearance
+    public var used: Appearance
+
+    /// Whether the document is not made for the appearance asked.
+    public var differs: Bool { asked != used }
+}
+
+/// A colour a document names for itself (EXP-20): one value for fill and ink in each appearance
+/// the document gives one for, with the soft form derived from the ink over the sheet. A value is
+/// nil for an appearance the document is not made for and does not give.
 public struct DocumentColour: Hashable, Sendable {
     public var name: String
-    public var light: RGB
-    public var dark: RGB
+    public var light: RGB?
+    public var dark: RGB?
 
-    public init(name: String, light: RGB, dark: RGB) {
+    public init(name: String, light: RGB?, dark: RGB?) {
         self.name = name
         self.light = light
         self.dark = dark
     }
+
+    /// The value for one appearance, if the colour gives one.
+    public func value(dark isDark: Bool) -> RGB? { isDark ? dark : light }
 
     /// The share of the ink in its soft form, over the light sheet and over the dark one.
     public static let softShare = (light: 0.16, dark: 0.18)
@@ -67,7 +99,9 @@ public enum Hue: Hashable, Sendable {
         switch self {
         case let .operation(op): return palette.colors(op)
         case let .document(c):
-            let ink = palette.isDark ? c.dark : c.light
+            // A colour with no value in the appearance drawn is not derived from the other; the
+            // reader refuses a document that is made for the appearance and gives none.
+            let ink = c.value(dark: palette.isDark) ?? palette.ink
             return ExplainerPalette.OperationColors(
                 fill: ink, ink: ink, soft: DocumentColour.soft(ink, over: palette.sheet, dark: palette.isDark))
         }

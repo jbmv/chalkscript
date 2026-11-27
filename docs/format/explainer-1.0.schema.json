@@ -130,6 +130,18 @@
       },
       "additionalProperties": false
     },
+    "appearances": {
+      "description": "The appearances the document is made for; without it, both.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "light",
+          "dark"
+        ]
+      }
+    },
     "areas": {
       "type": "array",
       "minItems": 1,
@@ -368,7 +380,7 @@
       "additionalProperties": false
     },
     "colours": {
-      "description": "Colours the document names for itself: light and dark values, or a suggested colour of its profile, and a cue.",
+      "description": "Colours the document names for itself: a value for each appearance the document is made for, or a suggested colour of its profile, and a cue. That the values match the appearances is a finding of the reader.",
       "type": "object",
       "propertyNames": {
         "$ref": "#/$defs/name"
@@ -388,9 +400,17 @@
                 "type": "string"
               }
             },
-            "required": [
-              "light",
-              "dark"
+            "anyOf": [
+              {
+                "required": [
+                  "light"
+                ]
+              },
+              {
+                "required": [
+                  "dark"
+                ]
+              }
             ],
             "additionalProperties": false
           },

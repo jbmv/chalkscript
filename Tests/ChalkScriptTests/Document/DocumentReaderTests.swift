@@ -521,7 +521,7 @@ struct ProfileAndColourTests {
         has(read(try coloured(##"{"hour": {"suggested": "teal", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
             .error, .ref, "/colours/hour/suggested", "'teal'")
         has(read(try coloured(##"{"hour": {"light": "#B5481F", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
-            .error, .schema, "/colours/hour", "'dark'")
+            .error, .schema, "/colours/hour", "no dark value")
         has(read(try coloured(##"{"hour": {"light": "red", "dark": "#F59623", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
             .error, .schema, "/colours/hour/light", "#RRGGBB")
         has(read(try coloured(##"{"hour": {"suggested": "orange", "light": "#B5481F", "dark": "#F59623", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),

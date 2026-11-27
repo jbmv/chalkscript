@@ -143,6 +143,7 @@ the others are optional, and a document without them is complete.
 | `sourceLocale` | Required. The locale written in, such as `en-US`. |
 | `params`, `samples` | Required. The problem (topic `problem`). |
 | `let`, `vars`, `kind` | Optional parts of the problem. |
+| `appearances` | `["light"]`, `["dark"]` or both; both when absent (topic `colour`). |
 | `areas` | The shapes of drawing area the document is made for (topic `camera`). |
 | `layouts`, `parts`, `shots`, `opening` | The drawing and camera (topics `elements`, `camera`). |
 | `elements` | Required. What is drawn (topic `elements`). |
@@ -282,7 +283,7 @@ For a colour that is not an operation's, give the document its own, under `colou
 }
 ```
 
-A colour has `light` and `dark` values, or `suggested` with `orange`, `green` or `purple` (the `open` profile's own values, which differ a little from the table's), and a `cue`: what tells its marks apart without colour, such as length, width or place. A `tag` beside a colour of the document's takes that colour as its `ink`, since `result`, its default, may be too near it. `colour` warnings follow (topic `findings`).
+A colour has a value under `light` and under `dark` for each appearance the document is made for (below), or `suggested` with `orange`, `green` or `purple` (the `open` profile's own values, which differ a little from the table's), and a `cue`: what tells its marks apart without colour, such as length, width or place. A `tag` beside a colour of the document's takes that colour as its `ink`, since `result`, its default, may be too near it. `colour` warnings follow (topic `findings`).
 
 Colours that keep 3:1 contrast with each sheet and with their own tint, and are 20 apart from `text`, `pencil` and `line`:
 
@@ -298,6 +299,8 @@ Colours that keep 3:1 contrast with each sheet and with their own tint, and are 
 - A colour the person names in words: use its row of the table. `muted` is within 20 of teal and of pink in some conditions; if the document draws `muted`, `check` says so.
 - Values the person gives: use them, and report each `colour` warning in plain words. When a colour is hard to see, say on which background and offer the nearest value that shows, which the warning names. A person's choice stands.
 - The person wants different colours and names none: offer orange and purple, and say that they stay apart for colour-blind viewers and on both backgrounds.
+
+A document is made for both appearances, light and dark, unless `appearances` says otherwise. Keep both unless the person says that the explainer is only for one, or has chosen colours by looking at one and does not want to tune the other; then write `"appearances": ["dark"]` (or `["light"]`) and give each colour only that value. A value given for the other appearance is kept and not checked. Do not drop an appearance to silence a warning: offer the nearest colour first, and drop the appearance only if the person prefers. Tell a person who asks that a player whose screen is in the other appearance still draws the explainer in the one it is made for, with its caption and controls.
 
 ## steps: steps, actions, timing and the verbs
 
@@ -483,5 +486,5 @@ the problem's values, a time, then the message.
 | `range` | A problem outside the parameters. |
 | `areas` | A warning that a declared range and a layout's `suits` disagree, that no entry names a layout, or that `suits` depends on the area's size; change the range or the layout's `suits`, or add the missing entry. |
 | `patch` | A refused patch: stale base, protected path, or an operation that failed. |
-| `colour` | A warning: a colour that is hard to see (on the light or dark background, or on its own tint), two colours drawn together that may look alike to some colour-blind viewers, in `maths` a colour near an operation's, or a colour with no `cue`. The message gives the measurement and, for contrast, the nearest colour that shows. |
+| `colour` | A warning, made in each appearance the document is made for: a colour that is hard to see (on the light or dark background, or on its own tint), two colours drawn together that may look alike to some colour-blind viewers, in `maths` a colour near an operation's, or a colour with no `cue`. The message gives the measurement and, for contrast, the nearest colour that shows. |
 | `capability` | A kind, verb or key used without its capability in `requires` (`components.arithmetic` or `drawing.turn`), or one this studio does not draw. |

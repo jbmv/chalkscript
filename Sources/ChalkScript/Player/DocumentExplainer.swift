@@ -51,6 +51,8 @@ public struct DocumentExplainer: Explainer {
 
     public var playback: DocumentPlayback { resolved.playback }
 
+    public var appearances: Set<Appearance> { document.appearances }
+
     /// The skippable playback is played as the parent's version, the paced one as the learner's.
     public var version: ExplainerVersion { resolved.playback.control == .skippable ? .parent : .child }
 

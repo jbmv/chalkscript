@@ -124,6 +124,9 @@ final class DocumentChecker {
     var wordingNames: Set<String> = []
     /// The profile the document is made for, when the reader has it.
     var profile: ExplainerStyle?
+    /// The appearances the document is made for (EXP-20); both when it declares none or declares
+    /// them wrongly, which is an error.
+    var madeFor: Set<Appearance> = Appearance.both
     /// The document's own colours that could be read, by name.
     var ownColours: [String: DocumentColour] = [:]
 
@@ -505,12 +508,13 @@ final class DocumentChecker {
     func check() {
         object(.object(root), "", known: [
             "format", "version", "requires", "id", "title", "about", "sourceLocale", "params", "let", "vars", "samples", "kind",
-            "areas", "layouts", "elements", "parts", "shots", "opening", "intro", "sequence", "steps", "try", "whatIf", "style", "plays",
+            "appearances", "areas", "layouts", "elements", "parts", "shots", "opening", "intro", "sequence", "steps", "try", "whatIf", "style", "plays",
             "wording", "extensions", "profile", "colours",
         ], required: ["format", "version", "id", "title", "sourceLocale", "params", "samples", "elements", "sequence", "steps", "wording"])
         gatherNames()
         checkHeader()
         checkProfile()
+        checkAppearances()
         checkColours()
         checkParams()
         checkValues()
@@ -1305,8 +1309,39 @@ extension DocumentChecker {
 
     var profileID: String { root["profile"]?.string ?? ExplainerStyle.defaultProfile }
 
-    /// The document's own colours: each gives light and dark values or names one of its profile's
-    /// suggested colours, and says what tells its marks apart without colour.
+    /// The appearances the document is made for, as an array of unique names from `light` and
+    /// `dark` (section 16.6).
+    func checkAppearances() {
+        guard let v = root["appearances"] else { return }
+        guard case let .array(entries) = v, !entries.isEmpty else {
+            error(.schema, "/appearances", "appearances is not a non-empty array of light and dark")
+            return
+        }
+        var declared: Set<Appearance> = []
+        var sound = true
+        for (k, e) in entries.enumerated() {
+            let p = "/appearances/\(k)"
+            guard case let .string(name) = e else {
+                error(.schema, p, "an appearance is \(e.typeName), not light or dark")
+                sound = false
+                continue
+            }
+            guard let a = Appearance(rawValue: name) else {
+                error(.schema, p, "'\(name)' is not an appearance; the appearances are light and dark")
+                sound = false
+                continue
+            }
+            if !declared.insert(a).inserted {
+                error(.schema, p, "\(name) is listed more than once")
+                sound = false
+            }
+        }
+        if sound { madeFor = declared }
+    }
+
+    /// The document's own colours: each gives a value for each appearance the document is made
+    /// for, or names one of its profile's suggested colours, and says what tells its marks apart
+    /// without colour.
     func checkColours() {
         for (name, v, p) in map(root["colours"], "/colours") {
             if Self.styleRoles.contains(name) {
@@ -1321,25 +1356,27 @@ extension DocumentChecker {
             }
             let values = o["light"] != nil || o["dark"] != nil
             if values && o["suggested"] != nil {
-                error(.schema, p, "\(name) gives light and dark values or a suggested colour, not both")
+                error(.schema, p, "\(name) gives values or a suggested colour, not both")
                 continue
             }
             if !values && o["suggested"] == nil {
-                error(.schema, p, "\(name) gives light and dark values, or the name of a suggested colour")
+                error(.schema, p, "\(name) gives a value for each appearance the document is made for, or the name of a suggested colour")
                 continue
             }
             if values {
                 var read: [String: RGB] = [:]
                 for k in ["light", "dark"] {
                     guard let s = string(o, k, p) else {
-                        if o[k] == nil { error(.schema, p, "\(name) has no '\(k)', which it requires with the other") }
+                        if o[k] == nil, madeFor.contains(Appearance(rawValue: k)!) {
+                            error(.schema, p, "\(name) has no \(k) value, and the document is made for \(k)")
+                        }
                         continue
                     }
                     if Self.isColour(s), let c = RGB(hexString: s) { read[k] = c } else {
                         error(.schema, DocumentPath.join(p, k), "'\(s)' is not a colour #RRGGBB")
                     }
                 }
-                if let l = read["light"], let d = read["dark"] { ownColours[name] = DocumentColour(name: name, light: l, dark: d) }
+                if read["light"] != nil || read["dark"] != nil { ownColours[name] = DocumentColour(name: name, light: read["light"], dark: read["dark"]) }
             } else if let s = string(o, "suggested", p), let profile {
                 if let l = profile.light.suggested[s], let d = profile.dark.suggested[s] {
                     ownColours[name] = DocumentColour(name: name, light: l, dark: d)
@@ -1416,7 +1453,7 @@ extension DocumentChecker {
     /// on the sheet.
     private func value(_ role: DrawnRole, dark: Bool) -> RGB? {
         let palette = ExplainerStyle.standard.palette(dark: dark)
-        if let own = ownColours[role.base] { return dark ? own.dark : own.light }
+        if let own = ownColours[role.base] { return own.value(dark: dark) }
         switch role.base {
         case "text": return palette.ink
         case "muted": return palette.muted
@@ -1439,13 +1476,15 @@ extension DocumentChecker {
         let used = drawnRoles()
         let names = ownColours.keys.sorted()
         func appearance(_ dark: Bool) -> String { dark ? "dark" : "light" }
+        // The checks are made in each appearance the document is made for, and in no other.
+        let checked = [false, true].filter { madeFor.contains($0 ? .dark : .light) }
         // The appearances in which a colour is too faint to see, which its other checks leave out.
         var faint: Set<String> = []
         for name in names {
             let c = ownColours[name]!
             let path = DocumentPath.join("/colours", name)
-            for dark in [false, true] {
-                let ink = dark ? c.dark : c.light
+            for dark in checked {
+                guard let ink = c.value(dark: dark) else { continue }
                 let sheet = ExplainerStyle.standard.palette(dark: dark).sheet
                 let k = ColourChecks.contrasts(ink, sheet: sheet, dark: dark)
                 guard k.sheet < ColourChecks.minimumContrast || k.soft < ColourChecks.minimumContrast else { continue }
@@ -1477,7 +1516,7 @@ extension DocumentChecker {
             for later in drawnNames[(k + 1)...] { candidates.append((later, [DrawnRole(base: later, form: "ink")])) }
             for other in candidates {
                 var worst: (distance: Double, dark: Bool, seenWith: ColourVision, a: RGB, b: RGB)?
-                for dark in [false, true] {
+                for dark in checked {
                     if faint.contains(name + (dark ? "/dark" : "/light")) || faint.contains(other.label + (dark ? "/dark" : "/light")) { continue }
                     guard let a = value(DrawnRole(base: name, form: "ink"), dark: dark) else { continue }
                     for role in other.roles {
@@ -1502,7 +1541,7 @@ extension DocumentChecker {
             let path = DocumentPath.join("/colours", name)
             for op in ExplainerOperation.allCases {
                 var worst: (distance: Double, dark: Bool, a: RGB, b: RGB)?
-                for dark in [false, true] {
+                for dark in checked {
                     let palette = ExplainerStyle.standard.palette(dark: dark)
                     guard let a = value(DrawnRole(base: name, form: "ink"), dark: dark) else { continue }
                     for b in [palette.colors(op).ink, palette.colors(op).fill] {
