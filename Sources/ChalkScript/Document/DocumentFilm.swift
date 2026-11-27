@@ -211,12 +211,19 @@ extension DocumentFilm {
         var look = InstanceLook(
             opacity: try number("start/opacity", 1), progress: try number("start/progress", 1), position: reference, place: reference)
         look.text = text
+        // The angle the instance is drawn at and the point it turns about (section 9.5).
+        let turns = DocumentChecker.turnableKinds.contains(kind)
+        if turns { look.turn = try number("turn", 0) }
+        let pivoted = turns && el["pivot"] != nil
+        let pivot = pivoted ? try point("pivot") : reference
         switch el["look"]?.string {
         case "traded": look.look = .traded
         case "counted": look.look = .counted
         default: look.look = .pencil
         }
-        return DrawnInstance(instance: inst, shape: shape, reference: reference, bounds: bounds, fixed: el["fixed"] == .bool(true), start: look)
+        return DrawnInstance(
+            instance: inst, shape: shape, reference: reference, bounds: bounds, fixed: el["fixed"] == .bool(true), start: look, pivot: pivot,
+            pivoted: pivoted)
     }
 
     /// The runs of the entry a text element shows (section 9.2): each placeholder a run, named
@@ -382,6 +389,16 @@ extension DocumentFilm {
                     effect = .tag(a.text?.shown ?? "")
                 case "pulse":
                     effect = .pulse
+                case "turn":
+                    let now = state(at: start)[at]
+                    // Without `to`, back to the place's angle: the last `to` a step left, or the
+                    // element's own `turn`.
+                    var dest = r.state[target.whole]?.angle ?? instances[at].start.turn
+                    if r.doc.expressions[p + "/to"] != nil {
+                        dest = try r.number(p + "/to", locals: l, what: "to")
+                        if !a.mark { r.newAngles.append((target.whole, dest)) }
+                    }
+                    effect = .turn(from: now.turn, to: dest)
                 default:
                     throw refuse("this player does not draw the verb '\(a.verb)' yet")
                 }

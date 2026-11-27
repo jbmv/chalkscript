@@ -129,7 +129,9 @@ final class DocumentChecker {
     static let pieceKinds: Set<String> = ["ten", "one", "stick", "circle"]
     static let coreKinds: Set<String> = ["text", "line", "arrow", "outline", "shape"]
     static let strokedKinds: Set<String> = ["line", "arrow", "outline", "shape"]
-    static let verbs: Set<String> = ["appear", "fade", "draw", "cross", "tint", "move", "gather", "look", "set", "tag", "pulse", "say", "each"]
+    static let verbs: Set<String> = ["appear", "fade", "draw", "cross", "tint", "move", "gather", "look", "set", "tag", "pulse", "turn", "say", "each"]
+    /// The kinds of element that turn about a pivot, with the capability `drawing.turn`.
+    static let turnableKinds: Set<String> = ["line", "arrow", "shape"]
     static let instantVerbs: Set<String> = ["look", "set", "say"]
 
     init(_ root: JSONObject, capabilities: Set<String>) {
@@ -737,10 +739,10 @@ final class DocumentChecker {
             let common = ["kind", "repeat", "when", "z", "fixed", "start", "let"]
             let byKind: [String: (known: [String], required: [String])] = [
                 "text": (["at", "text", "runs", "style", "ink", "size", "anchor"], ["at"]),
-                "line": (["from", "to", "style", "ink"], ["from", "to"]),
-                "arrow": (["from", "to", "y", "ink"], ["from", "to", "ink"]),
+                "line": (["from", "to", "style", "ink", "turn", "pivot"], ["from", "to"]),
+                "arrow": (["from", "to", "y", "ink", "turn", "pivot"], ["from", "to", "ink"]),
                 "outline": (["rect", "around", "pad", "style", "ink"], ["style"]),
-                "shape": (["rect", "corner", "ellipse", "points", "closed", "fill", "ink"], []),
+                "shape": (["rect", "corner", "ellipse", "points", "closed", "fill", "ink", "turn", "pivot"], []),
                 "ten": (["rect", "look"], ["rect"]), "one": (["rect", "look"], ["rect"]),
                 "stick": (["rect", "look"], ["rect"]), "circle": (["rect", "look"], ["rect"]),
             ]
@@ -750,6 +752,13 @@ final class DocumentChecker {
             }
             if Self.pieceKinds.contains(kind) { used.append(("components.arithmetic", p + "/kind")) }
             object(.object(el), p, known: common + spec.known, required: spec.required)
+            // Text, outlines and pieces do not turn: a numeral stays upright and a piece's drawing is
+            // fixed, so a `turn` or `pivot` on one is an error, not a key to ignore.
+            if !Self.turnableKinds.contains(kind) {
+                for key in ["turn", "pivot"] where el[key] != nil {
+                    error(.schema, DocumentPath.join(p, key), "'\(key)' turns a line, arrow or shape, and \(name) is a \(kind)")
+                }
+            }
             let fixedScope = SlotScope(values: .paramsAndLets)
             // The element's own `let` names are locals of every key but `repeat` and `when`, which
             // fix how many instances there are and so cannot depend on one.
@@ -760,6 +769,11 @@ final class DocumentChecker {
             slot(el["repeat"], p + "/repeat", .number, fixedScope)
             slot(el["when"], p + "/when", .truth, fixedScope)
             slot(el["z"], p + "/z", .number, scope)
+            if Self.turnableKinds.contains(kind) {
+                slot(el["turn"], p + "/turn", .number, scope)
+                point(el["pivot"], p + "/pivot", scope)
+                for key in ["turn", "pivot"] where el[key] != nil { used.append(("drawing.turn", p + "/" + key)) }
+            }
             bool(el, "fixed", p)
             if let start = object(el["start"], p + "/start", known: ["opacity", "progress"]) {
                 slot(start["opacity"], p + "/start/opacity", .number, scope)
@@ -961,7 +975,7 @@ final class DocumentChecker {
         var known = ["do", "target", "at", "when", "mark"] + (inner ? [] : ["wait"])
         let params: [String: [String]] = [
             "appear": ["rise", "grow", "place", "text"], "fade": ["to"], "draw": [], "cross": ["fade"], "tint": ["ink"],
-            "move": ["to", "via"], "gather": ["from"], "look": ["value"], "set": ["text"], "tag": ["text"], "pulse": [],
+            "move": ["to", "via"], "gather": ["from"], "look": ["value"], "set": ["text"], "tag": ["text"], "pulse": [], "turn": ["to"],
             "say": ["line", "count", "caption"], "each": ["gap", "let", "then"],
         ]
         known += params[verb]!
@@ -1022,6 +1036,9 @@ final class DocumentChecker {
             }
         case "gather":
             slot(o["from"], p + "/from", .selection, plain)
+        case "turn":
+            slot(o["to"], p + "/to", .number, perInstance)
+            used.append(("drawing.turn", p + "/do"))
         case "look":
             _ = oneOf(o, "value", p, ["pencil", "traded", "counted"])
         case "set", "tag":

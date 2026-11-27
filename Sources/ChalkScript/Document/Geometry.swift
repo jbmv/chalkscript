@@ -44,8 +44,10 @@ extension Resolver {
             }
             return try point(key)
         }
-        let b: CGRect
+        var b: CGRect
         let reference: CGPoint
+        // What a turned instance's box is taken round, before it is turned (section 9.5).
+        var turning: Turning.Geometry?
         switch kind {
         case "text":
             let at = try point("at")
@@ -53,7 +55,9 @@ extension Resolver {
             reference = at
         case "line":
             let from = try point("from")
-            b = box([from, try point("to")])
+            let to = try point("to")
+            b = box([from, to])
+            turning = .points([from, to])
             reference = from
         case "arrow":
             let from = try end("from")
@@ -64,6 +68,7 @@ extension Resolver {
                 pts += [CGPoint(x: from.x, y: y), CGPoint(x: to.x, y: y)]
             }
             b = box(pts)
+            turning = .points(pts)
             reference = from
         case "outline":
             if doc.expressions[p + "/around"] != nil {
@@ -87,14 +92,26 @@ extension Resolver {
                 var pts: [CGPoint] = []
                 for k in 0..<n { pts.append(try point("points/\(k)")) }
                 b = pts.isEmpty ? .zero : box(pts)
+                turning = .points(pts)
                 reference = pts.first ?? .zero
             } else {
                 b = try rect(el["rect"] != nil ? "rect" : "ellipse")
+                turning = el["rect"] != nil ? .rect(b) : .ellipse(b)
                 reference = b.origin
             }
         default:
             b = try rect("rect")
             reference = b.origin
+        }
+        // A turned instance's bounds are the box round its geometry turned about its pivot, at
+        // its place: the angle a `turn` has left, or else its `turn` key.
+        if let turning {
+            var angle = state[instance.whole]?.angle
+            if angle == nil { angle = try number(p + "/turn", locals: l, default: 0, what: "turn") }
+            if let angle, angle != 0 {
+                let pivot = doc.expressions[p + "/pivot/0"] != nil ? try point("pivot") : reference
+                b = Turning.box(of: turning, turned: angle, about: pivot)
+            }
         }
         guard let place = state[instance.whole]?.place else { return b }
         return b.offsetBy(dx: place.x - reference.x, dy: place.y - reference.y)
@@ -188,5 +205,63 @@ struct CameraFraming {
         view.origin.x = slide(view.minX, view.width, bounds.minX, bounds.width)
         view.origin.y = slide(view.minY, view.height, bounds.minY, bounds.height)
         return Frame(view: view, region: focused ? region : nil)
+    }
+}
+
+/// Turning geometry about a point (section 9.5): the angle is in degrees, clockwise on the
+/// drawing, whose y grows downward.
+enum Turning {
+    /// What a box is taken round: the points of a line, arrow or shape, or the rectangle or the
+    /// ellipse of a shape.
+    enum Geometry {
+        case points([CGPoint])
+        case rect(CGRect)
+        case ellipse(CGRect)
+    }
+
+    /// `p` turned by `degrees` about `pivot`. A multiple of 30 turns by the exact sine and cosine
+    /// of section 6.4, so that a quarter turn lands on whole numbers.
+    static func turn(_ p: CGPoint, by degrees: Double, about pivot: CGPoint) -> CGPoint {
+        let s = Evaluator.trigonometric(true, degrees: degrees)
+        let c = Evaluator.trigonometric(false, degrees: degrees)
+        let dx = p.x - pivot.x
+        let dy = p.y - pivot.y
+        return CGPoint(x: pivot.x + dx * c - dy * s, y: pivot.y + dx * s + dy * c)
+    }
+
+    /// The turn as a transform about `pivot`; the identity when it turns nothing.
+    static func transform(by degrees: Double, about pivot: CGPoint) -> CGAffineTransform {
+        if degrees == 0 { return .identity }
+        let s = Evaluator.trigonometric(true, degrees: degrees)
+        let c = Evaluator.trigonometric(false, degrees: degrees)
+        return CGAffineTransform(a: c, b: s, c: -s, d: c, tx: pivot.x - pivot.x * c + pivot.y * s, ty: pivot.y - pivot.x * s - pivot.y * c)
+    }
+
+    /// The box round `geometry` turned by `degrees` about `pivot`: round the turned points, round
+    /// the turned corners of a rectangle, and, for an ellipse, round the turned ellipse itself.
+    static func box(of geometry: Geometry, turned degrees: Double, about pivot: CGPoint) -> CGRect {
+        func round(_ points: [CGPoint]) -> CGRect {
+            let turned = points.map { turn($0, by: degrees, about: pivot) }
+            let xs = turned.map(\.x)
+            let ys = turned.map(\.y)
+            guard let x0 = xs.min(), let x1 = xs.max(), let y0 = ys.min(), let y1 = ys.max() else { return .zero }
+            return CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+        }
+        switch geometry {
+        case let .points(points):
+            return round(points)
+        case let .rect(r):
+            return round([CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)])
+        case let .ellipse(r):
+            // The ellipse's centre turns about the pivot; its own half-extents turn with it.
+            let centre = turn(CGPoint(x: r.midX, y: r.midY), by: degrees, about: pivot)
+            let s = Evaluator.trigonometric(true, degrees: degrees)
+            let c = Evaluator.trigonometric(false, degrees: degrees)
+            let a = r.width / 2
+            let b = r.height / 2
+            let hx = (a * a * c * c + b * b * s * s).squareRoot()
+            let hy = (a * a * s * s + b * b * c * c).squareRoot()
+            return CGRect(x: centre.x - hx, y: centre.y - hy, width: 2 * hx, height: 2 * hy)
+        }
     }
 }

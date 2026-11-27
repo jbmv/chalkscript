@@ -21,6 +21,23 @@ enum InstanceShape: Equatable, Sendable {
     case arrow([CGPoint], ExplainerOperation)
     case outline(CGRect, style: String, op: ExplainerOperation?)
     case shape(Outline, fill: Ink?, stroke: Ink?)
+
+    /// What a turn moves, for the kinds that turn (section 9.5): the points of a line, arrow or
+    /// shape, or the rectangle or ellipse of a shape. Nil for text, outlines and pieces.
+    var turning: Turning.Geometry? {
+        switch self {
+        case let .line(from, to, _, _): .points([from, to])
+        case let .arrow(points, _): .points(points)
+        case let .shape(outline, _, _):
+            switch outline {
+            case let .lines(points, _): .points(points)
+            case let .rect(r, _): .rect(r)
+            case let .ellipse(r): .ellipse(r)
+            case .path: nil
+            }
+        default: nil
+        }
+    }
 }
 
 /// One instance of an element, as it stands before the first step.
@@ -32,6 +49,10 @@ struct DrawnInstance: Sendable {
     var bounds: CGRect
     var fixed: Bool
     var start: InstanceLook
+    /// The point the instance turns, grows and pulses about, at its place: its `pivot`, or its
+    /// reference point. It grows and pulses about it only when `pivoted`.
+    var pivot: CGPoint
+    var pivoted: Bool
 
     /// The scene element's id: the element's name, and the index of a repeated one.
     var id: String { instance.index.map { "\(instance.element).\($0)" } ?? instance.element }
@@ -65,6 +86,8 @@ struct InstanceLook: Equatable, Sendable {
     var rise = 0.0
     var grow = 1.0
     var pulse = 1.0
+    /// The angle the instance is drawn at, in degrees clockwise (section 18).
+    var turn = 0.0
     var tag: Tag?
 }
 
@@ -84,6 +107,7 @@ struct Track: Sendable {
         case set(String)
         case tag(String)
         case pulse
+        case turn(from: Double, to: Double)
     }
 
     var target: Int
@@ -147,6 +171,8 @@ struct Track: Sendable {
             if p >= 1 { l.tag = nil }
         case .pulse:
             l.pulse = keyframes([(0, 1), (0.5, 1.15), (1, 1)], p)
+        case let .turn(from, to):
+            l.turn = mix(from, to, p)
         }
         looks[target] = l
     }
@@ -200,9 +226,19 @@ struct DocumentPainter: Sendable {
     func elements(_ inst: DrawnInstance, _ l: InstanceLook) -> [SceneElement] {
         let d = CGVector(dx: l.position.x - inst.reference.x, dy: l.position.y - inst.reference.y + l.rise)
         func moved(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + d.dx, y: p.y + d.dy) }
-        let box = inst.bounds.offsetBy(dx: d.dx, dy: d.dy)
         let scale = l.grow * l.pulse
-        let around = Self.scale(scale, about: CGPoint(x: box.midX, y: box.midY))
+        // A turned instance is drawn through a turn about its pivot, which moves with it. It grows
+        // and pulses about its pivot when it has one, and otherwise about the middle of its turned
+        // geometry.
+        let pivot = moved(inst.pivot)
+        let spin = Turning.transform(by: l.turn, about: pivot)
+        var box = inst.bounds.offsetBy(dx: d.dx, dy: d.dy)
+        if let geometry = inst.shape.turning, l.turn != inst.start.turn || inst.pivoted {
+            box = Turning.box(of: geometry, turned: l.turn, about: inst.pivot).offsetBy(dx: d.dx, dy: d.dy)
+        }
+        let centre = inst.pivoted ? pivot : CGPoint(x: box.midX, y: box.midY)
+        let around = Self.scale(scale, about: centre)
+        let turned = spin.concatenating(around)
         switch inst.shape {
         case let .piece(kind, rect):
             // A piece is a rectangle the stage draws as it is, so its scale is its rectangle's.
@@ -252,14 +288,14 @@ struct DocumentPainter: Sendable {
             let f = moved(from)
             let t = moved(to)
             if divider && ink == .line && l.progress >= 1 {
-                return [SceneElement(inst.id, .divider(from: f, to: t), opacity: l.opacity, transform: around)]
+                return [SceneElement(inst.id, .divider(from: f, to: t), opacity: l.opacity, transform: turned)]
             }
             let paint = Paint(
                 stroke: ink, width: divider ? Components.dividerWidth : Components.pencilWidth, dash: divider ? Components.dividerDash : [],
                 progress: l.progress)
-            return [SceneElement(inst.id, .shape(.lines([f, t]), paint), opacity: l.opacity, transform: around)]
+            return [SceneElement(inst.id, .shape(.lines([f, t]), paint), opacity: l.opacity, transform: turned)]
         case let .arrow(points, op):
-            return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: around)]
+            return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: turned)]
         case let .outline(rect, style, op):
             let r = rect.offsetBy(dx: d.dx, dy: d.dy)
             let k: SceneElement.Kind =
@@ -274,7 +310,7 @@ struct DocumentPainter: Sendable {
         case let .shape(outline, fill, stroke):
             let shift = CGAffineTransform(translationX: d.dx, y: d.dy)
             return [SceneElement(inst.id, .shape(outline, Paint(fill: fill, stroke: stroke, progress: l.progress)), opacity: l.opacity,
-                transform: shift.concatenating(around))]
+                transform: shift.concatenating(turned))]
         }
     }
 }

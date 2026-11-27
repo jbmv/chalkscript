@@ -73,6 +73,8 @@ struct InstanceState {
     var ghosted = false
     /// A new place for the instance's reference point, given by a `move` with `to`.
     var place: CGPoint?
+    /// A new angle for the instance's place, given by a `turn` with `to` (section 13.14).
+    var angle: Double?
 }
 
 /// Resolves one document for one problem, layout, wording, locale and playback.
@@ -109,6 +111,8 @@ final class Resolver: EvaluationScope {
     var timing: Set<String> = []
     /// Places given by `move` with `to` in the step being resolved, applied when it ends.
     var newPlaces: [(DocumentInstance, CGPoint)] = []
+    /// Angles given by `turn` with `to` in the step being resolved, applied when it ends.
+    var newAngles: [(DocumentInstance, Double)] = []
 
     // The style the document's timing defaults come from.
     var durations: [String: Double] = [:]
@@ -359,6 +363,7 @@ final class Resolver: EvaluationScope {
             resolvedActions = [:]
             notRunning = []
             newPlaces = []
+            newAngles = []
             let actionsPath = source("actions") + "/actions"
             let actionObject = value("actions")?.object ?? JSONObject()
             for (k, v) in actionObject.entries { stepActions[k] = (v.object ?? JSONObject(), DocumentPath.join(actionsPath, k)) }
@@ -487,7 +492,7 @@ final class Resolver: EvaluationScope {
         case "appear", "tag", "pulse": "appear"
         case "fade": "fade"
         case "draw", "cross", "tint": "draw"
-        case "move", "gather": "travel"
+        case "move", "gather", "turn": "travel"
         default: nil
         }
     }
@@ -588,6 +593,13 @@ final class Resolver: EvaluationScope {
                     newPlaces.append((t.whole, CGPoint(x: x, y: y)))
                 }
             }
+        case "turn":
+            // A turn that is a mark leaves nothing, so it does not change the place's angle.
+            if doc.expressions[path + "/to"] != nil && o["mark"] != .bool(true) {
+                for (k, t) in targets.enumerated() {
+                    newAngles.append((t.whole, try number(path + "/to", locals: locals.merging(["i": .number(Double(k))]) { $1 }, what: "to")))
+                }
+            }
         case "each":
             let saved = locals
             var t = start
@@ -678,6 +690,7 @@ final class Resolver: EvaluationScope {
             case "draw": ok = DocumentChecker.strokedKinds.contains(el.kind) && t.part == nil
             case "tint", "set": ok = t.part == nil ? (verb == "tint" || el.kind == "text") : { if case .run = t.part { true } else { false } }()
             case "move", "gather", "tag", "pulse": ok = t.part == nil
+            case "turn": ok = t.part == nil && DocumentChecker.turnableKinds.contains(el.kind)
             default: ok = true
             }
             if !ok { throw EvalFailure(path: path + "/target", message: "\(verb) cannot act on \(t)") }
@@ -704,6 +717,8 @@ final class Resolver: EvaluationScope {
         }
         for (t, p) in newPlaces { state[t, default: InstanceState()].place = p }
         newPlaces = []
+        for (t, angle) in newAngles { state[t, default: InstanceState()].angle = angle }
+        newAngles = []
     }
 }
 

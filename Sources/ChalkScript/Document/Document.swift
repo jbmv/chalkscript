@@ -8,7 +8,7 @@ public struct ExplainerDocument: Sendable {
     /// The version of the format this reader implements.
     public static let readerVersion = (major: 1, minor: 0)
     /// The capabilities this reader implements (section 2.3).
-    public static let capabilities: Set<String> = ["components.arithmetic"]
+    public static let capabilities: Set<String> = ["components.arithmetic", "drawing.turn"]
 
     public let json: JSONValue
     /// The document's findings when it was read.

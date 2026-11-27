@@ -329,4 +329,184 @@ struct ResolutionTests {
         let lengths = ticks.map { hypot($0[1].x - $0[0].x, $0[1].y - $0[0].y) }
         for (k, length) in lengths.enumerated() { #expect(abs(length - (k % 5 == 0 ? 26 : 12)) < 1e-9, "tick \(k) is \(length) long") }
     }
+
+    // MARK: turning an element about its pivot (the capability drawing.turn)
+
+    /// A hand drawn pointing at twelve, 100 units long, with its pivot at its hub.
+    static let hand = #"{"kind": "shape", "closed": true, "fill": "text", "pivot": [200, 300], "points": [[210, 300], [200, 200], [190, 300], [200, 320]]}"#
+
+    /// A document with the element `hand`, whatever else `extra` adds to `elements` (a JSON
+    /// object's members, written with a leading comma), and one step for each entry of `steps`, a
+    /// JSON object of actions.
+    func handDocument(_ element: String = ResolutionTests.hand, extra: String = "", layouts: String = "", steps: [String]) throws -> ExplainerDocument {
+        let names = steps.indices.map { "\"s\($0)\"" }.joined(separator: ", ")
+        let body = steps.enumerated().map { "\"s\($0.offset)\": { \"say\": \"line\", \"actions\": \($0.element) }" }.joined(separator: ", ")
+        let doc = try JSONValue.parse("""
+            {
+              "format": "chalkscript-explainer", "version": "1.0", "requires": ["drawing.turn"], "id": "hands", "title": "Hands",
+              "sourceLocale": "en-US", "params": { "a": { "type": "int", "min": 1, "max": 1 } }, "samples": [{ "a": 1 }],
+              \(layouts)
+              "elements": { "hand": \(element)\(extra) },
+              "sequence": [\(names)],
+              "steps": { \(body) },
+              "wording": { "en-US": { "shared": {}, "plain": { "line": "Turn." } } }
+            }
+            """)
+        let d = try #require(ExplainerDocument.read(doc.data).document)
+        #expect(d.conforms, "\(d.findings)")
+        return d
+    }
+
+    func explainer(_ doc: ExplainerDocument) throws -> DocumentExplainer { try DocumentExplainer(document: doc, problem: DocumentFixture.values(("a", 1))) }
+
+    /// The angle a scene draws the element at, in degrees from 0 up to 360.
+    func angle(_ scene: Scene, _ id: String = "hand") throws -> Double {
+        let t = try #require(scene.element(id)).transform
+        let a = atan2(Double(t.b), Double(t.a)) * 180 / .pi
+        return a < 0 ? a + 360 : a
+    }
+
+    func equal(_ a: Double, _ b: Double, _ what: String = "", sourceLocation: SourceLocation = #_sourceLocation) {
+        let d = abs(a - b)
+        #expect(min(d, 360 - d) < 1e-6, "\(a) is not \(b) \(what)", sourceLocation: sourceLocation)
+    }
+
+    /// From 0, `to: 150` is at 75 half-way under linear, and at 150 at the end; `to: -30` turns
+    /// anticlockwise, half-way at -15; and a later `to: 360` from 150 carries on round to twelve.
+    @Test func aTurnGoesByTheDifferenceOfItsAnglesAndTheNumbersGiveTheDirection() throws {
+        let clockwise = try explainer(try handDocument(steps: [#"{ "go": { "do": "turn", "target": "hand", "to": 150, "dur": 2, "ease": "linear" } }"#]))
+        equal(try angle(clockwise.scene(step: 0, at: 0)), 0)
+        equal(try angle(clockwise.scene(step: 0, at: 1)), 75)
+        equal(try angle(clockwise.still(after: 0)), 150)
+        let anticlockwise = try explainer(try handDocument(steps: [#"{ "go": { "do": "turn", "target": "hand", "to": -30, "dur": 2, "ease": "linear" } }"#]))
+        equal(try angle(anticlockwise.scene(step: 0, at: 1)), -15)
+        equal(try angle(anticlockwise.still(after: 0)), -30)
+        // The turn is about the pivot, which stays where it is.
+        let pivot = try #require(clockwise.scene(step: 0, at: 1).element("hand")).transform
+        #expect(CGPoint(x: 200, y: 300).applying(pivot) == CGPoint(x: 200, y: 300))
+        // Round: 150 then to 360 goes on through 255, not back through 45.
+        let round = try explainer(try handDocument(steps: [
+            #"{ "go": { "do": "turn", "target": "hand", "to": 150, "dur": 1 } }"#,
+            #"{ "go": { "do": "turn", "target": "hand", "to": 360, "dur": 2, "ease": "linear" } }"#,
+        ]))
+        equal(try angle(round.scene(step: 1, at: 0)), 150, "the step starts where the last left it")
+        equal(try angle(round.scene(step: 1, at: 1)), 255)
+        equal(try angle(round.still(after: 1)), 0)
+        // 390 is a whole turn and 30 more, and is drawn at 30.
+        let more = try explainer(try handDocument(steps: [#"{ "go": { "do": "turn", "target": "hand", "to": 390, "dur": 2, "ease": "linear" } }"#]))
+        equal(try angle(more.scene(step: 0, at: 1)), 195)
+        equal(try angle(more.still(after: 0)), 30)
+    }
+
+    /// The turn key places the element at its angle before any step; a turn without `to` goes
+    /// back to the place's angle, which is that angle or the last `to` a step left.
+    @Test func aTurnWithoutToReturnsToTheAngleOfThePlace() throws {
+        let keyed = ResolutionTests.hand.replacingOccurrences(of: #""closed""#, with: #""turn": 40, "closed""#)
+        let marked = try explainer(try handDocument(keyed, steps: [#"""
+            { "go": { "do": "turn", "target": "hand", "to": 150, "dur": 1, "ease": "linear", "mark": true },
+              "back": { "do": "turn", "target": "hand", "at": "end(go)", "dur": 1, "ease": "linear" } }
+            """#]))
+        equal(try angle(marked.still(after: -1)), 40, "drawn at its turn before any step")
+        equal(try angle(marked.scene(step: 0, at: 1)), 150)
+        equal(try angle(marked.scene(step: 0, at: 1.5)), 95)
+        equal(try angle(marked.still(after: 0)), 40)
+        // A turn that is not a mark makes its `to` the place's angle for the steps after it.
+        let kept = try explainer(try handDocument(keyed, steps: [
+            #"{ "go": { "do": "turn", "target": "hand", "to": 150, "dur": 1 } }"#,
+            #"""
+            { "go": { "do": "turn", "target": "hand", "to": 60, "dur": 1, "ease": "linear", "mark": true },
+              "back": { "do": "turn", "target": "hand", "at": "end(go)", "dur": 1, "ease": "linear" } }
+            """#,
+        ]))
+        equal(try angle(kept.still(after: 0)), 150)
+        equal(try angle(kept.scene(step: 1, at: 0)), 150, "the step starts at the place's angle")
+        equal(try angle(kept.scene(step: 1, at: 1)), 60)
+        equal(try angle(kept.still(after: 1)), 150, "back to 150, the place's angle, and not to the key's 40")
+        // The turn after a mark that is undone is not carried to the next step.
+        let marks = try explainer(try handDocument(steps: [
+            #"{ "go": { "do": "turn", "target": "hand", "to": 90, "dur": 1, "mark": true } }"#,
+            #"{ "wait": { "do": "pulse", "target": "hand" } }"#,
+        ]))
+        equal(try angle(marks.still(after: 0)), 90)
+        equal(try angle(marks.scene(step: 1, at: 0)), 0)
+    }
+
+    /// An instance with a pivot grows and pulses about it, so the pivot stays still; one without
+    /// grows and pulses about the middle of its geometry, which is not at its reference point.
+    @Test func growAndPulseKeepThePivotStill() throws {
+        let hub = CGPoint(x: 200, y: 300)
+        func hubMoves(_ element: String) throws -> [CGPoint] {
+            let e = try explainer(try handDocument(element, steps: [
+                #"{ "in": { "do": "appear", "target": "hand", "dur": 2, "grow": 0.2, "ease": "linear" } }"#,
+                #"{ "bump": { "do": "pulse", "target": "hand", "dur": 2 } }"#,
+            ]))
+            var seen: [CGPoint] = []
+            for (step, t) in [(0, 1.0), (0, 2.0), (1, 1.0)] {
+                let scene = e.scene(step: step, at: t)
+                let element = try #require(scene.element("hand"))
+                seen.append(hub.applying(element.transform))
+            }
+            return seen
+        }
+        for turn in [0.0, 90, 150] {
+            let pivoted = ResolutionTests.hand.replacingOccurrences(of: #""closed""#, with: #""turn": \#(turn), "start": { "opacity": 0 }, "closed""#)
+            for point in try hubMoves(pivoted) { #expect(abs(point.x - hub.x) < 1e-9 && abs(point.y - hub.y) < 1e-9, "turned \(turn): \(point)") }
+        }
+        // Without a pivot, the first point is where the shape is grown from its middle, so moves.
+        let free = ResolutionTests.hand.replacingOccurrences(of: #""pivot": [200, 300], "#, with: "")
+            .replacingOccurrences(of: #""closed""#, with: #""start": { "opacity": 0 }, "closed""#)
+        let moved = try hubMoves(free)
+        #expect(moved[0] != hub && moved[2] != hub, "\(moved)")
+        // The pulse is by 15 per cent half-way, about the pivot: the tip is 115 units out.
+        let e = try explainer(try handDocument(
+            ResolutionTests.hand.replacingOccurrences(of: #""closed""#, with: #""turn": 90, "closed""#), steps: [#"{ "bump": { "do": "pulse", "target": "hand", "dur": 2 } }"#]))
+        let t = try #require(e.scene(step: 0, at: 1).element("hand")).transform
+        let pulsed = CGPoint(x: 200, y: 200).applying(t)
+        #expect(abs(pulsed.x - 315) < 1e-9 && abs(pulsed.y - 300) < 1e-9, "\(pulsed)")
+    }
+
+    /// A turned instance is as large as the box round its turned geometry, and `around`, a part
+    /// and a shot frame it so, at its angle now and at the angle a step has left it at.
+    @Test func boundsAreTheBoxRoundTheTurnedGeometry() throws {
+        let turned = ResolutionTests.hand.replacingOccurrences(of: #""closed""#, with: #""turn": 90, "closed""#)
+        let frame = #", "frame": { "kind": "outline", "style": "hint", "around": "hand", "pad": 0 }, "far": { "kind": "text", "at": [500, 380], "text": "line" }"#
+        let layouts = #""layouts": { "stage": { "size": [600, 400], "camera": true } }, "parts": { "handPart": "hand" }, "shots": { "handShot": { "frame": ["handPart"], "margin": 0 } },"#
+        let doc = try handDocument(turned, extra: frame, layouts: layouts, steps: [#"{ "go": { "do": "turn", "target": "hand", "to": 180, "dur": 1 } }"#])
+        let r = Resolver(doc, problem: DocumentFixture.values(("a", 1)), layout: "stage", area: nil, wording: "plain", locale: "en-US", playback: DocumentPlayback())
+        // Pointing at twelve, the hand is 20 wide and 120 tall; turned 90 it is 120 wide and 20 tall,
+        // from its hub to 100 on, with its tail 20 back.
+        let box = CGRect(x: 180, y: 290, width: 120, height: 20)
+        #expect(try r.bounds(DocumentInstance("hand")) == box)
+        #expect(try r.bounds(DocumentInstance("frame")) == box, "around frames the turned hand")
+        #expect(try r.region(ofPart: "handPart") == box)
+        // A hand that has been turned to 180 and has then been moved is the box of that, at its place.
+        r.state[DocumentInstance("hand"), default: InstanceState()].angle = 180
+        #expect(try r.bounds(DocumentInstance("hand")) == CGRect(x: 190, y: 280, width: 20, height: 120))
+        r.state[DocumentInstance("hand"), default: InstanceState()].place = CGPoint(x: 310, y: 400)
+        #expect(try r.bounds(DocumentInstance("hand")) == CGRect(x: 290, y: 380, width: 20, height: 120), "its reference point (210, 300) is at (310, 400)")
+        // The camera's shot frames the turned hand, in the player, and not the hand pointing up.
+        let e = try explainer(doc)
+        #expect(try #require(e.film.cameras["handShot"]).focus == box)
+        // An ellipse is boxed by its turned ellipse, and a rectangle by its turned corners.
+        let round = try handDocument(#"{ "kind": "shape", "ellipse": [100, 100, 80, 40], "fill": "text", "pivot": [140, 120], "turn": 90 }"#, steps: [#"{}"#])
+        let r2 = Resolver(round, problem: DocumentFixture.values(("a", 1)), layout: "stage", area: nil, wording: "plain", locale: "en-US", playback: DocumentPlayback())
+        let b = try r2.bounds(DocumentInstance("hand"))
+        #expect(abs(b.minX - 120) < 1e-9 && abs(b.minY - 80) < 1e-9 && abs(b.width - 40) < 1e-9 && abs(b.height - 80) < 1e-9, "\(b)")
+    }
+
+    /// A turned arrow is drawn through its turn, so its head follows the turned path.
+    @Test func aTurnedArrowIsDrawnThroughItsTurnWithItsHead() throws {
+        let arrow = #"{"kind": "arrow", "ink": "result", "pivot": [200, 300], "from": [200, 300], "to": [200, 200], "turn": 90}"#
+        let e = try explainer(try handDocument(arrow, steps: [#"{ "go": { "do": "turn", "target": "hand", "to": 180, "dur": 1 } }"#]))
+        let before = try #require(e.still(after: -1).element("hand"))
+        guard case let .arrow(points, _, _) = before.kind else { Issue.record("not an arrow"); return }
+        // The arrow's points are where it is placed; the head is drawn from them, and both are turned.
+        #expect(points == [CGPoint(x: 200, y: 300), CGPoint(x: 200, y: 200)])
+        equal(try angle(e.still(after: -1)), 90)
+        let tip = points[1].applying(before.transform)
+        #expect(abs(tip.x - 300) < 1e-9 && abs(tip.y - 300) < 1e-9, "\(tip)")
+        let after = try #require(e.still(after: 0).element("hand"))
+        let down = points[1].applying(after.transform)
+        #expect(abs(down.x - 200) < 1e-9 && abs(down.y - 400) < 1e-9, "\(down)")
+    }
 }

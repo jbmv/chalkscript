@@ -282,6 +282,72 @@ struct DocumentReaderTests {
         has(read(try withElementLet(#"{"k": "i + 1"}"#, repeat: nil)), .error, .expr, "/elements/nums/let/k", at: 0, "not in scope")
     }
 
+    // MARK: the capability drawing.turn
+
+    /// `tiny` with the line `rule` turned about a pivot by `turn`, and a step that turns it.
+    var turning: JSONValue {
+        tiny.setting("/elements/rule/turn", .number(30)).setting("/elements/rule/pivot", try! JSONValue.parse("[0, 0]"))
+            .setting("/steps/show/actions/spin", try! JSONValue.parse(#"{"do": "turn", "target": "rule", "to": "a * 90", "at": "end(draw)"}"#))
+    }
+
+    @Test func aTurnWithoutTheCapabilityIsRefusedAndNamesIt() {
+        // One finding for the capability, at the first place the document uses it.
+        let r = read(turning)
+        has(r, .error, .capability, "/elements/rule/turn", "drawing.turn")
+        #expect(!r.conforms && r.findings.filter { $0.code == .capability }.count == 1)
+        // The key alone, the pivot alone and the verb alone each name it.
+        has(read(tiny.setting("/elements/rule/turn", .number(30))), .error, .capability, "/elements/rule/turn", "drawing.turn")
+        has(read(tiny.setting("/elements/rule/pivot", try! JSONValue.parse("[0, 0]"))), .error, .capability, "/elements/rule/pivot", "drawing.turn")
+        let verb = tiny.setting("/steps/show/actions/spin", try! JSONValue.parse(#"{"do": "turn", "target": "rule"}"#))
+        has(read(verb), .error, .capability, "/steps/show/actions/spin/do", "drawing.turn")
+        // Required, the same document reads with no finding; a reader without it refuses what requires it.
+        let required = turning.setting("/requires", .array([.string("drawing.turn")]))
+        let ok = read(required)
+        #expect(ok.conforms && ok.findings.isEmpty, "\(ok.findings)")
+        has(ExplainerDocument.read(required.data, capabilities: ["components.arithmetic"]), .error, .capability, "/requires/0", "not implemented")
+    }
+
+    @Test func aTurnIsForLinesArrowsAndShapesAndNotForText() throws {
+        let required = tiny.setting("/requires", .array([.string("drawing.turn")]))
+        for key in ["turn", "pivot"] {
+            let value: JSONValue = key == "turn" ? .number(90) : try JSONValue.parse("[0, 0]")
+            let r = read(required.setting("/elements/label/\(key)", value))
+            has(r, .error, .schema, "/elements/label/\(key)", "turns a line, arrow or shape")
+            #expect(!r.conforms)
+        }
+        let box = try JSONValue.parse(#"{"kind": "outline", "style": "hint", "rect": [0, 0, 10, 10], "turn": 90}"#)
+        has(read(required.setting("/elements/frame", box)), .error, .schema, "/elements/frame/turn", "turns a line, arrow or shape")
+        // A line, an arrow and a shape each turn, with expressions in the angle and the pivot.
+        let kinds = [
+            #"{"kind": "line", "from": [0, 0], "to": [0, 10], "turn": "i * 30", "pivot": ["i", 0], "repeat": 3}"#,
+            #"{"kind": "arrow", "ink": "result", "from": [0, 0], "to": [0, 10], "turn": "a * 30", "pivot": [5, "a"]}"#,
+            #"{"kind": "shape", "fill": "text", "points": [[0, 0], [10, 0], [5, 10]], "turn": 45, "pivot": [5, 5]}"#,
+            #"{"kind": "shape", "ink": "text", "ellipse": [0, 0, 10, 20], "turn": 45}"#,
+        ]
+        for (k, kind) in kinds.enumerated() {
+            let r = read(required.setting("/elements/spun", try JSONValue.parse(kind)))
+            #expect(r.conforms && r.findings.isEmpty, "\(k): \(r.findings)")
+        }
+        // The angle and the pivot are numbers, and a pivot is a point.
+        has(read(required.setting("/elements/rule/turn", .string("nope"))), .error, .expr, "/elements/rule/turn", at: 0, "unknown name")
+        has(read(required.setting("/elements/rule/pivot", try JSONValue.parse("[0]"))), .error, .schema, "/elements/rule/pivot", "not a point")
+        has(read(required.setting("/elements/rule/turn", .bool(true))), .error, .schema, "/elements/rule/turn")
+        // The verb's `to` is an expression with the index of the target, and is optional.
+        let verb = required.setting("/steps/show/actions/spin", try JSONValue.parse(#"{"do": "turn", "target": "rule", "to": "i * 10", "dur": 1}"#))
+        #expect(read(verb).conforms)
+        has(read(required.setting("/steps/show/actions/spin", try JSONValue.parse(#"{"do": "turn", "target": "rule", "by": 10}"#))), .warning, .unknown, "/steps/show/actions/spin/by")
+    }
+
+    /// A verb that names a text element is refused when the document is resolved, which is when
+    /// its target is known.
+    @Test func aTurnOfATextElementIsRefusedWhenResolved() throws {
+        let doc = tiny.setting("/requires", .array([.string("drawing.turn")]))
+            .setting("/steps/show/actions/spin", try JSONValue.parse(#"{"do": "turn", "target": "label", "to": 10}"#))
+        let d = try #require(ExplainerDocument.read(doc.data).document)
+        #expect(d.conforms, "\(d.findings)")
+        #expect(throws: DocumentRefusal.self) { try d.resolve(problem: DocumentFixture.values(("a", 1))) }
+    }
+
     @Test func wordingIsChecked() {
         has(read(tiny.setting("/wording/en-US/plain/show", .string("This is 5."))), .error, .wording, "/wording/en-US/plain/show", at: 8, "numeral")
         has(read(tiny.setting("/wording/en-US/plain/show", .string("Count by {a}s."))), .error, .wording, "/wording/en-US/plain/show", at: 12,
