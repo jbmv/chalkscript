@@ -668,3 +668,89 @@ struct ResolutionTests {
         return nil
     }
 }
+
+// A document's own colours are drawn wherever a role is taken, in both appearances (EXP-20).
+struct DocumentColourDrawingTests {
+    static let hour = DocumentColour(name: "hour", light: RGB(hex: 0xB5481F), dark: RGB(hex: 0xF59623))
+    static let minute = DocumentColour(name: "minute", light: RGB(hex: 0x8A4FD0), dark: RGB(hex: 0xA569E6))
+
+    /// A document that draws with `hour` and `minute` wherever a role is taken, whose tag has `tagInk`.
+    static func source(tagInk: String) -> String {
+        ##"""
+            {
+              "format": "chalkscript-explainer", "version": "1.0", "profile": "open", "id": "coloured", "title": "Coloured",
+              "sourceLocale": "en-US", "params": { "a": { "type": "int", "min": 1, "max": 1 } }, "samples": [{ "a": 1 }],
+              "colours": {
+                "hour": { "light": "#B5481F", "dark": "#F59623", "cue": "the short hand" },
+                "minute": { "suggested": "purple", "cue": "the long hand" }
+              },
+              "elements": {
+                "hand": { "kind": "shape", "rect": [0, 0, 20, 100], "fill": "hour" },
+                "tint": { "kind": "shape", "rect": [30, 0, 20, 100], "fill": "hour.soft", "ink": "hour" },
+                "words": { "kind": "text", "at": [100, 50], "text": "say", "ink": "minute" },
+                "rule": { "kind": "line", "from": [0, 120], "to": [90, 120], "ink": "minute" },
+                "go": { "kind": "arrow", "from": [0, 140], "to": [90, 140], "ink": "hour" },
+                "ring": { "kind": "outline", "style": "ring", "rect": [0, 150, 50, 50], "ink": "minute" },
+                "eq": { "kind": "text", "style": "equation", "at": [200, 50], "text": "eqEntry", "runs": { "a": { "ink": "hour" } } }
+              },
+              "sequence": ["s"],
+              "steps": { "s": { "say": "line", "actions": {
+                "tag": { "do": "tag", "target": "words", "text": "say"TAGINK, "dur": 5 },
+                "tint": { "do": "tint", "target": "eq.a", "ink": "minute", "mark": true }
+              } } },
+              "wording": { "en-US": { "shared": { "say": { "text": "Hi", "visual": true }, "eqEntry": { "text": "{a} here", "visual": true } },
+                "plain": { "line": "Look." } } }
+            }
+            """##.replacingOccurrences(of: "TAGINK", with: tagInk)
+    }
+
+    func explainer(tagInk: String = ", \"ink\": \"hour\"") throws -> DocumentExplainer {
+        let r = ExplainerDocument.read(Data(Self.source(tagInk: tagInk).utf8))
+        let d = try #require(r.document)
+        // With no ink the tag is the answer's, which `minute` is too near to be drawn beside.
+        #expect(r.conforms && r.findings.count == (tagInk.isEmpty ? 1 : 0), "\(r.findings)")
+        return try DocumentExplainer(document: d, problem: DocumentFixture.values(("a", 1)))
+    }
+
+    func rgb(_ ink: Ink, dark: Bool) -> RGB { ink.rgb(ExplainerStyle.standard.palette(dark: dark)) }
+
+    @Test(arguments: [false, true]) func theInkFillAndSoftFormsAreDrawnInTheAppearance(dark: Bool) throws {
+        let e = try explainer()
+        let scene = e.still(after: -1)
+        let hour = dark ? Self.hour.dark : Self.hour.light
+        let minute = dark ? Self.minute.dark : Self.minute.light
+        let sheet = ExplainerStyle.standard.palette(dark: dark).sheet
+        guard case let .shape(_, hand)? = scene.element("hand")?.kind, case let .shape(_, tint)? = scene.element("tint")?.kind,
+            case let .words(_, set)? = scene.element("words")?.kind, case let .shape(_, rule)? = scene.element("rule")?.kind,
+            case let .arrow(_, _, arrow)? = scene.element("go")?.kind, case let .box(_, _, ring)? = scene.element("ring")?.kind
+        else { Issue.record("an element is not drawn as expected"); return }
+        #expect(rgb(try #require(hand.fill), dark: dark) == hour)
+        #expect(rgb(try #require(tint.fill), dark: dark) == DocumentColour.soft(hour, over: sheet, dark: dark))
+        #expect(rgb(try #require(tint.stroke), dark: dark) == hour)
+        #expect(rgb(set.ink, dark: dark) == minute)
+        #expect(rgb(try #require(rule.stroke), dark: dark) == minute)
+        #expect(rgb(.ink(arrow), dark: dark) == hour)
+        #expect(rgb(.ink(ring), dark: dark) == minute)
+    }
+
+    @Test(arguments: [false, true]) func aTagAndATintedRunTakeTheirColoursAndAnEquationRunItsOwn(dark: Bool) throws {
+        let e = try explainer()
+        let hour = dark ? Self.hour.dark : Self.hour.light
+        let minute = dark ? Self.minute.dark : Self.minute.light
+        let scene = e.scene(step: 0, at: 1)
+        guard case let .hueTag(_, _, _, tagHue)? = scene.element("words.tag")?.kind else { Issue.record("no tag in a hue of its own"); return }
+        #expect(rgb(.ink(tagHue), dark: dark) == hour)
+        guard case let .equation(line)? = e.still(after: 0).element("eq")?.kind, let mark = line.mark else { Issue.record("no marked run"); return }
+        #expect(rgb(.ink(mark.op), dark: dark) == minute)
+        #expect(rgb(.soft(mark.op), dark: dark) == DocumentColour.soft(minute, over: ExplainerStyle.standard.palette(dark: dark).sheet, dark: dark))
+        guard case let .hue(runHue) = line.runs[0].role else { Issue.record("the run is not in a hue"); return }
+        #expect(rgb(.ink(runHue), dark: dark) == hour)
+    }
+
+    @Test func aTagWithNoInkIsStillTheAnswersNumberTag() throws {
+        guard case .numberTag? = try explainer(tagInk: "").scene(step: 0, at: 1).element("words.tag")?.kind else {
+            Issue.record("not the answer's number tag")
+            return
+        }
+    }
+}

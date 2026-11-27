@@ -1,0 +1,18 @@
+{
+  "format": "explainer-style",
+  "version": 1,
+  "profile": {
+    "id": "open",
+    "title": "Open",
+    "overrides": "none",
+    "fixed": {}
+  },
+  "palette": {
+    "light": {
+      "suggested": { "orange": "#C2600A", "green": "#1E7B4A", "purple": "#8A4FD0" }
+    },
+    "dark": {
+      "suggested": { "orange": "#F59623", "green": "#5CCB8A", "purple": "#A569E6" }
+    }
+  }
+}

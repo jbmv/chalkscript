@@ -14,10 +14,10 @@ public enum Ink: Hashable, Sendable {
     case pencil
     /// The drawing's sheet, and the fill of an empty piece.
     case sheet
-    /// An operation's fill, its ink (for lines and text), or its pale tint.
-    case fill(ExplainerOperation)
-    case ink(ExplainerOperation)
-    case soft(ExplainerOperation)
+    /// A hue's fill, its ink (for lines and text), or its pale tint.
+    case fill(Hue)
+    case ink(Hue)
+    case soft(Hue)
 
     public func rgb(_ palette: ExplainerPalette) -> RGB {
         switch self {
@@ -26,9 +26,9 @@ public enum Ink: Hashable, Sendable {
         case .line: palette.line
         case .pencil: palette.pencil
         case .sheet: palette.sheet
-        case let .fill(op): palette.colors(op).fill
-        case let .ink(op): palette.colors(op).ink
-        case let .soft(op): palette.colors(op).soft
+        case let .fill(hue): hue.colors(in: palette).fill
+        case let .ink(hue): hue.colors(in: palette).ink
+        case let .soft(hue): hue.colors(in: palette).soft
         }
     }
 }

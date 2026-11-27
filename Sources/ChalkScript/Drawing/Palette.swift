@@ -17,6 +17,63 @@ public enum ExplainerOperation: String, CaseIterable, Sendable {
     case divide
 }
 
+/// A colour a document names for itself (EXP-20): one value for fill and ink in each appearance,
+/// with the soft form derived from the ink over the sheet.
+public struct DocumentColour: Hashable, Sendable {
+    public var name: String
+    public var light: RGB
+    public var dark: RGB
+
+    public init(name: String, light: RGB, dark: RGB) {
+        self.name = name
+        self.light = light
+        self.dark = dark
+    }
+
+    /// The share of the ink in its soft form, over the light sheet and over the dark one.
+    public static let softShare = (light: 0.16, dark: 0.18)
+
+    /// The soft form of `ink` over `sheet`.
+    public static func soft(_ ink: RGB, over sheet: RGB, dark: Bool) -> RGB {
+        let a = dark ? softShare.dark : softShare.light
+        return RGB(
+            red: a * ink.red + (1 - a) * sheet.red, green: a * ink.green + (1 - a) * sheet.green,
+            blue: a * ink.blue + (1 - a) * sheet.blue)
+    }
+}
+
+/// What a colour stands for in a drawing: an operation, or a colour a document names (EXP-20).
+public enum Hue: Hashable, Sendable {
+    case operation(ExplainerOperation)
+    case document(DocumentColour)
+
+    public static let subtract = Hue.operation(.subtract)
+    public static let trade = Hue.operation(.trade)
+    public static let result = Hue.operation(.result)
+    public static let add = Hue.operation(.add)
+    public static let multiply = Hue.operation(.multiply)
+    public static let divide = Hue.operation(.divide)
+
+    /// The operation's name, or the document's name for the colour.
+    public var rawValue: String {
+        switch self {
+        case let .operation(op): op.rawValue
+        case let .document(c): c.name
+        }
+    }
+
+    /// Its fill, ink and soft form in `palette`'s appearance.
+    public func colors(in palette: ExplainerPalette) -> ExplainerPalette.OperationColors {
+        switch self {
+        case let .operation(op): return palette.colors(op)
+        case let .document(c):
+            let ink = palette.isDark ? c.dark : c.light
+            return ExplainerPalette.OperationColors(
+                fill: ink, ink: ink, soft: DocumentColour.soft(ink, over: palette.sheet, dark: palette.isDark))
+        }
+    }
+}
+
 /// A colour as sRGB components, 0 to 1. Plain values, so the palette can be checked without a
 /// screen (contrast, the table in EXP-6).
 public struct RGB: Equatable, Hashable, Sendable, CustomStringConvertible {
@@ -89,6 +146,11 @@ public struct ExplainerPalette: Equatable, Sendable {
     /// Text on a filled result-coloured control.
     public var onResult: RGB
     public var operations: [ExplainerOperation: OperationColors]
+    /// Whether this is the dark appearance, which a colour a document gives for each appearance
+    /// is drawn by.
+    public var isDark = false
+    /// The profile's suggested colours (EXP-20), each as the one value it is drawn in.
+    public var suggested: [String: RGB] = [:]
 
     public func colors(_ op: ExplainerOperation) -> OperationColors { operations[op]! }
 

@@ -820,12 +820,13 @@ struct GuideStatementTests {
         }
     }
 
-    @Test func aDocumentWithAPaletteIsRefusedAsNotDrawn() throws {
+    @Test func aDocumentWithAPaletteIsRefusedAsASchemaErrorNamingColours() throws {
         let json = document(elements: #"{"e": {"kind": "text", "at": [100, 100], "text": "hi"}}"#,
                             style: ##""style": {"palette": {"light": {"text": "#336699"}, "dark": {"text": "#99BBDD"}}},"##)
         let findings = errors(json)
-        #expect(findings.map(\.code) == [.capability], "\(findings)")
+        #expect(findings.map(\.code) == [.schema], "\(findings)")
         #expect(findings.first?.path == "/style/palette")
+        #expect(findings.first?.message.contains("colours") == true)
     }
 
     // MARK: select and cases

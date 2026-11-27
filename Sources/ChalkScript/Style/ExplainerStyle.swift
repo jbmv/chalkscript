@@ -31,6 +31,18 @@ public struct CameraDefaults: Equatable, Sendable {
     }
 }
 
+/// What a style profile fixes (EXP-20): the roles whose meaning it fixes, each with a sentence
+/// saying what it means, and whether a document may change one of them.
+public struct StyleProfile: Equatable, Sendable {
+    public enum Overrides: String, Sendable { case explained, none }
+
+    /// The name a document declares.
+    public var id: String
+    public var title: String
+    public var fixed: [String: String]
+    public var overrides: Overrides
+}
+
 /// A style file (EXP-19): the EXP-6 palette roles with their colours, in light and dark; the
 /// easing curves by name; and the motion defaults every explainer's motion file falls back to
 /// (a duration and an easing per kind of motion, and the camera's). The roles are fixed by EXP-6;
@@ -59,6 +71,8 @@ public struct ExplainerStyle: Equatable, Sendable {
     /// The default curve of each kind of motion that is eased, by name.
     public var kindEasings: [MotionKind: String]
     public var camera: CameraDefaults
+    /// The profile the file declares, when it is a profile's file (EXP-20).
+    public var profile: StyleProfile? = nil
     /// What reading the file noticed (EXP-19): values left to their defaults, unknown keys and
     /// names, unreadable values.
     public var issues: [FormatIssue]
@@ -89,6 +103,23 @@ public struct ExplainerStyle: Equatable, Sendable {
         return read(data, over: .lastResort)
     }()
 
+    /// The bundled profile files, by id (EXP-20), each read over the standard style. A document
+    /// that declares none is read as `open`.
+    public static let profiles: [String: ExplainerStyle] = {
+        // The build process flattens the resources folder, so a profile is found by its `profile` key.
+        let urls = Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? []
+        var out: [String: ExplainerStyle] = [:]
+        for url in urls {
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let style = read(data, over: .standard)
+            if let id = style.profile?.id { out[id] = style }
+        }
+        return out
+    }()
+
+    /// The id of the profile a document with no `profile` is made for.
+    public static let defaultProfile = "open"
+
     /// Used only for values a file leaves out with nothing else to fall back to: plain grey and
     /// one even pace, so a missing value shows. The bundled style gives every value (a test holds
     /// it to that), so the app never shows these.
@@ -98,8 +129,10 @@ public struct ExplainerStyle: Equatable, Sendable {
         let palette = ExplainerPalette(
             paper: grey, sheet: grey, ink: grey, muted: grey, line: grey, pencil: grey, onResult: grey,
             operations: Dictionary(uniqueKeysWithValues: ExplainerOperation.allCases.map { ($0, ops) }))
+        var dark = palette
+        dark.isDark = true
         return ExplainerStyle(
-            light: palette, dark: palette, easings: [:],
+            light: palette, dark: dark, easings: [:],
             durations: Dictionary(uniqueKeysWithValues: MotionKind.allCases.map { ($0, 0.5) }), kindEasings: [:],
             camera: CameraDefaults(at: 0, duration: 0.5, easing: "linear", margin: 0, dim: 0), issues: [])
     }()
@@ -120,9 +153,13 @@ public struct ExplainerStyle: Equatable, Sendable {
         }
         _ = top.number("version", min: 1, max: 1, reportDefault: false)
 
+        let profile = readProfile(top.object("profile"), over: base.profile, log: log)
+
         let palettes = top.object("palette")
-        let light = readPalette(palettes.object("light"), over: base.light, log: log)
-        let dark = readPalette(palettes.object("dark"), over: base.dark, log: log)
+        var light = readPalette(palettes.object("light"), over: base.light, log: log)
+        var dark = readPalette(palettes.object("dark"), over: base.dark, log: log)
+        light.isDark = false
+        dark.isDark = true
         palettes.finish()
 
         let curves = top.object("easings")
@@ -173,7 +210,30 @@ public struct ExplainerStyle: Equatable, Sendable {
         top.finish()
         return ExplainerStyle(
             light: light, dark: dark, easings: easings, durations: durations, kindEasings: kindEasings, camera: camera,
-            issues: log.issues)
+            profile: profile, issues: log.issues)
+    }
+
+    private static func readProfile(_ r: FormatReader, over base: StyleProfile?, log: FormatLog) -> StyleProfile? {
+        guard r.keys.isEmpty == false else { return base }
+        var profile = base ?? StyleProfile(id: "", title: "", fixed: [:], overrides: .none)
+        if let id = r.string("id", reportDefault: false) {
+            if id.count >= 2, id.allSatisfy({ $0.isASCII && $0.isLowercase && $0.isLetter }) { profile.id = id } else {
+                log.add(.invalid, r.key("id"), "\"\(id)\" is not two or more lowercase letters")
+            }
+        }
+        if let t = r.string("title", reportDefault: false) { profile.title = t }
+        if let o = r.string("overrides", reportDefault: false) {
+            if let v = StyleProfile.Overrides(rawValue: o) { profile.overrides = v } else {
+                log.add(.invalid, r.key("overrides"), "\"\(o)\" is not explained or none")
+            }
+        }
+        let fixed = r.object("fixed")
+        for role in fixed.keys {
+            if let meaning = fixed.string(role, reportDefault: false) { profile.fixed[role] = meaning }
+        }
+        fixed.finish()
+        r.finish()
+        return profile.id.isEmpty ? nil : profile
     }
 
     private static func readPalette(_ r: FormatReader, over base: ExplainerPalette, log: FormatLog) -> ExplainerPalette {
@@ -193,6 +253,11 @@ public struct ExplainerStyle: Equatable, Sendable {
         if let c = colour(r, "line") { p.line = c }
         if let c = colour(r, "pencil") { p.pencil = c }
         if let c = colour(r, "onResult") { p.onResult = c }
+        let suggested = r.object("suggested")
+        for name in suggested.keys {
+            if let c = colour(suggested, name) { p.suggested[name] = c }
+        }
+        suggested.finish()
         for op in ExplainerOperation.allCases {
             let o = r.object(op.rawValue)
             var colors = p.colors(op)

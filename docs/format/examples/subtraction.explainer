@@ -1,6 +1,7 @@
 {
   "format": "chalkscript-explainer",
   "version": "1.0",
+  "profile": "maths",
   "requires": ["components.arithmetic"],
   "id": "subtraction-trading",
   "title": "Two-digit subtraction by trading a ten",

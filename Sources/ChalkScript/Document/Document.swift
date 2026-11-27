@@ -84,6 +84,24 @@ public struct ExplainerDocument: Sendable {
 
     // MARK: what the document declares
 
+    /// The profile the document is made for: the one it declares, or `open`.
+    public var profileID: String { root["profile"]?.string ?? ExplainerStyle.defaultProfile }
+
+    /// The document's own colours by name (EXP-20): those with values, and those that name a
+    /// suggested colour of the document's profile.
+    public var colours: [String: DocumentColour] {
+        let profile = ExplainerStyle.profiles[profileID]
+        var out: [String: DocumentColour] = [:]
+        for (name, c) in root["colours"]?.object?.entries ?? [] {
+            if let l = c["light"]?.string.flatMap(RGB.init(hexString:)), let d = c["dark"]?.string.flatMap(RGB.init(hexString:)) {
+                out[name] = DocumentColour(name: name, light: l, dark: d)
+            } else if let s = c["suggested"]?.string, let l = profile?.light.suggested[s], let d = profile?.dark.suggested[s] {
+                out[name] = DocumentColour(name: name, light: l, dark: d)
+            }
+        }
+        return out
+    }
+
     public var id: String { root["id"]?.string ?? "" }
     public var title: String { root["title"]?.string ?? "" }
     public var sourceLocale: String { root["sourceLocale"]?.string ?? "" }

@@ -34,10 +34,7 @@ extension DocumentFilm {
     init(_ resolved: ResolvedExplainer, resolver r: Resolver) throws(EvalFailure) {
         let doc = r.doc
         let style = DocumentStyle(doc)
-        if doc.root["style"]?["palette"] != nil {
-            throw EvalFailure(path: "/style/palette", message: "this player draws in the style it is given and does not draw a document's own palette yet",
-                code: .capability)
-        }
+        let roles = DocumentRoles(colours: doc.colours)
         // Every instance, in draw order (section 9.1): by z, then by element name in code point
         // order, then by index.
         var drawn: [(z: Double, name: [UInt32], index: Int, inst: DrawnInstance)] = []
@@ -47,7 +44,7 @@ extension DocumentFilm {
             for k in 0..<n {
                 let instance = DocumentInstance(name, repeated ? k : nil)
                 let z = try r.number(DocumentPath.join("/elements", name, "z"), locals: try r.instanceLocals(instance), default: 0, what: "z")
-                drawn.append((z, Array(name.unicodeScalars.map(\.value)), k, try Self.instance(instance, r)))
+                drawn.append((z, Array(name.unicodeScalars.map(\.value)), k, try Self.instance(instance, r, roles)))
             }
         }
         drawn.sort { a, b in
@@ -76,14 +73,14 @@ extension DocumentFilm {
         cameras = cams
         cameraMove = CameraMove(at: style.camera.at, duration: style.camera.duration, easingName: style.camera.easing,
             easing: style.easing(style.camera.easing))
-        painter = DocumentPainter(instances: instances, size: resolved.size, camera: resolved.camera)
+        painter = DocumentPainter(roles: roles, instances: instances, size: resolved.size, camera: resolved.camera)
 
         var carried = [instances.map(\.start)]
         var stills: [[InstanceLook]] = []
         var tracks: [[Track]] = []
         for step in resolved.steps {
             let before = carried.last!
-            let built = try Self.tracks(step, from: before, instances: instances, index: index, style: style, r)
+            let built = try Self.tracks(step, from: before, instances: instances, index: index, style: style, roles: roles, r)
             var still = before
             var next = before
             for t in built { t.apply(at: .infinity, to: &still) }
@@ -106,7 +103,7 @@ extension DocumentFilm {
     ]
 
     /// One instance's geometry at its place and its state before the first step.
-    static func instance(_ inst: DocumentInstance, _ r: Resolver) throws(EvalFailure) -> DrawnInstance {
+    static func instance(_ inst: DocumentInstance, _ r: Resolver, _ roles: DocumentRoles) throws(EvalFailure) -> DrawnInstance {
         let name = inst.element
         let p = DocumentPath.join("/elements", name)
         let el = r.root["elements"]?[name]?.object ?? JSONObject()
@@ -117,13 +114,13 @@ extension DocumentFilm {
         func refuse(_ key: String, _ message: String) -> EvalFailure { EvalFailure(path: key.isEmpty ? p : p + "/" + key, message: message, code: .capability) }
         func role(_ key: String, fill: Bool = false) throws(EvalFailure) -> Ink? {
             guard let s = el[key]?.string else { return nil }
-            guard let ink = DocumentRoles.ink(s, fill: fill) else { throw refuse(key, "this player does not draw the role '\(s)' yet") }
+            guard let ink = roles.ink(s, fill: fill) else { throw refuse(key, "this player does not draw the role '\(s)' yet") }
             return ink
         }
-        func operation(_ key: String) throws(EvalFailure) -> ExplainerOperation? {
+        func hue(_ key: String) throws(EvalFailure) -> Hue? {
             guard let s = el[key]?.string else { return nil }
-            guard let op = DocumentRoles.operation(s) else { throw refuse(key, "this player draws a \(kind) only in an operation role named alone, not '\(s)'") }
-            return op
+            guard let hue = roles.hue(s) else { throw refuse(key, "this player draws a \(kind) only in an operation role or a colour of the document's named alone, not '\(s)'") }
+            return hue
         }
         let bounds = try r.bounds(inst)
         let shape: InstanceShape
@@ -137,7 +134,7 @@ extension DocumentFilm {
             let size = try number("size", size0)
             let anchor = el["anchor"]?.string ?? anchor0
             let ink = el["ink"]?.string ?? ink0
-            if DocumentRoles.ink(ink, fill: false) == nil { throw refuse("ink", "this player does not draw the role '\(ink)' yet") }
+            if roles.ink(ink, fill: false) == nil { throw refuse("ink", "this player does not draw the role '\(ink)' yet") }
             if style == "equation" && (anchor != "middle" || ink != "text") {
                 throw refuse("", "this player draws an equation centred and in the text role only")
             }
@@ -145,8 +142,8 @@ extension DocumentFilm {
                 throw refuse("", "this player draws a total centred and in the result role only")
             }
             for (run, v) in el["runs"]?.object?.entries ?? [] {
-                if let ri = v["ink"]?.string, style != "equation" || (ri != "result" && ri != "text") {
-                    throw refuse("runs/\(run)/ink", "this player draws a run's own role only in an equation, and only the result role")
+                if let ri = v["ink"]?.string, style != "equation" || (ri != "result" && ri != "text" && roles.colours[ri] == nil) {
+                    throw refuse("runs/\(run)/ink", "this player draws a run's own role only in an equation, and only the result role or a colour of the document's")
                 }
             }
             if let entry = el["text"]?.string { text = try runs(of: name, entry: entry, el: el, locals: l, r) }
@@ -176,14 +173,14 @@ extension DocumentFilm {
                 let y = try number("y")
                 points = [from, CGPoint(x: from.x, y: y), CGPoint(x: to.x, y: y), to]
             }
-            guard let op = try operation("ink") else { throw refuse("ink", "an arrow has no ink") }
+            guard let op = try hue("ink") else { throw refuse("ink", "an arrow has no ink") }
             shape = .arrow(points, op)
             reference = from
         case "outline":
             let style = el["style"]?.string ?? "box"
-            var op: ExplainerOperation?
+            var op: Hue?
             switch style {
-            case "box", "ring": op = try operation("ink")
+            case "box", "ring": op = try hue("ink")
             default:
                 if el["ink"] != nil { throw refuse("ink", "this player draws a \(style) outline only in its own role") }
             }
@@ -291,7 +288,7 @@ extension DocumentFilm {
     /// from (the position a `move` sets out from, the opacity a `fade` starts at).
     static func tracks(
         _ step: ResolvedStep, from before: [InstanceLook], instances: [DrawnInstance], index: [DocumentInstance: Int], style: DocumentStyle,
-        _ r: Resolver
+        roles: DocumentRoles, _ r: Resolver
     ) throws(EvalFailure) -> [Track] {
         var flat: [(action: ResolvedAction, locals: [String: DocumentValue], inEach: Bool)] = []
         for a in step.actions {
@@ -346,8 +343,8 @@ extension DocumentFilm {
                     effect = .cross(fade: a.fade, easing: style.easing(style.kindEasing("fade")), from: now.opacity, crossFrom: now.crossOpacity)
                 case "tint":
                     guard case .run? = target.part else { throw refuse("this player tints only a run of a text element, not \(target)") }
-                    guard let role = o["ink"]?.string, let op = DocumentRoles.operation(role) else {
-                        throw refuse("this player tints only in an operation role named alone")
+                    guard let role = o["ink"]?.string, let op = roles.hue(role) else {
+                        throw refuse("this player tints only in an operation role or a colour of the document's named alone")
                     }
                     if case let .text(_, style, _, _, _) = instances[at].shape, style != "equation" {
                         throw refuse("this player tints a run only in an equation")
@@ -389,7 +386,10 @@ extension DocumentFilm {
                 case "set":
                     effect = .set(a.text?.shown ?? "")
                 case "tag":
-                    effect = .tag(a.text?.shown ?? "")
+                    guard let hue = o["ink"]?.string.map({ roles.hue($0) }) ?? .some(.result) else {
+                        throw refuse("this player draws a tag only in an operation role or a colour of the document's named alone")
+                    }
+                    effect = .tag(a.text?.shown ?? "", hue)
                 case "pulse":
                     effect = .pulse
                 case "turn":

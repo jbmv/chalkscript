@@ -1,6 +1,7 @@
 {
   "format": "chalkscript-explainer",
   "version": "1.0",
+  "profile": "maths",
   "requires": ["components.arithmetic"],
   "id": "multiply-equal-groups",
   "title": "Multiplying as equal groups",

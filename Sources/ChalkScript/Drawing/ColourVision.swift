@@ -53,3 +53,47 @@ public enum ColourVision: String, CaseIterable, CustomStringConvertible, Sendabl
         allCases.map { ($0.distance(a, b), $0) }.min { $0.0 < $1.0 }!
     }
 }
+
+/// The checks every document's colours are held to (EXP-20), and the nearest colour that passes
+/// them.
+public enum ColourChecks {
+    /// The least contrast of an ink with the sheet, and with its own soft form.
+    public static let minimumContrast = 3.0
+    /// The least CIELAB distance between two colours drawn together, in every condition.
+    public static let minimumDistance = 20.0
+
+    /// The contrast of `ink` with `sheet` and with its soft form over it.
+    public static func contrasts(_ ink: RGB, sheet: RGB, dark: Bool) -> (sheet: Double, soft: Double) {
+        (ink.contrast(with: sheet), ink.contrast(with: DocumentColour.soft(ink, over: sheet, dark: dark)))
+    }
+
+    /// The colour nearest `seed` that keeps the least contrast with `sheet` and on its soft form
+    /// and is at least the least distance from every colour in `apart`, in every condition; nil
+    /// when none does. Nearness is CIELAB distance with a change of hue and a loss of chroma each
+    /// counted twice, so an orange is made darker or lighter before it turns red or grey. The
+    /// search is over the sRGB cube in steps of 3.
+    public static func nearestPassing(to seed: RGB, sheet: RGB, dark: Bool, apart refs: [RGB]) -> RGB? {
+        let s = ColourVision.normal.lab(seed)
+        let seedChroma = (s.a * s.a + s.b * s.b).squareRoot()
+        var candidates: [(cost: Double, colour: RGB)] = []
+        for r in stride(from: 0, through: 255, by: 3) {
+            for g in stride(from: 0, through: 255, by: 3) {
+                for b in stride(from: 0, through: 255, by: 3) {
+                    let c = RGB(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+                    let k = contrasts(c, sheet: sheet, dark: dark)
+                    guard k.sheet >= minimumContrast, k.soft >= minimumContrast else { continue }
+                    let l = ColourVision.normal.lab(c)
+                    let chroma = (l.a * l.a + l.b * l.b).squareRoot()
+                    var dc = chroma - seedChroma
+                    if dc < 0 { dc *= 2 }
+                    let dab2 = (l.a - s.a) * (l.a - s.a) + (l.b - s.b) * (l.b - s.b)
+                    let dh2 = max(dab2 - dc * dc, 0)
+                    let dl = l.l - s.l
+                    candidates.append(((dl * dl + dc * dc + 4 * dh2).squareRoot(), c))
+                }
+            }
+        }
+        candidates.sort { $0.cost < $1.cost }
+        return candidates.first { c in refs.allSatisfy { ColourVision.worst(c.colour, $0).distance >= minimumDistance } }?.colour
+    }
+}

@@ -37,6 +37,7 @@ struct ColourVisionTests {
             let d = explainer.script(for: step).duration
             scenes += [0.1, 0.3, 0.5, 0.7, 0.9].map { explainer.scene(step: step, at: d * $0) }
         }
+        func insert(_ hue: Hue) { if case let .operation(op) = hue { ops.insert(op) } }
         for element in scenes.flatMap(\.visible) {
             switch element.kind {
             case let .ten(_, style), let .one(_, style), let .stick(_, style), let .circle(_, style):
@@ -46,25 +47,26 @@ struct ColourVisionTests {
                 case .counted: ops.insert(.result)
                 }
             case .crossOut: ops.insert(.subtract)
-            case let .arrow(_, _, op), let .box(_, _, op): ops.insert(op)
+            case let .arrow(_, _, op), let .box(_, _, op): insert(op)
             case .count, .total, .numberTag: ops.insert(.result)
+            case .hueTag: break
             case let .numeral(n):
                 if n.digits.contains(where: { $0.role == .answer }) { ops.insert(.result) }
             case let .equation(line):
-                if let mark = line.mark { ops.insert(mark.op) }
+                if let mark = line.mark { insert(mark.op) }
                 if line.runs.contains(where: { $0.role == .answer }) { ops.insert(.result) }
             case let .ink(_, op): if let op { ops.insert(op) }
             case .target: ops.insert(.result)
             case let .shape(_, paint):
                 for ink in [paint.fill, paint.stroke].compactMap({ $0 }) {
                     switch ink {
-                    case let .fill(op), let .ink(op), let .soft(op): ops.insert(op)
+                    case let .fill(hue), let .ink(hue), let .soft(hue): insert(hue)
                     default: break
                     }
                 }
             case let .words(_, set):
                 switch set.ink {
-                case let .fill(op), let .ink(op), let .soft(op): ops.insert(op)
+                case let .fill(hue), let .ink(hue), let .soft(hue): insert(hue)
                 default: break
                 }
             case .divider, .label, .text, .rule, .hint: break

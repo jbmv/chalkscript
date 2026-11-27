@@ -65,3 +65,51 @@ struct ColourVisionTests {
         }
     }
 }
+
+/// The open profile's suggested colours (EXP-20): the values, contrast with each sheet, and
+/// separation from each other and from the neutrals the colours are drawn beside.
+struct SuggestedColourTests {
+    static let values: [String: (light: UInt32, dark: UInt32)] = [
+        "orange": (0xC2600A, 0xF59623), "green": (0x1E7B4A, 0x5CCB8A), "purple": (0x8A4FD0, 0xA569E6),
+    ]
+
+    func suggested(dark: Bool) throws -> [String: RGB] {
+        try #require(ExplainerStyle.profiles["open"]).palette(dark: dark).suggested
+    }
+
+    @Test(arguments: [false, true]) func theOpenProfileSuggestsOrangeGreenAndPurpleAtTheirValues(dark: Bool) throws {
+        let s = try suggested(dark: dark)
+        #expect(Set(s.keys) == Set(Self.values.keys))
+        for (name, v) in Self.values { #expect(s[name] == RGB(hex: dark ? v.dark : v.light), "\(name)") }
+    }
+
+    @Test(arguments: [false, true]) func theySatisfyTheContrastAndSeparationMeasures(dark: Bool) throws {
+        let s = try suggested(dark: dark)
+        let p = ExplainerStyle.standard.palette(dark: dark)
+        for (name, ink) in s {
+            // 3.6:1 on the light sheet and 4.5:1 on the dark one keep the ink 3:1 on its own soft form.
+            #expect(ink.contrast(with: p.sheet) >= (dark ? 4.5 : 3.6), "\(name) with the sheet")
+            #expect(ColourChecks.contrasts(ink, sheet: p.sheet, dark: dark).soft >= 3, "\(name) on its soft form")
+            for (other, neutral) in [("text", p.ink), ("muted", p.muted), ("pencil", p.pencil), ("line", p.line)] {
+                let w = ColourVision.worst(ink, neutral)
+                #expect(w.distance >= 20, "\(name) and \(other) are \(w.distance) apart with \(w.seenWith)")
+            }
+        }
+        for (a, x) in s {
+            for (b, y) in s where a < b {
+                let w = ColourVision.worst(x, y)
+                #expect(w.distance >= 20, "\(a) and \(b) are \(w.distance) apart with \(w.seenWith)")
+            }
+        }
+    }
+
+    @Test func theMathsProfileFixesTheOperationsAndSuggestsNothing() throws {
+        let maths = try #require(ExplainerStyle.profiles["maths"]?.profile)
+        #expect(maths.overrides == .explained)
+        #expect(Set(maths.fixed.keys) == ["subtract", "trade", "result", "add", "multiply", "divide"])
+        #expect(try #require(ExplainerStyle.profiles["maths"]).light.suggested.isEmpty)
+        let open = try #require(ExplainerStyle.profiles["open"]?.profile)
+        #expect(open.overrides == .none && open.fixed.isEmpty)
+        #expect(ExplainerStyle.profiles.values.allSatisfy { $0.issues.filter(\.isProblem).isEmpty })
+    }
+}

@@ -66,7 +66,7 @@ public struct Scene: Equatable, Sendable {
             case let .arrow(_, p, _), let .box(_, p, _): trading = trading || p < 1
             case let .ten(_, style), let .one(_, style), let .stick(_, style), let .circle(_, style):
                 counted = counted || style == .counted
-            case .numberTag: counted = true
+            case .numberTag, .hueTag: counted = true
             case let .numeral(n): digit = digit || (n.ring?.progress ?? 0) > 0
             case let .hint(_, p): digit = digit || p > 0
             default: break
@@ -129,9 +129,9 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
         case crossOut(from: CGPoint, to: CGPoint, progress: Double)
         /// A trade's arrow, through `points`, drawn to `progress` of its length; the head shows
         /// once it is drawn whole.
-        case arrow(points: [CGPoint], progress: Double, op: ExplainerOperation)
+        case arrow(points: [CGPoint], progress: Double, op: Hue)
         /// The box a traded ten's ones go into, drawn to `progress` of its outline.
-        case box(CGRect, progress: Double, op: ExplainerOperation)
+        case box(CGRect, progress: Double, op: Hue)
         /// The dashed line that sets off the count area.
         case divider(from: CGPoint, to: CGPoint)
         /// A small label under the drawing ("tens", "ones"); `at` is its baseline's left end.
@@ -149,6 +149,8 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
         /// The number a piece is counted as, shown on the piece while it is counted: a small card
         /// in `rect`, in the result colour, grown by `scale` about its centre.
         case numberTag(String, in: CGRect, scale: Double)
+        /// A number tag in another hue, which a document may choose (EXP-20).
+        case hueTag(String, in: CGRect, scale: Double, hue: Hue)
         /// A number written large across the top, digit by digit, with a pencil ring round the
         /// digit a step reads.
         case numeral(Numeral)
@@ -264,6 +266,8 @@ public struct EquationLine: Equatable, Sendable {
         case plain
         /// The answer, in the result colour (EXP-6): "?" until it is counted.
         case answer
+        /// A run a document draws in a hue of its own.
+        case hue(Hue)
     }
 
     public struct Run: Equatable, Sendable {
@@ -281,11 +285,11 @@ public struct EquationLine: Equatable, Sendable {
     public struct Mark: Equatable, Sendable {
         /// The run marked.
         public var run: Int
-        public var op: ExplainerOperation
+        public var op: Hue
         /// The tint behind it grows in from 0 to 1; the digit takes the colour at once.
         public var progress: Double
 
-        public init(run: Int, op: ExplainerOperation, progress: Double) {
+        public init(run: Int, op: Hue, progress: Double) {
             self.run = run
             self.op = op
             self.progress = progress

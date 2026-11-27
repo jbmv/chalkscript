@@ -22,6 +22,7 @@ struct DocumentReaderTests {
     @Test func theExamplesAndTheSmallDocumentReadWithNoFinding() {
         #expect(DocumentFixture.subtraction.findings.isEmpty, "\(DocumentFixture.subtraction.findings)")
         #expect(DocumentFixture.equalGroups.findings.isEmpty, "\(DocumentFixture.equalGroups.findings)")
+        #expect(DocumentFixture.subtraction.profileID == "maths" && DocumentFixture.equalGroups.profileID == "maths")
         let r = read(tiny)
         #expect(r.conforms && r.findings.isEmpty, "\(r.findings)")
     }
@@ -91,7 +92,6 @@ struct DocumentReaderTests {
         has(read(tiny.setting("/elements/label/style", .string("huge"))), .error, .schema, "/elements/label/style")
         has(read(tiny.setting("/steps/show/actions/in/wait", .string("tap"))), .error, .schema, "/steps/show/actions/in/wait")
         has(read(tiny.setting("/wording/en-US/plain/show", .number(1))), .error, .schema, "/wording/en-US/plain/show")
-        has(read(tiny.setting("/style", try! JSONValue.parse(#"{"palette": {"light": {"pencil": "grey"}}}"#))), .error, .schema, "/style/palette/light/pencil")
     }
 
     @Test func namesThatDoNotMatchTheirPatternAreErrors() {
@@ -168,7 +168,7 @@ struct DocumentReaderTests {
         let required = faults.setting("/requires", .array([.string("components.arithmetic")]))
         #expect(read(required).findings.isEmpty)
         #expect(refusal(required) == [
-            "error capability /elements/go/ink {a: 1}: this player draws a arrow only in an operation role named alone, not 'add.ink'"
+            "error capability /elements/go/ink {a: 1}: this player draws a arrow only in an operation role or a colour of the document's named alone, not 'add.ink'"
         ])
         let arrowMended = required.setting("/elements/go/ink", .string("add"))
         #expect(refusal(arrowMended) == [
@@ -465,5 +465,144 @@ struct SplitMix {
         z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
         z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
         return z ^ (z >> 31)
+    }
+}
+
+// Profiles and a document's own colours (EXP-20).
+struct ProfileAndColourTests {
+    let tiny = DocumentFixture.tiny
+
+    /// The document with `colours` drawn by its label's and its rule's ink.
+    func coloured(_ colours: String, label: String = "hour", rule: String = "minute") throws -> JSONValue {
+        tiny.setting("/colours", try JSONValue.parse(colours))
+            .setting("/elements/label/ink", .string(label)).setting("/elements/rule/ink", .string(rule))
+    }
+
+    func warnings(_ r: DocumentReading) -> [DocumentFinding] { r.findings.filter { $0.code == .colour } }
+
+    @Test func aDocumentThatDeclaresNoProfileIsOpenAndOneThatDeclaresMathsIsMaths() throws {
+        let none = try #require(read(tiny).document)
+        #expect(none.profileID == "open" && none.findings.isEmpty)
+        let maths = read(tiny.setting("/profile", .string("maths")))
+        #expect(maths.conforms && maths.document?.profileID == "maths" && maths.findings.isEmpty, "\(maths.findings)")
+        let open = read(tiny.setting("/profile", .string("open")))
+        #expect(open.document?.profileID == "open" && open.findings.isEmpty)
+    }
+
+    @Test func anUnknownProfileIsARefErrorNamingIt() {
+        let r = read(tiny.setting("/profile", .string("science")))
+        has(r, .error, .ref, "/profile", "'science'")
+        #expect(!r.conforms)
+        has(read(tiny.setting("/profile", .number(1))), .error, .schema, "/profile")
+    }
+
+    @Test func theOperationRolesStayDrawableInTheOpenProfileByADocumentThatRequiresThem() {
+        let doc = tiny.setting("/requires", .array([.string("components.arithmetic")])).setting("/elements/label/ink", .string("add"))
+        #expect(read(doc).findings.isEmpty)
+        #expect(read(doc.setting("/profile", .string("maths"))).findings.isEmpty)
+    }
+
+    @Test func aStylePaletteInADocumentIsASchemaErrorNamingColours() {
+        let r = read(tiny.setting("/style", try! JSONValue.parse(##"{"palette": {"light": {"pencil": "#000000"}}}"##)))
+        has(r, .error, .schema, "/style/palette", "colours")
+    }
+
+    @Test func aDocumentColourIsNamedWhereARoleIsTakenAndGivesValuesOrASuggestedColour() throws {
+        let both = ##"{"hour": {"light": "#B5481F", "dark": "#F59623", "cue": "the short hand"}, "minute": {"suggested": "purple", "cue": "the long hand"}}"##
+        let r = read(try coloured(both))
+        #expect(r.conforms && r.findings.isEmpty, "\(r.findings)")
+        let doc = try #require(r.document)
+        #expect(doc.colours["minute"] == DocumentColour(name: "minute", light: RGB(hex: 0x8A4FD0), dark: RGB(hex: 0xA569E6)))
+        #expect(read(try coloured(both, label: "hour.soft", rule: "minute.fill")).findings.isEmpty)
+        has(read(try coloured(both, label: "orange")), .error, .ref, "/elements/label/ink", "no role")
+    }
+
+    @Test func aDocumentColourIsHeldToTheFormat() throws {
+        has(read(try coloured(##"{"hour": {"suggested": "teal", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
+            .error, .ref, "/colours/hour/suggested", "'teal'")
+        has(read(try coloured(##"{"hour": {"light": "#B5481F", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
+            .error, .schema, "/colours/hour", "'dark'")
+        has(read(try coloured(##"{"hour": {"light": "red", "dark": "#F59623", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
+            .error, .schema, "/colours/hour/light", "#RRGGBB")
+        has(read(try coloured(##"{"hour": {"suggested": "orange", "light": "#B5481F", "dark": "#F59623", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##)),
+            .error, .schema, "/colours/hour", "not both")
+        has(read(try coloured(##"{"text": {"suggested": "orange", "cue": "x"}}"##, label: "text", rule: "text")), .error, .schema, "/colours/text", "role of the style")
+        // The maths profile offers no suggested colours.
+        has(read(try coloured(##"{"hour": {"suggested": "orange", "cue": "x"}}"##, rule: "hour").setting("/profile", .string("maths"))),
+            .error, .ref, "/colours/hour/suggested", "offers no suggested colours")
+    }
+
+    @Test func aColourWithNoCueIsAWarning() throws {
+        let r = read(try coloured(##"{"hour": {"suggested": "orange"}, "minute": {"suggested": "purple", "cue": "the long hand"}}"##))
+        #expect(r.conforms)
+        has(r, .warning, .colour, "/colours/hour", "no cue")
+        #expect(warnings(r).count == 1)
+    }
+
+    @Test func aColourThatIsVeryPaleOnTheLightSheetGetsOneWarningNamingTheContrastAndAValueThatShows() throws {
+        let r = read(try coloured(##"{"hour": {"suggested": "orange", "cue": "x"}, "minute": {"light": "#49F6FF", "dark": "#A569E6", "cue": "the long hand"}}"##))
+        #expect(r.conforms)
+        let found = warnings(r)
+        #expect(found.count == 1, "\(r.findings)")
+        let message = try #require(found.first).message
+        #expect(message.contains("minute (#49F6FF)") && message.contains("light sheet") && message.contains("1.3:1") && message.contains("3:1"), "\(message)")
+        // The nearest value is one that passes.
+        let hex = try #require(message.split(separator: "#").last).prefix(6)
+        let suggested = try #require(RGB(hexString: "#" + hex))
+        let sheet = ExplainerStyle.standard.light.sheet
+        let k = ColourChecks.contrasts(suggested, sheet: sheet, dark: false)
+        #expect(k.sheet >= 3 && k.soft >= 3, "\(message)")
+    }
+
+    @Test func anInkThatKeepsLessThanThreeToOneOnItsOwnTintIsAWarning() throws {
+        let r = read(try coloured(##"{"hour": {"light": "#D9711F", "dark": "#F59623", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##))
+        let found = warnings(r)
+        #expect(found.count == 1, "\(r.findings)")
+        #expect(found.first?.message.contains("own tint") == true && found.first?.message.contains("2.8:1") == true, "\(found)")
+    }
+
+    @Test func twoColoursUnderTwentyApartWithADeficiencyGetOneWarningNamingBothTheAppearanceAndTheCondition() throws {
+        let r = read(try coloured(##"{"hour": {"light": "#B5481F", "dark": "#F59623", "cue": "x"}, "minute": {"light": "#6B7A1F", "dark": "#A569E6", "cue": "y"}}"##))
+        #expect(r.conforms)
+        let found = warnings(r)
+        #expect(found.count == 1, "\(r.findings)")
+        let m = try #require(found.first).message
+        #expect(m.contains("hour") && m.contains("minute") && m.contains("in light") && m.contains("deuteranopia") && m.contains("under 20"), "\(m)")
+        #expect(found.first?.path == "/colours/hour")
+    }
+
+    @Test func aColourAndTheTextItIsDrawnBesideAreComparedAsAnyTwoAre() throws {
+        // A grey close to the text colour in dark.
+        let r = read(try coloured(##"{"hour": {"light": "#6B5B3E", "dark": "#C9D1CE", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##, label: "text", rule: "hour"))
+        let found = warnings(r)
+        #expect(found.contains { $0.message.contains("hour") && $0.message.contains("text") && $0.message.contains("in dark") }, "\(r.findings)")
+    }
+
+    @Test func inTheMathsProfileAColourNearAnOperationsIsAWarningAndInTheOpenProfileItIsNot() throws {
+        // Near the standard add colour in light, and far from every other colour drawn.
+        let colours = ##"{"hour": {"light": "#4F6D45", "dark": "#95E3A5", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##
+        let open = read(try coloured(colours))
+        #expect(warnings(open).isEmpty, "\(open.findings)")
+        let maths = read(try coloured(colours.replacingOccurrences(of: "\"suggested\": \"purple\"", with: "\"light\": \"#8A4FD0\", \"dark\": \"#A569E6\"")).setting("/profile", .string("maths")))
+        let found = warnings(maths)
+        #expect(found.count == 1, "\(maths.findings)")
+        #expect(found.first?.message.contains("adding or joining") == true && found.first?.message.contains("add") == true, "\(found)")
+    }
+
+    @Test func noColourWarningStopsTheDocumentPlaying() throws {
+        let json = try coloured(##"{"hour": {"light": "#49F6FF", "dark": "#6B5B3E"}, "minute": {"light": "#B5481F", "dark": "#6B5B3E", "cue": "y"}}"##)
+        let r = read(json)
+        #expect(r.conforms && !warnings(r).isEmpty)
+        let doc = try #require(r.document)
+        #expect((try? DocumentExplainer(document: doc, problem: DocumentFixture.values(("a", 1)))) != nil)
+    }
+
+    @Test func aTagAndATintTakeADocumentColourAndTagDefaultsToTheAnswers() throws {
+        let doc = tiny
+            .setting("/colours", try JSONValue.parse(##"{"hour": {"suggested": "orange", "cue": "x"}}"##))
+            .setting("/steps/show/actions/tag", try JSONValue.parse(##"{"do": "tag", "target": "label", "text": "label", "ink": "hour"}"##))
+        let r = read(doc)
+        #expect(r.conforms && r.findings.isEmpty, "\(r.findings)")
+        has(read(doc.setting("/steps/show/actions/tag/ink", .string("nothing"))), .error, .ref, "/steps/show/actions/tag/ink")
     }
 }

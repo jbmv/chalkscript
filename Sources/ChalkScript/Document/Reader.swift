@@ -122,10 +122,16 @@ final class DocumentChecker {
     var roles: Set<String> = []
     var easings: Set<String> = []
     var wordingNames: Set<String> = []
+    /// The profile the document is made for, when the reader has it.
+    var profile: ExplainerStyle?
+    /// The document's own colours that could be read, by name.
+    var ownColours: [String: DocumentColour] = [:]
 
     static let neutralRoles: Set<String> = ["paper", "sheet", "text", "muted", "line", "pencil", "onResult"]
     static let coreOperationRoles: Set<String> = ["result"]
     static let arithmeticRoles: Set<String> = ["subtract", "trade", "add", "multiply", "divide"]
+    /// Every role the style gives, which a colour of the document's own may not be named.
+    static let styleRoles: Set<String> = neutralRoles.union(coreOperationRoles).union(arithmeticRoles)
     static let pieceKinds: Set<String> = ["ten", "one", "stick", "circle"]
     static let coreKinds: Set<String> = ["text", "line", "arrow", "outline", "shape"]
     static let strokedKinds: Set<String> = ["line", "arrow", "outline", "shape"]
@@ -500,10 +506,12 @@ final class DocumentChecker {
         object(.object(root), "", known: [
             "format", "version", "requires", "id", "title", "about", "sourceLocale", "params", "let", "vars", "samples", "kind",
             "areas", "layouts", "elements", "parts", "shots", "opening", "intro", "sequence", "steps", "try", "whatIf", "style", "plays",
-            "wording", "extensions",
+            "wording", "extensions", "profile", "colours",
         ], required: ["format", "version", "id", "title", "sourceLocale", "params", "samples", "elements", "sequence", "steps", "wording"])
         gatherNames()
         checkHeader()
+        checkProfile()
+        checkColours()
         checkParams()
         checkValues()
         checkLayouts()
@@ -516,6 +524,7 @@ final class DocumentChecker {
         checkWording()
         checkCapabilities()
         checkSamples()
+        checkColourSeen()
     }
 
     func gatherNames() {
@@ -538,9 +547,7 @@ final class DocumentChecker {
         if capabilities.contains("components.arithmetic") || (root["requires"]?.array ?? []).contains(.string("components.arithmetic")) {
             roles.formUnion(Self.arithmeticRoles)
         }
-        for mode in ["light", "dark"] {
-            for (k, v) in root["style"]?["palette"]?[mode]?.object?.entries ?? [] where v.object != nil { roles.insert(k) }
-        }
+        for (k, _) in root["colours"]?.object?.entries ?? [] where DocumentNames.isName(k) && !Self.styleRoles.contains(k) { roles.insert(k) }
         easings = Set(ExplainerStyle.standard.easings.keys).union(root["style"]?["easings"]?.object?.keys ?? [])
         for (_, loc) in root["wording"]?.object?.entries ?? [] {
             for k in loc.object?.keys ?? [] where k != "shared" { wordingNames.insert(k) }
@@ -975,7 +982,7 @@ final class DocumentChecker {
         var known = ["do", "target", "at", "when", "mark"] + (inner ? [] : ["wait"])
         let params: [String: [String]] = [
             "appear": ["rise", "grow", "place", "text"], "fade": ["to"], "draw": [], "cross": ["fade"], "tint": ["ink"],
-            "move": ["to", "via"], "gather": ["from"], "look": ["value"], "set": ["text"], "tag": ["text"], "pulse": [], "turn": ["to"],
+            "move": ["to", "via"], "gather": ["from"], "look": ["value"], "set": ["text"], "tag": ["text", "ink"], "pulse": [], "turn": ["to"],
             "say": ["line", "count", "caption"], "each": ["gap", "let", "then"],
         ]
         known += params[verb]!
@@ -1043,6 +1050,7 @@ final class DocumentChecker {
             _ = oneOf(o, "value", p, ["pencil", "traded", "counted"])
         case "set", "tag":
             entry(o, "text", p, part: part, locals: plain.locals)
+            if verb == "tag" { role(o, "ink", p) }
         case "say":
             entry(o, "line", p, part: part, locals: plain.locals)
             bool(o, "count", p)
@@ -1195,28 +1203,8 @@ final class DocumentChecker {
 
     func checkStyle() {
         guard let style = object(root["style"], "/style", known: ["palette", "easings", "motion"]) else { return }
-        if let palette = object(style["palette"], "/style/palette", known: ["light", "dark"]) {
-            for mode in ["light", "dark"] {
-                for (role, v, p) in map(palette[mode], "/style/palette/" + mode) {
-                    switch v {
-                    case let .string(c):
-                        if !Self.isColour(c) { error(.schema, p, "'\(c)' is not a colour #RRGGBB") }
-                        if !Self.neutralRoles.contains(role) { error(.schema, p, "'\(role)' is not a neutral role; an operation role has fill, ink and soft") }
-                    case let .object(o):
-                        object(v, p, known: ["fill", "ink", "soft"], required: ["fill", "ink", "soft"])
-                        for k in ["fill", "ink", "soft"] {
-                            if let c = o[k]?.string, !Self.isColour(c) { error(.schema, p + "/" + k, "'\(c)' is not a colour #RRGGBB") }
-                        }
-                        let other = mode == "light" ? "dark" : "light"
-                        let defined = Self.coreOperationRoles.union(Self.arithmeticRoles).contains(role)
-                        if !defined && palette[other]?[role]?.object == nil {
-                            error(.schema, p, "a new operation role is given in both palette.light and palette.dark")
-                        }
-                    default:
-                        error(.schema, p, "a role's colour is \(v.typeName), not #RRGGBB or {fill, ink, soft}")
-                    }
-                }
-            }
+        if style["palette"] != nil {
+            error(.schema, "/style/palette", "a document does not give a palette; name its own colours under colours")
         }
         for (name, v, p) in map(style["easings"], "/style/easings") {
             if name == "linear" { error(.schema, p, "linear cannot be redefined") }
@@ -1284,4 +1272,245 @@ final class DocumentChecker {
             }
         }
     }
+}
+
+// MARK: profiles and colours (EXP-20)
+
+/// A role a document draws with, in the form it is drawn in.
+struct DrawnRole: Hashable {
+    var base: String
+    /// `fill`, `ink` or `soft`.
+    var form: String
+}
+
+extension DocumentChecker {
+    /// The profile the document declares, which defaults to `open`. An unknown one is a `ref`
+    /// error, so a player never draws a document under a profile it does not have.
+    func checkProfile() {
+        guard let v = root["profile"] else {
+            profile = ExplainerStyle.profiles[ExplainerStyle.defaultProfile]
+            return
+        }
+        guard case let .string(id) = v else {
+            error(.schema, "/profile", "profile is \(v.typeName), not a string")
+            return
+        }
+        if let p = ExplainerStyle.profiles[id] {
+            profile = p
+        } else {
+            let known = ExplainerStyle.profiles.keys.sorted().joined(separator: ", ")
+            error(.ref, "/profile", "there is no profile '\(id)'; this reader has \(known)")
+        }
+    }
+
+    var profileID: String { root["profile"]?.string ?? ExplainerStyle.defaultProfile }
+
+    /// The document's own colours: each gives light and dark values or names one of its profile's
+    /// suggested colours, and says what tells its marks apart without colour.
+    func checkColours() {
+        for (name, v, p) in map(root["colours"], "/colours") {
+            if Self.styleRoles.contains(name) {
+                error(.schema, p, "'\(name)' is a role of the style; a colour of the document's own has another name")
+                continue
+            }
+            guard let o = object(v, p, known: ["light", "dark", "suggested", "cue"]) else { continue }
+            if let cue = string(o, "cue", p), cue.trimmingCharacters(in: .whitespaces).isEmpty {
+                warning(.colour, p, "\(name) has no cue. Say what tells its marks apart without colour, such as length, width or place.")
+            } else if o["cue"] == nil {
+                warning(.colour, p, "\(name) has no cue. Say what tells its marks apart without colour, such as length, width or place.")
+            }
+            let values = o["light"] != nil || o["dark"] != nil
+            if values && o["suggested"] != nil {
+                error(.schema, p, "\(name) gives light and dark values or a suggested colour, not both")
+                continue
+            }
+            if !values && o["suggested"] == nil {
+                error(.schema, p, "\(name) gives light and dark values, or the name of a suggested colour")
+                continue
+            }
+            if values {
+                var read: [String: RGB] = [:]
+                for k in ["light", "dark"] {
+                    guard let s = string(o, k, p) else {
+                        if o[k] == nil { error(.schema, p, "\(name) has no '\(k)', which it requires with the other") }
+                        continue
+                    }
+                    if Self.isColour(s), let c = RGB(hexString: s) { read[k] = c } else {
+                        error(.schema, DocumentPath.join(p, k), "'\(s)' is not a colour #RRGGBB")
+                    }
+                }
+                if let l = read["light"], let d = read["dark"] { ownColours[name] = DocumentColour(name: name, light: l, dark: d) }
+            } else if let s = string(o, "suggested", p), let profile {
+                if let l = profile.light.suggested[s], let d = profile.dark.suggested[s] {
+                    ownColours[name] = DocumentColour(name: name, light: l, dark: d)
+                } else {
+                    let offered = profile.light.suggested.keys.sorted()
+                    let list = offered.isEmpty ? "offers no suggested colours" : "offers \(offered.joined(separator: ", "))"
+                    error(.ref, DocumentPath.join(p, "suggested"), "the profile '\(profileID)' has no suggested colour '\(s)'; it \(list)")
+                }
+            }
+        }
+    }
+
+    // MARK: what is drawn
+
+    /// The role `s` as drawn in a key that gives `defaultForm`.
+    private func drawn(_ s: String, form defaultForm: String, into out: inout Set<DrawnRole>) {
+        let parts = s.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard let base = parts.first, DocumentNames.isName(base) else { return }
+        out.insert(DrawnRole(base: base, form: parts.count == 2 ? parts[1] : defaultForm))
+    }
+
+    /// The roles the document draws with, by what its elements and actions name and by the roles
+    /// the format gives by default (section 9).
+    func drawnRoles() -> Set<DrawnRole> {
+        var out = Set<DrawnRole>()
+        let textDefaults = ["equation": "text", "total": "result", "label": "muted", "note": "muted", "body": "text"]
+        for (_, el) in elements {
+            let ink = el["ink"]?.string
+            switch el["kind"]?.string {
+            case "text":
+                drawn(ink ?? textDefaults[el["style"]?.string ?? "body"] ?? "text", form: "ink", into: &out)
+                for (_, run) in el["runs"]?.object?.entries ?? [] { if let r = run["ink"]?.string { drawn(r, form: "ink", into: &out) } }
+            case "line": drawn(ink ?? (el["style"]?.string == "divider" ? "line" : "pencil"), form: "ink", into: &out)
+            case "arrow": if let ink { drawn(ink, form: "ink", into: &out) }
+            case "outline":
+                switch el["style"]?.string ?? "box" {
+                case "hint": drawn("muted", form: "ink", into: &out)
+                case "target": drawn("result", form: "fill", into: &out)
+                default: if let ink { drawn(ink, form: "ink", into: &out) }
+                }
+            case "shape":
+                if let f = el["fill"]?.string { drawn(f, form: "fill", into: &out) }
+                if let ink { drawn(ink, form: "ink", into: &out) }
+            default: drawn("pencil", form: "ink", into: &out)
+            }
+        }
+        func walk(_ actions: JSONValue?) {
+            for (_, a) in actions?.object?.entries ?? [] {
+                switch a["do"]?.string {
+                case "tint": if let r = a["ink"]?.string { drawn(r, form: "ink", into: &out) }
+                case "tag": drawn(a["ink"]?.string ?? "result", form: "ink", into: &out)
+                case "cross": drawn("subtract", form: "ink", into: &out)
+                case "look":
+                    if a["value"] == .string("traded") { drawn("trade", form: "ink", into: &out) }
+                    if a["value"] == .string("counted") { drawn("result", form: "ink", into: &out) }
+                case "each": walk(a["then"])
+                default: break
+                }
+            }
+        }
+        for (_, s) in steps {
+            walk(s["actions"])
+            walk(s["why"]?["actions"])
+            if let act = s["act"] {
+                if let r = act["ink"]?.string { drawn(r, form: "ink", into: &out) }
+                if let r = act["tally"]?.string { drawn(r, form: "ink", into: &out) }
+                if case .object = act["then"] { walk(.object(JSONObject([("then", act["then"]!)]))) }
+            }
+        }
+        return out
+    }
+
+    /// The value of a role drawn, in one appearance, or nil for a role that is not a colour drawn
+    /// on the sheet.
+    private func value(_ role: DrawnRole, dark: Bool) -> RGB? {
+        let palette = ExplainerStyle.standard.palette(dark: dark)
+        if let own = ownColours[role.base] { return dark ? own.dark : own.light }
+        switch role.base {
+        case "text": return palette.ink
+        case "muted": return palette.muted
+        case "line": return palette.line
+        case "pencil": return palette.pencil
+        default:
+            guard let op = ExplainerOperation(rawValue: role.base) else { return nil }
+            return role.form == "fill" ? palette.colors(op).fill : palette.colors(op).ink
+        }
+    }
+
+    // MARK: what is seen
+
+    /// Reports, as warnings, a colour a person may not see or tell from another: an ink under 3:1
+    /// with the sheet or on its own soft form, two colours drawn together under 20 apart with
+    /// normal vision or a simulated deficiency, and, in the maths profile, a colour close to an
+    /// operation's. None stops the document playing.
+    func checkColourSeen() {
+        guard !ownColours.isEmpty else { return }
+        let used = drawnRoles()
+        let names = ownColours.keys.sorted()
+        func appearance(_ dark: Bool) -> String { dark ? "dark" : "light" }
+        // The appearances in which a colour is too faint to see, which its other checks leave out.
+        var faint: Set<String> = []
+        for name in names {
+            let c = ownColours[name]!
+            let path = DocumentPath.join("/colours", name)
+            for dark in [false, true] {
+                let ink = dark ? c.dark : c.light
+                let sheet = ExplainerStyle.standard.palette(dark: dark).sheet
+                let k = ColourChecks.contrasts(ink, sheet: sheet, dark: dark)
+                guard k.sheet < ColourChecks.minimumContrast || k.soft < ColourChecks.minimumContrast else { continue }
+                faint.insert(name + (dark ? "/dark" : "/light"))
+                let refs = used.compactMap { value($0, dark: dark) }.filter { $0 != ink }
+                let near = ColourChecks.nearestPassing(to: ink, sheet: sheet, dark: dark, apart: refs)
+                let remedy = near.map { " The nearest colour that is easy to see is \($0.hex)." } ?? " No colour near it shows beside the others in the document; choose another."
+                if k.sheet < ColourChecks.minimumContrast {
+                    let how = dark ? "very dark" : "very pale"
+                    warning(.colour, path, "\(name) (\(ink.hex)) is \(how) on the \(appearance(dark)) sheet (\(ratio(k.sheet)):1; thin lines and text need 3:1), so what is drawn in it will be hard to see.\(remedy)")
+                } else {
+                    warning(.colour, path, "text in \(name) (\(ink.hex)) on its own tint is hard to read on the \(appearance(dark)) sheet (\(ratio(k.soft)):1, under 3:1).\(remedy)")
+                }
+            }
+        }
+
+        // Pairs drawn together: each colour of the document's own with every other colour drawn.
+        let drawnNames = names.filter { n in used.contains { $0.base == n } }
+        var others: [(label: String, role: DrawnRole)] = []
+        var seen = Set<String>()
+        for r in used.sorted(by: { ($0.base, $0.form) < ($1.base, $1.form) }) where r.form != "soft" && ownColours[r.base] == nil {
+            guard value(r, dark: false) != nil, seen.insert(r.base + "." + r.form).inserted else { continue }
+            others.append((r.base, r))
+        }
+        for (k, name) in drawnNames.enumerated() {
+            let path = DocumentPath.join("/colours", name)
+            var candidates: [(label: String, role: DrawnRole)] = others
+            for later in drawnNames[(k + 1)...] { candidates.append((later, DrawnRole(base: later, form: "ink"))) }
+            for other in candidates {
+                var worst: (distance: Double, dark: Bool, seenWith: ColourVision, a: RGB, b: RGB)?
+                for dark in [false, true] {
+                    if faint.contains(name + (dark ? "/dark" : "/light")) || faint.contains(other.label + (dark ? "/dark" : "/light")) { continue }
+                    guard let a = value(DrawnRole(base: name, form: "ink"), dark: dark), let b = value(other.role, dark: dark) else { continue }
+                    let w = ColourVision.worst(a, b)
+                    if w.distance < (worst?.distance ?? .infinity) { worst = (w.distance, dark, w.seenWith, a, b) }
+                }
+                guard let w = worst, w.distance < ColourChecks.minimumDistance else { continue }
+                let measured = "in \(appearance(w.dark)), \(name) \(w.a.hex) and \(other.label) \(w.b.hex) are \(ratio(w.distance)) apart with \(w.seenWith == .normal ? "normal vision" : w.seenWith.description); under 20"
+                if w.seenWith == .normal {
+                    warning(.colour, path, "\(name) and \(other.label) look alike (\(measured)).")
+                } else {
+                    warning(.colour, path, "\(name) and \(other.label) may look like one colour to some colour-blind viewers (\(measured)).")
+                }
+            }
+        }
+
+        // In the maths profile, a colour near an operation's may be read as that operation.
+        guard profileID == "maths" else { return }
+        for name in drawnNames {
+            let path = DocumentPath.join("/colours", name)
+            for op in ExplainerOperation.allCases {
+                var worst: (distance: Double, dark: Bool, a: RGB, b: RGB)?
+                for dark in [false, true] {
+                    let palette = ExplainerStyle.standard.palette(dark: dark)
+                    guard let a = value(DrawnRole(base: name, form: "ink"), dark: dark) else { continue }
+                    for b in [palette.colors(op).ink, palette.colors(op).fill] {
+                        let d = ColourVision.normal.distance(a, b)
+                        if d < (worst?.distance ?? .infinity) { worst = (d, dark, a, b) }
+                    }
+                }
+                guard let w = worst, w.distance < ColourChecks.minimumDistance else { continue }
+                warning(.colour, path, "\(name) (\(w.a.hex)) looks like the colour every maths explainer uses for \(profile?.profile?.fixed[op.rawValue] ?? op.rawValue), so a learner may read it as that (in \(appearance(w.dark)), \(ratio(w.distance)) apart from \(op.rawValue) with normal vision; under 20).")
+            }
+        }
+    }
+
+    private func ratio(_ x: Double) -> String { String(format: "%.1f", x) }
 }

@@ -18,8 +18,8 @@ enum InstanceShape: Equatable, Sendable {
     case piece(kind: String, rect: CGRect)
     case text(at: CGPoint, style: String, size: Double, ink: String, anchor: String)
     case line(from: CGPoint, to: CGPoint, divider: Bool, ink: Ink)
-    case arrow([CGPoint], ExplainerOperation)
-    case outline(CGRect, style: String, op: ExplainerOperation?)
+    case arrow([CGPoint], Hue)
+    case outline(CGRect, style: String, op: Hue?)
     case shape(Outline, fill: Ink?, stroke: Ink?)
 
     /// What a turn moves, for the kinds that turn (section 9.5): the points of a line, arrow or
@@ -66,12 +66,13 @@ struct DrawnInstance: Sendable {
 /// that leave nothing behind (the offset of `rise`, the scale of `grow` and `pulse`, a tag).
 struct InstanceLook: Equatable, Sendable {
     struct Tint: Equatable, Sendable {
-        var op: ExplainerOperation
+        var op: Hue
         var progress: Double
     }
 
     struct Tag: Equatable, Sendable {
         var text: String
+        var hue: Hue
         var opacity: Double
         var scale: Double
     }
@@ -103,12 +104,12 @@ struct Track: Sendable {
         case fade(from: Double, to: Double)
         case draw
         case cross(fade: Double, easing: Easing, from: Double, crossFrom: Double)
-        case tint(ExplainerOperation)
+        case tint(Hue)
         case move([(Double, CGPoint)])
         case gather(from: CGPoint, to: CGPoint)
         case look(PieceStyle)
         case set(String)
-        case tag(String)
+        case tag(String, Hue)
         case pulse
         case turn(from: Double, to: Double)
     }
@@ -167,10 +168,10 @@ struct Track: Sendable {
         case let .set(text):
             guard t >= start else { break }
             if case let .run(name)? = part { l.setRun(name, text) } else { l.text = [TextRun(name: nil, text: text)] }
-        case let .tag(text):
+        case let .tag(text, hue):
             guard t >= start else { break }
             l.tag = InstanceLook.Tag(
-                text: text, opacity: keyframes([(0, 0), (0.2, 1), (0.75, 1), (1, 0)], p), scale: keyframes([(0, 0.6), (0.2, 1), (1, 1)], p))
+                text: text, hue: hue, opacity: keyframes([(0, 0), (0.2, 1), (0.75, 1), (1, 0)], p), scale: keyframes([(0, 0.6), (0.2, 1), (1, 1)], p))
             if p >= 1 { l.tag = nil }
         case .pulse:
             l.pulse = keyframes([(0, 1), (0.5, 1.15), (1, 1)], p)
@@ -189,6 +190,7 @@ extension InstanceLook {
 
 /// Turns instances and their states into the shared components (EXP-13).
 struct DocumentPainter: Sendable {
+    let roles: DocumentRoles
     let instances: [DrawnInstance]
     let size: CGSize
     let camera: Bool
@@ -206,9 +208,11 @@ struct DocumentPainter: Sendable {
             if let tag = l.tag {
                 let b = inst.bounds.offsetBy(dx: l.position.x - inst.reference.x, dy: l.position.y - inst.reference.y)
                 let ten: Bool = if case let .piece(kind, _) = inst.shape { kind == "ten" || kind == "stick" } else { false }
+                let card = Components.numberTag(on: b, ten: ten)
                 tags.append(SceneElement(
-                    inst.id + ".tag", .numberTag(tag.text, in: Components.numberTag(on: b, ten: ten), scale: tag.scale), opacity: tag.opacity,
-                    fixed: isFixed))
+                    inst.id + ".tag",
+                    tag.hue == .result ? .numberTag(tag.text, in: card, scale: tag.scale) : .hueTag(tag.text, in: card, scale: tag.scale, hue: tag.hue),
+                    opacity: tag.opacity, fixed: isFixed))
             }
         }
         return Scene(elements: out + tags + fixed, size: size, camera: camera ? cam : nil)
@@ -272,7 +276,13 @@ struct DocumentPainter: Sendable {
                     if let name = r.name, let tint = l.runTint[name] {
                         mark = EquationLine.Mark(run: eqRuns.count, op: tint.op, progress: tint.progress)
                     }
-                    eqRuns.append(EquationLine.Run(r.text, r.ink == "result" ? .answer : .plain, opacity: r.name.flatMap { l.runOpacity[$0] } ?? 1))
+                    let role: EquationLine.Role =
+                        switch r.ink {
+                        case nil, "text": .plain
+                        case "result": .answer
+                        default: roles.hue(r.ink!).map { .hue($0) } ?? .plain
+                        }
+                    eqRuns.append(EquationLine.Run(r.text, role, opacity: r.name.flatMap { l.runOpacity[$0] } ?? 1))
                 }
                 return [SceneElement(inst.id, .equation(EquationLine(runs: eqRuns, mark: mark, center: a, size: size)), opacity: l.opacity,
                     transform: around)]
@@ -283,7 +293,7 @@ struct DocumentPainter: Sendable {
                     return [SceneElement(inst.id, .label(text, at: a), opacity: l.opacity, transform: around)]
                 }
                 let set = Typeset(
-                    at: a, size: size, ink: DocumentRoles.ink(ink, fill: false) ?? .text, display: style != "label",
+                    at: a, size: size, ink: roles.ink(ink, fill: false) ?? .text, display: style != "label",
                     anchor: anchor == "start" ? .leading : anchor == "end" ? .trailing : .center)
                 return [SceneElement(inst.id, .words(text, set), opacity: l.opacity, transform: around)]
             }
@@ -319,12 +329,14 @@ struct DocumentPainter: Sendable {
     }
 }
 
-/// Roles as a document names them (section 16.1), as the stage's inks.
-enum DocumentRoles {
-    /// The ink of role `name`: an operation role alone is its `ink` for a stroke or text and its
-    /// `fill` for a fill. Nil for a role the stage has no ink for (`paper`, `onResult`, or a role
-    /// the document defines).
-    static func ink(_ name: String, fill: Bool) -> Ink? {
+/// Roles as a document names them (section 16.1), as the stage's inks: the style's own, and the
+/// colours the document names for itself (EXP-20).
+struct DocumentRoles: Sendable {
+    var colours: [String: DocumentColour] = [:]
+
+    /// The ink of role `name`: a hue named alone is its `ink` for a stroke or text and its `fill`
+    /// for a fill. Nil for a role the stage has no ink for (`paper`, `onResult`).
+    func ink(_ name: String, fill: Bool) -> Ink? {
         let parts = name.split(separator: ".").map(String.init)
         switch parts[0] {
         case "text": return .text
@@ -333,15 +345,18 @@ enum DocumentRoles {
         case "pencil": return .pencil
         case "sheet": return .sheet
         default:
-            guard let op = ExplainerOperation(rawValue: parts[0]) else { return nil }
+            guard let hue = hue(parts[0]) else { return nil }
             switch parts.count == 2 ? parts[1] : (fill ? "fill" : "ink") {
-            case "fill": return .fill(op)
-            case "soft": return .soft(op)
-            default: return .ink(op)
+            case "fill": return .fill(hue)
+            case "soft": return .soft(hue)
+            default: return .ink(hue)
             }
         }
     }
 
-    /// The operation of role `name` named alone, or nil.
-    static func operation(_ name: String) -> ExplainerOperation? { ExplainerOperation(rawValue: name) }
+    /// The hue of role `name` named alone: an operation, or a colour the document names, or nil.
+    func hue(_ name: String) -> Hue? {
+        if let op = ExplainerOperation(rawValue: name) { return .operation(op) }
+        return colours[name].map { .document($0) }
+    }
 }

@@ -36,6 +36,9 @@ public struct DocumentFinding: Equatable, Hashable, Sendable, CustomStringConver
         case areas
         /// A patch refused.
         case patch
+        /// A colour a person may not see, or tell from another colour drawn with it, or no
+        /// statement of what tells its marks apart without colour. Always a warning (EXP-20).
+        case colour
     }
 
     public var severity: Severity

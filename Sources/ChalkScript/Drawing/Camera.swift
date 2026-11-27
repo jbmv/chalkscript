@@ -175,7 +175,7 @@ extension SceneElement {
         }
         let r: CGRect?
         switch kind {
-        case let .ten(rect, _), let .one(rect, _), let .stick(rect, _), let .circle(rect, _), let .numberTag(_, rect, _),
+        case let .ten(rect, _), let .one(rect, _), let .stick(rect, _), let .circle(rect, _), let .numberTag(_, rect, _), let .hueTag(_, rect, _, _),
             let .box(rect, _, _), let .hint(rect, _), let .target(rect):
             r = rect
         case let .crossOut(from, to, _), let .divider(from, to), let .rule(from, to): r = box([from, to])

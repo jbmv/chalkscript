@@ -1,0 +1,17 @@
+{
+  "format": "explainer-style",
+  "version": 1,
+  "profile": {
+    "id": "maths",
+    "title": "Maths",
+    "overrides": "explained",
+    "fixed": {
+      "subtract": "taking away",
+      "trade": "trading or regrouping",
+      "result": "the answer",
+      "add": "adding or joining",
+      "multiply": "groups of",
+      "divide": "sharing"
+    }
+  }
+}

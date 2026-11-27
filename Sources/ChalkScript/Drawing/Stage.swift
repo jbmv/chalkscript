@@ -154,17 +154,9 @@ struct StageDrawing {
             context.fill(path, with: .color((style == .counted ? c(.soft(.result)) : c(.sheet)).color))
             context.stroke(path, with: .color(pieceInk(style).color), lineWidth: Components.pencilWidth)
         case let .numberTag(text, rect, scale):
-            var layer = context
-            layer.translateBy(x: rect.midX, y: rect.midY)
-            layer.scaleBy(x: scale, y: scale)
-            let card = Path(
-                roundedRect: CGRect(x: -rect.width / 2, y: -rect.height / 2, width: rect.width, height: rect.height),
-                cornerRadius: Components.tagCorner)
-            let ink = c(.ink(.result))
-            layer.fill(card, with: .color(c(.sheet).color))
-            layer.stroke(card, with: .color(ink.color), lineWidth: Components.tagWidth)
-            let t = layer.resolve(Text(verbatim: text).font(fonts.display(Components.tagTextSize)).foregroundStyle(ink.color))
-            layer.draw(t, at: .zero, anchor: .center)
+            tag(text, in: rect, scale: scale, hue: .result, in: &context)
+        case let .hueTag(text, rect, scale, hue):
+            tag(text, in: rect, scale: scale, hue: hue, in: &context)
         case let .numeral(numeral):
             self.numeral(numeral, in: &context)
         case let .text(text, at, style):
@@ -183,7 +175,7 @@ struct StageDrawing {
             layer.opacity *= Components.ruleOpacity
             stroke([from, to], color: c(.pencil), width: Components.ruleWidth, in: &layer)
         case let .ink(points, op):
-            stroke(points, color: op.map { c(.ink($0)) } ?? c(.muted),
+            stroke(points, color: op.map { c(.ink(.operation($0))) } ?? c(.muted),
                 width: op == nil ? Components.liveInkWidth : Components.inkWidth, in: &context)
         case let .hint(rect, p):
             let path = Path(roundedRect: rect, cornerRadius: Components.hintCorner).trimmedPath(from: 0, to: p)
@@ -249,6 +241,21 @@ struct StageDrawing {
             layer.scaleBy(x: scale, y: scale)
             layer.draw(t, at: .zero, anchor: .bottom)
         }
+    }
+
+    /// A number card in `rect`, in `hue`, grown by `scale` about its centre.
+    private func tag(_ text: String, in rect: CGRect, scale: Double, hue: Hue, in context: inout GraphicsContext) {
+        var layer = context
+        layer.translateBy(x: rect.midX, y: rect.midY)
+        layer.scaleBy(x: scale, y: scale)
+        let card = Path(
+            roundedRect: CGRect(x: -rect.width / 2, y: -rect.height / 2, width: rect.width, height: rect.height),
+            cornerRadius: Components.tagCorner)
+        let ink = c(.ink(hue))
+        layer.fill(card, with: .color(c(.sheet).color))
+        layer.stroke(card, with: .color(ink.color), lineWidth: Components.tagWidth)
+        let t = layer.resolve(Text(verbatim: text).font(fonts.display(Components.tagTextSize)).foregroundStyle(ink.color))
+        layer.draw(t, at: .zero, anchor: .center)
     }
 
     /// An explainer's own outline as a path.
@@ -342,9 +349,15 @@ struct StageDrawing {
         let font = fonts.display(line.size)
         let resolved = line.runs.enumerated().map { i, run -> (GraphicsContext.ResolvedText, CGSize) in
             let color: RGB =
-                if let mark = line.mark, mark.run == i { c(.ink(mark.op)) } else if run.role == .answer {
-                    c(.ink(.result))
-                } else { c(.text) }
+                if let mark = line.mark, mark.run == i {
+                    c(.ink(mark.op))
+                } else {
+                    switch run.role {
+                    case .answer: c(.ink(.result))
+                    case let .hue(hue): c(.ink(hue))
+                    case .plain: c(.text)
+                    }
+                }
             let text = context.resolve(Text(verbatim: run.text).font(font).foregroundStyle(color.color))
             return (text, text.measure(in: CGSize(width: 10_000, height: 10_000)))
         }
