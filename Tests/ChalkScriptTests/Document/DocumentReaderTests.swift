@@ -578,6 +578,15 @@ struct ProfileAndColourTests {
         #expect(found.contains { $0.message.contains("hour") && $0.message.contains("text") && $0.message.contains("in dark") }, "\(r.findings)")
     }
 
+    @Test func aColourBesideTextDrawnAsInkAndAsFillIsWarnedOfOnce() throws {
+        // The same grey, close to the text colour in dark, with text drawn as ink (the label) and as fill (a dot).
+        let doc = try coloured(##"{"hour": {"light": "#6B5B3E", "dark": "#C9D1CE", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##, label: "text", rule: "hour")
+            .setting("/elements/dot", try JSONValue.parse(##"{"kind": "shape", "ellipse": [0, 0, 5, 5], "fill": "text.fill"}"##))
+        let r = read(doc)
+        let found = warnings(r).filter { $0.message.contains("hour and text") }
+        #expect(found.count == 1, "\(r.findings)")
+    }
+
     @Test func inTheMathsProfileAColourNearAnOperationsIsAWarningAndInTheOpenProfileItIsNot() throws {
         // Near the standard add colour in light, and far from every other colour drawn.
         let colours = ##"{"hour": {"light": "#4F6D45", "dark": "#95E3A5", "cue": "x"}, "minute": {"suggested": "purple", "cue": "y"}}"##

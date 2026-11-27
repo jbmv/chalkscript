@@ -1464,23 +1464,27 @@ extension DocumentChecker {
 
         // Pairs drawn together: each colour of the document's own with every other colour drawn.
         let drawnNames = names.filter { n in used.contains { $0.base == n } }
-        var others: [(label: String, role: DrawnRole)] = []
-        var seen = Set<String>()
+        // A colour is compared once however many forms of it are drawn (text as ink and as fill is
+        // one colour), taking the closest of its forms in each appearance.
+        var others: [(label: String, roles: [DrawnRole])] = []
         for r in used.sorted(by: { ($0.base, $0.form) < ($1.base, $1.form) }) where r.form != "soft" && ownColours[r.base] == nil {
-            guard value(r, dark: false) != nil, seen.insert(r.base + "." + r.form).inserted else { continue }
-            others.append((r.base, r))
+            guard value(r, dark: false) != nil else { continue }
+            if let i = others.firstIndex(where: { $0.label == r.base }) { others[i].roles.append(r) } else { others.append((r.base, [r])) }
         }
         for (k, name) in drawnNames.enumerated() {
             let path = DocumentPath.join("/colours", name)
-            var candidates: [(label: String, role: DrawnRole)] = others
-            for later in drawnNames[(k + 1)...] { candidates.append((later, DrawnRole(base: later, form: "ink"))) }
+            var candidates: [(label: String, roles: [DrawnRole])] = others
+            for later in drawnNames[(k + 1)...] { candidates.append((later, [DrawnRole(base: later, form: "ink")])) }
             for other in candidates {
                 var worst: (distance: Double, dark: Bool, seenWith: ColourVision, a: RGB, b: RGB)?
                 for dark in [false, true] {
                     if faint.contains(name + (dark ? "/dark" : "/light")) || faint.contains(other.label + (dark ? "/dark" : "/light")) { continue }
-                    guard let a = value(DrawnRole(base: name, form: "ink"), dark: dark), let b = value(other.role, dark: dark) else { continue }
-                    let w = ColourVision.worst(a, b)
-                    if w.distance < (worst?.distance ?? .infinity) { worst = (w.distance, dark, w.seenWith, a, b) }
+                    guard let a = value(DrawnRole(base: name, form: "ink"), dark: dark) else { continue }
+                    for role in other.roles {
+                        guard let b = value(role, dark: dark) else { continue }
+                        let w = ColourVision.worst(a, b)
+                        if w.distance < (worst?.distance ?? .infinity) { worst = (w.distance, dark, w.seenWith, a, b) }
+                    }
                 }
                 guard let w = worst, w.distance < ColourChecks.minimumDistance else { continue }
                 let measured = "in \(appearance(w.dark)), \(name) \(w.a.hex) and \(other.label) \(w.b.hex) are \(ratio(w.distance)) apart with \(w.seenWith == .normal ? "normal vision" : w.seenWith.description); under 20"
