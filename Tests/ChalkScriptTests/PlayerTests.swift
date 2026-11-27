@@ -284,6 +284,64 @@ private struct WaitingExplainer: Explainer {
     func still(after step: Int) -> Scene { Scene(elements: []) }
 }
 
+/// A step that says two captioned lines one behind the other, the second queued while the first
+/// is still being said.
+private struct TwoLineExplainer: Explainer {
+    static let first = Line(key: "two.first", display: "A clock has two hands.", spoken: "A clock has two hands")
+    static let second = Line(key: "two.second", display: "The long hand shows the minutes.", spoken: "The long hand shows the minutes")
+    var version: ExplainerVersion { .child }
+    var stepCount: Int { 1 }
+    var intro: Line { Line(key: "two.intro", display: "One step.", spoken: nil) }
+    func script(for step: Int) -> StepScript {
+        StepScript(duration: 3, events: [
+            StepEvent(0.2, .say(Self.first, caption: true)),
+            StepEvent(0.6, .say(Self.second, caption: true)),
+        ])
+    }
+    func scene(step: Int, at t: Double) -> Scene { still(after: step) }
+    func still(after step: Int) -> Scene { Scene(elements: []) }
+}
+
+/// A caption is shown as its line begins to be said, not when the line is queued (EXP-10).
+@MainActor
+struct CaptionWhenSaidTests {
+    /// Each caption the player shows, with the step's clock when it appeared, driving the clock in
+    /// steps of 0.05.
+    private func captions(voice: any ExplainerVoice) -> [(display: String, at: Double)] {
+        let p = ExplainerPlayer(explainer: TwoLineExplainer(), voice: voice, drivesItself: false)
+        p.primary()
+        var seen: [(display: String, at: Double)] = []
+        var last = p.caption.display
+        var guardCount = 0
+        while p.phase == .playing(0), guardCount < 1000 {
+            p.advance(by: 0.05)
+            guardCount += 1
+            if p.caption.display != last {
+                last = p.caption.display
+                seen.append((last, p.time))
+            }
+        }
+        return seen
+    }
+
+    @Test func aQueuedLinesCaptionAppearsWhenItsLineBeginsOnAVoiceThatTakesTime() {
+        let firstTime = ReadingTime.seconds(TwoLineExplainer.first)
+        let seen = captions(voice: EstimatedVoice())
+        #expect(seen.map(\.display) == [TwoLineExplainer.first.display, TwoLineExplainer.second.display])
+        // The first line is queued at 0.2 s on an idle voice, and begins then.
+        #expect(abs(seen[0].at - 0.2) < 0.06)
+        // The second is queued at 0.6 s but begins only when the first has been heard.
+        #expect(abs(seen[1].at - (0.2 + firstTime)) < 0.06)
+    }
+
+    @Test func eachCaptionAppearsWhenItsLineIsQueuedOnAVoiceThatTakesNoTime() {
+        let seen = captions(voice: SilentVoice())
+        #expect(seen.map(\.display) == [TwoLineExplainer.first.display, TwoLineExplainer.second.display])
+        #expect(abs(seen[0].at - 0.2) < 0.06)
+        #expect(abs(seen[1].at - 0.6) < 0.06)
+    }
+}
+
 /// The estimate of a line's time to say (ReadingTime) and the stand-in voice that takes it.
 @MainActor
 struct EstimatedVoiceTests {

@@ -65,7 +65,8 @@ final class MotionRunner {
     var holdsCamera = false {
         didSet { if !holdsCamera && oldValue { advance(by: 0) } }
     }
-    /// Called with each line a motion shows as its caption, as it is said.
+    /// Called with each line a motion shows as its caption, as the voice begins it: a line queued
+    /// behind another is shown when the one before has been heard, not when it is queued (EXP-10).
     @ObservationIgnored var onCaption: (@MainActor (Line) -> Void)?
 
     @ObservationIgnored private let voice: any ExplainerVoice
@@ -73,7 +74,7 @@ final class MotionRunner {
     @ObservationIgnored private var events: [StepEvent] = []
     @ObservationIgnored private var nextEvent = 0
     @ObservationIgnored private var completion: (@MainActor () -> Void)?
-    @ObservationIgnored private var queue: [Line] = []
+    @ObservationIgnored private var queue: [(line: Line, caption: Bool)] = []
     @ObservationIgnored private var speaking = false
     @ObservationIgnored private var idleWaiters: [@MainActor () -> Void] = []
     @ObservationIgnored private var generation = 0
@@ -144,8 +145,7 @@ final class MotionRunner {
         guard running, let motion else { return }
         while nextEvent < events.count {
             if sayingRest, case let .say(line, caption) = events[nextEvent].action {
-                if caption { onCaption?(line) }
-                enqueue(line)
+                enqueue(line, caption: caption)
             }
             nextEvent += 1
         }
@@ -172,7 +172,7 @@ final class MotionRunner {
     /// Speaks `line` after whatever is queued; `then` is called once everything said so far has
     /// been heard, unless the voice is silenced first.
     func say(_ line: Line, then: (@MainActor () -> Void)? = nil) {
-        enqueue(line)
+        enqueue(line, caption: false)
         if let then { whenQuiet(then) }
     }
 
@@ -228,8 +228,7 @@ final class MotionRunner {
                     }
                     heldForVoice = false
                 case let .say(line, showCaption):
-                    if showCaption { onCaption?(line) }
-                    enqueue(line)
+                    enqueue(line, caption: showCaption)
                 }
                 nextEvent += 1
             }
@@ -280,8 +279,8 @@ final class MotionRunner {
 
     // MARK: the voice
 
-    private func enqueue(_ line: Line) {
-        queue.append(line)
+    private func enqueue(_ line: Line, caption: Bool) {
+        queue.append((line, caption))
         sayNext()
     }
 
@@ -293,8 +292,9 @@ final class MotionRunner {
             for w in waiting { w() }
             return
         }
-        let line = queue.removeFirst()
+        let (line, caption) = queue.removeFirst()
         speaking = true
+        if caption { onCaption?(line) }
         let mine = generation
         voice.say(line) { [weak self] in
             guard let self, self.generation == mine else { return }
