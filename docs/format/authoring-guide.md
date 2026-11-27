@@ -272,7 +272,7 @@ line, not seconds guessed for it. The studio's voice is silent; only a speaking 
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
 | `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. `line` and `arrow` have a fixed stroke width; for a thicker one use a filled `shape` with `points`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
-| `tint` | draw | A pale `ink` role behind a run or element; with `mark`, marks a digit. |
+| `tint` | draw | A pale `ink` role behind a run of an `equation` text; with `mark`, marks a digit. The studio refuses `tint` on an element, or on a run of a text in another style, as `capability`: to mark a numeral or a word, draw an `outline` round it. |
 | `move` | travel | To `to`, or back to its place; `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
 | `gather` | travel | From the positions of `from` to their places. |
 | `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |

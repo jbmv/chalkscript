@@ -786,6 +786,11 @@ Start: untinted. Over `dur` a pale tint of the role (its `soft` value) grows in 
 instance; a run's text takes the role's ink at the start. End: tinted. With `mark: true`, this is
 how the digit a step acts on is marked.
 
+The player in this repository draws a tint only behind a run of a text element in the style
+`equation`, with `ink` an operation role named alone. Any other target, an element or a run of a
+text in another style, is refused with a `capability` finding that names it (section 2.3), and
+is not drawn as an approximation.
+
 ### 13.6 `move`
 
 Kind `travel`. Targets: elements and pieces.
