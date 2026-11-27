@@ -146,6 +146,37 @@ struct DocumentReaderTests {
         has(ExplainerDocument.read(DocumentFixture.data("subtraction.explainer"), capabilities: []), .error, .capability, "/requires/0")
     }
 
+    // A document that conforms but asks for what the player does not draw is refused by the
+    // player, not found by the reader (section 2.3), so one refusal names one fault at a time.
+    @Test func aDocumentWithThreeColourFaultsIsRefusedOneStageAtATime() {
+        let faults = tiny
+            .setting("/elements/sum", try! JSONValue.parse(#"{"kind": "text", "at": [10, 60], "text": "label", "style": "total", "ink": "text"}"#))
+            .setting("/elements/go", try! JSONValue.parse(#"{"kind": "arrow", "from": [0, 0], "to": [0, 50], "ink": "add.ink"}"#))
+        let problem = DocumentFixture.values(("a", 1))
+        func refusal(_ json: JSONValue) -> [String] {
+            let doc = ExplainerDocument.read(json.data).document!
+            do { _ = try DocumentExplainer(document: doc, problem: problem); return [] } catch { return error.findings.map(\.description) }
+        }
+        // The reader checks every element in one pass and finds the one fault that is its own.
+        let r = read(faults)
+        #expect(r.findings.map(\.description) == [
+            "error capability /elements/go/ink: this uses the capability 'components.arithmetic', which requires does not list"
+        ])
+        #expect(refusal(faults) == r.findings.map(\.description))
+        // With the capability required, the document reads without a finding. The player's
+        // refusals are then its own, and the film stops at the first it meets.
+        let required = faults.setting("/requires", .array([.string("components.arithmetic")]))
+        #expect(read(required).findings.isEmpty)
+        #expect(refusal(required) == [
+            "error capability /elements/go/ink {a: 1}: this player draws a arrow only in an operation role named alone, not 'add.ink'"
+        ])
+        let arrowMended = required.setting("/elements/go/ink", .string("add"))
+        #expect(refusal(arrowMended) == [
+            "error capability /elements/sum {a: 1}: this player draws a total centred and in the result role only"
+        ])
+        #expect(refusal(arrowMended.setting("/elements/sum/ink", .string("result"))).isEmpty)
+    }
+
     @Test func expressionsAreParsedAndTheirNamesChecked() {
         has(read(tiny.setting("/steps/show/actions/in/target", .string("lable"))), .error, .expr, "/steps/show/actions/in/target", at: 0,
             "unknown name 'lable' (did you mean 'label'?)")
