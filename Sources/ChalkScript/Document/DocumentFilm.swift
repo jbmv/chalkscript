@@ -99,6 +99,12 @@ extension DocumentFilm {
         self.stills = stills
     }
 
+    /// The size, anchor and ink a text element has by style (section 9.2).
+    static let textDefaults: [String: (Double, String, String)] = [
+        "equation": (Components.equationSize, "middle", "text"), "total": (Components.totalSize, "middle", "result"),
+        "label": (Components.labelSize, "start", "muted"), "note": (22, "middle", "muted"), "body": (26, "middle", "text"),
+    ]
+
     /// One instance's geometry at its place and its state before the first step.
     static func instance(_ inst: DocumentInstance, _ r: Resolver) throws(EvalFailure) -> DrawnInstance {
         let name = inst.element
@@ -126,11 +132,7 @@ extension DocumentFilm {
         switch kind {
         case "text":
             let style = el["style"]?.string ?? "body"
-            let defaults: [String: (Double, String, String)] = [
-                "equation": (Components.equationSize, "middle", "text"), "total": (Components.totalSize, "middle", "result"),
-                "label": (Components.labelSize, "start", "muted"), "note": (22, "middle", "muted"), "body": (26, "middle", "text"),
-            ]
-            let (size0, anchor0, ink0) = defaults[style] ?? (26, "middle", "text")
+            let (size0, anchor0, ink0) = Self.textDefaults[style] ?? Self.textDefaults["body"]!
             let at = try point("at")
             let size = try number("size", size0)
             let anchor = el["anchor"]?.string ?? anchor0

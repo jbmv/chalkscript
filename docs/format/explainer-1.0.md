@@ -511,7 +511,10 @@ above the middle of the top edge of the instance's bounds. With `y`, the arrow r
 height `y`, across, and vertically down to its end, as an arrow over the top of a drawing does.
 
 An outline's `around` is the box round the bounds of the selected instances at their places, grown
-by `pad` on every side; `pad` is by default 12 for `hint` and 0 otherwise. An outline with `around`
+by `pad` on every side; `pad` is by default 12 for `hint` and 0 otherwise. A text element, whose
+bounds are a point, is enclosed as it is drawn: the box of its line of text, with the line's lower
+edge at `at` and its left edge, middle or right edge there for the `anchor` `start`, `middle` or
+`end`. The box is of the text the element shows before the first step. An outline with `around`
 selecting nothing has no instance. The outline styles are:
 
 | Style | Drawn as | Role |

@@ -1,5 +1,9 @@
 import CoreGraphics
 import Foundation
+import class SwiftUI.ImageRenderer
+import protocol SwiftUI.View
+import struct SwiftUI.Font
+import struct SwiftUI.Text
 import Testing
 @testable import ChalkScript
 
@@ -551,4 +555,74 @@ struct ResolutionTests {
         equal(try angle(e.still(after: 0)), 50)
         equal(try angle(e.scene(step: 1, at: 0)), 50, "the place's angle is the last to start, not the last in the document")
     }
+
+    // MARK: an outline round text
+
+    /// A document with the elements of `elements`, a JSON object's members, and the entry `phrase`.
+    func texts(_ elements: String) throws -> ExplainerDocument {
+        var doc = DocumentFixture.tiny.setting("/wording/en-US/shared/phrase", try JSONValue.parse(#"{"text": "Gigypq", "visual": true}"#))
+            .setting("/requires", try JSONValue.parse(#"["components.arithmetic"]"#))
+        for (name, element) in try JSONValue.parse("{\(elements)}").object?.entries ?? [] { doc = doc.setting("/elements/\(name)", element) }
+        let d = try #require(ExplainerDocument.read(doc.data).document)
+        #expect(d.conforms, "\(d.findings)")
+        return d
+    }
+
+    /// The size SwiftUI sets `text` in, in the faces the stage uses by default.
+    @MainActor func setSize(_ text: String, size: Double, display: Bool) throws -> CGSize {
+        let font: Font = display ? .system(size: size, weight: .bold, design: .rounded) : .system(size: size)
+        let image = try #require(ImageRenderer(content: Text(verbatim: text).font(font)).nsImage)
+        return image.size
+    }
+
+    /// An outline round a text element is the box the text is set in, grown by `pad`: its line sits on
+    /// `at` and its left, middle or right edge is at `at`, for each anchor and each style.
+    @MainActor @Test func anOutlineRoundTextEnclosesTheTextAsDrawn() throws {
+        let doc = try texts(#"""
+            "head": { "kind": "text", "at": [100, 200], "anchor": "start", "size": 40, "text": "phrase" },
+            "mid": { "kind": "text", "at": [300, 200], "anchor": "middle", "size": 40, "text": "phrase" },
+            "tail": { "kind": "text", "at": [500, 200], "anchor": "end", "size": 40, "text": "phrase" },
+            "note": { "kind": "text", "at": [300, 300], "style": "label", "text": "phrase" },
+            "total": { "kind": "text", "at": [300, 400], "style": "total", "text": "phrase" },
+            "sum": { "kind": "text", "at": [300, 500], "style": "equation", "text": "phrase" },
+            "r0": { "kind": "outline", "style": "box", "ink": "add", "around": "head" },
+            "r1": { "kind": "outline", "style": "ring", "ink": "multiply", "around": "mid", "pad": 6 },
+            "r2": { "kind": "outline", "style": "box", "ink": "add", "around": "tail", "pad": 10 },
+            "r3": { "kind": "outline", "style": "box", "ink": "add", "around": "note" },
+            "r4": { "kind": "outline", "style": "box", "ink": "add", "around": "total", "pad": 4 },
+            "r5": { "kind": "outline", "style": "box", "ink": "add", "around": "sum" }
+            """#)
+        let e = try explainer(doc)
+        let scene = e.still(after: -1)
+        func box(_ id: String) throws -> CGRect {
+            guard case let .box(r, _, _)? = scene.element(id)?.kind else { throw ExtentError.notABox(id) }
+            return r
+        }
+        // (outline, line's size and face, anchor, `at`, pad)
+        let cases: [(String, (Double, Bool), String, CGPoint, CGFloat)] = [
+            ("r0", (40, true), "start", CGPoint(x: 100, y: 200), 0), ("r1", (40, true), "middle", CGPoint(x: 300, y: 200), 6),
+            ("r2", (40, true), "end", CGPoint(x: 500, y: 200), 10), ("r3", (18, false), "start", CGPoint(x: 300, y: 300), 0),
+            ("r4", (54, true), "middle", CGPoint(x: 300, y: 400), 4), ("r5", (44, true), "middle", CGPoint(x: 300, y: 500), 0),
+        ]
+        for (id, (size, display), anchor, at, pad) in cases {
+            let set = try setSize("Gigypq", size: size, display: display)
+            let x = anchor == "start" ? at.x : anchor == "end" ? at.x - set.width : at.x - set.width / 2
+            let want = CGRect(x: x, y: at.y - set.height, width: set.width, height: set.height).insetBy(dx: -pad, dy: -pad)
+            let got = try box(id)
+            #expect(abs(got.minX - want.minX) < 1 && abs(got.minY - want.minY) < 1 && abs(got.width - want.width) < 1 && abs(got.height - want.height) < 1,
+                "\(id): \(got), not \(want)")
+        }
+        // A text that is moved is enclosed where it has gone.
+        let moved = try texts(#"""
+            "mid": { "kind": "text", "at": [300, 200], "anchor": "middle", "size": 40, "text": "phrase" },
+            "r": { "kind": "outline", "style": "box", "ink": "add", "around": "mid" }
+            """#)
+        let r = Resolver(moved, problem: DocumentFixture.values(("a", 1)), layout: "stage", area: nil, wording: "plain", locale: "en-US", playback: DocumentPlayback())
+        let before = try r.bounds(DocumentInstance("r"))
+        r.state[DocumentInstance("mid"), default: InstanceState()].place = CGPoint(x: 350, y: 260)
+        let after = try r.bounds(DocumentInstance("r"))
+        #expect(abs(after.minX - before.minX - 50) < 1e-9 && abs(after.minY - before.minY - 60) < 1e-9 && after.size == before.size)
+    }
+
+    enum ExtentError: Error { case notABox(String) }
 }

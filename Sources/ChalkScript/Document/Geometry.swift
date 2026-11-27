@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import Foundation
 
 // Where instances are and what the camera frames (sections 8, 9 and 10 of the format's
@@ -75,7 +76,7 @@ extension Resolver {
                 let s = try selection(p + "/around", locals: l)
                 var u: CGRect?
                 for inst in s.instances {
-                    let r = try bounds(inst.whole)
+                    let r = try extent(inst.whole)
                     u = u.map { $0.union(r) } ?? r
                 }
                 let pad = try number(p + "/pad", locals: l, default: el["style"]?.string == "hint" ? 12 : 0, what: "pad")
@@ -115,6 +116,28 @@ extension Resolver {
         }
         guard let place = state[instance.whole]?.place else { return b }
         return b.offsetBy(dx: place.x - reference.x, dy: place.y - reference.y)
+    }
+
+    /// What `around` encloses of `instance`: its bounds, except that a text element is enclosed as
+    /// drawn, the box its line of text fills (section 9.3), at its place.
+    func extent(_ instance: DocumentInstance) throws(EvalFailure) -> CGRect {
+        let name = instance.element
+        let p = DocumentPath.join("/elements", name)
+        guard let el = root["elements"]?[name]?.object, el["kind"]?.string == "text" else { return try bounds(instance) }
+        let l = try instanceLocals(instance)
+        let at = CGPoint(x: try number(p + "/at/0", locals: l, what: "x"), y: try number(p + "/at/1", locals: l, what: "y"))
+        let style = el["style"]?.string ?? "body"
+        let (size0, anchor0, _) = DocumentFilm.textDefaults[style] ?? DocumentFilm.textDefaults["body"]!
+        let size = style == "total" ? Components.totalSize : try number(p + "/size", locals: l, default: size0, what: "size")
+        let anchor = el["anchor"]?.string ?? anchor0
+        var text = ""
+        if let entry = el["text"]?.string { text = try DocumentFilm.runs(of: name, entry: entry, el: el, locals: l, self).map(\.text).joined() }
+        let (width, height) = TextExtent.measure(text, size: size, display: style != "label")
+        // The line is set with its bottom edge at `at`, and its left, middle or right edge there.
+        let x = anchor == "start" ? at.x : anchor == "end" ? at.x - width : at.x - width / 2
+        var box = CGRect(x: x, y: at.y - height, width: width, height: height)
+        if let place = state[instance.whole]?.place { box = box.offsetBy(dx: place.x - at.x, dy: place.y - at.y) }
+        return box
     }
 
     /// The region of part `name` (section 10.1): the box round the bounds of its instances at
@@ -263,5 +286,23 @@ enum Turning {
             let hy = (a * a * s * s + b * b * c * c).squareRoot()
             return CGRect(x: centre.x - hx, y: centre.y - hy, width: 2 * hx, height: 2 * hy)
         }
+    }
+}
+
+/// The size of a line of text in the faces the stage sets it in when it is given none of its own:
+/// the system's bold face for a display line and its regular face for a small one. A stage given
+/// other faces draws a line a little wider or narrower than this.
+enum TextExtent {
+    static func measure(_ text: String, size: Double, display: Bool) -> (width: CGFloat, height: CGFloat) {
+        guard !text.isEmpty else { return (0, 0) }
+        let face = CTFontCreateUIFontForLanguage(display ? .emphasizedSystem : .system, CGFloat(size), nil)
+            ?? CTFontCreateWithName("Helvetica" as CFString, CGFloat(size), nil)
+        let attributed = NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): face])
+        let line = CTLineCreateWithAttributedString(attributed)
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        var leading: CGFloat = 0
+        let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
+        return (width, ascent + descent + leading)
     }
 }
