@@ -375,6 +375,25 @@ final class DocumentChecker {
         for (k, v) in a.enumerated() { slot(v, path + "/\(k)", .number, scope) }
     }
 
+    /// An arc entry of a shape's `points` (section 9.3): `arc` is `[cx, cy, r]` or `[cx, cy, rx, ry]`,
+    /// with `from` and `to`, and nothing else.
+    func arc(_ value: JSONValue, _ path: String, _ scope: SlotScope) {
+        guard case let .object(o) = value else { return }
+        for k in o.keys where !["arc", "from", "to"].contains(k) {
+            error(.schema, DocumentPath.join(path, k), "'\(k)' is not a key of an arc, which has arc, from and to")
+        }
+        for k in ["arc", "from", "to"] where o[k] == nil { error(.schema, path, "an arc has no '\(k)', which it requires") }
+        if let shape = o["arc"] {
+            if case let .array(a) = shape, a.count == 3 || a.count == 4 {
+                for (k, v) in a.enumerated() { slot(v, path + "/arc/\(k)", .number, scope) }
+            } else {
+                error(.schema, path + "/arc", "arc is not [cx, cy, r] or [cx, cy, rx, ry]")
+            }
+        }
+        slot(o["from"], path + "/from", .number, scope)
+        slot(o["to"], path + "/to", .number, scope)
+    }
+
     func rect(_ value: JSONValue?, _ path: String, _ scope: SlotScope) {
         guard let value else { return }
         guard case let .array(a) = value, a.count == 4 else {
@@ -908,7 +927,9 @@ final class DocumentChecker {
                 slot(el["corner"], p + "/corner", .number, scope)
                 if let pts = el["points"] {
                     if case let .array(a) = pts {
-                        for (k, x) in a.enumerated() { point(x, p + "/points/\(k)", scope) }
+                        for (k, x) in a.enumerated() {
+                            if case .object = x { arc(x, p + "/points/\(k)", scope) } else { point(x, p + "/points/\(k)", scope) }
+                        }
                     } else {
                         error(.schema, p + "/points", "points is not an array of points")
                     }

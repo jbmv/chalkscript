@@ -71,8 +71,9 @@ since JSON parsers disagree about which value wins.
 
 - A minor version adds and never changes. It may add verbs, element kinds, inputs, functions and
   optional keys. An optional key added in a minor version is one whose absence keeps the earlier
-  meaning, so a player that ignores it plays the document as the earlier version defines. A key
-  whose effect must not be lost is added with a capability instead (section 2.3). A function added
+  meaning, so a player that ignores it plays the document as the earlier version defines. It may
+  also add a new form of a value, which a reader that lacks it reports as the wrong type and so
+  refuses the document. A key whose effect must not be lost is added with a capability instead (section 2.3). A function added
   in a minor version is not reserved as a name (section 3), so that no earlier document gains an
   error; a reader that lacks it reports an `expr` error for a call and refuses the document.
 - A major version may change meaning. It comes with a converter from the previous major version.
@@ -471,10 +472,12 @@ Colours are given only as *roles* (section 16.1) or as the document's own named 
 
 Each instance has a *place* (where its geometry puts it) and a *position*, which is its place unless a
 verb has moved it. Its position is a reference point: the top-left corner of its `rect`, its `at`,
-or the `from` of a line or arrow; moving an instance moves its whole geometry with that point.
+the `from` of a line or arrow, or the first point of a shape's `points`, which for an arc entry that
+comes first is the arc's start; moving an instance moves its whole geometry with that point.
 
 The *bounds* of an instance, used by `around`, parts, shots, the camera, tags, an arrow to it and
-the reading of marks, are: its `rect`; the box round the points of a line, arrow or shape; and for
+the reading of marks, are: its `rect`; the box round the points of a line, arrow or shape, which for an arc entry is the box round its curve, including the
+extreme points it passes and not its ends only; and for
 a text element, the box its line of text fills as drawn: the line of the text it shows before the
 first step, with its lower edge at `at` and its left edge, middle or right edge there for the
 `anchor` `start`, `middle` or `end`. A text element that shows nothing before the first step has
@@ -518,7 +521,7 @@ These are the *stroked* kinds: their `progress` is how much of the stroke is dra
 | `line` | `from` and `to`, points (required); `style`: `rule` (solid, by default) or `divider` (dashed); `ink`, by default `pencil` for a rule and `line` for a divider; `width`. |
 | `arrow` | `from` and `to`, each a point or a selection of exactly one instance; `y`, a number; `ink`, required; `width`. The head is drawn at `to` once `progress` is 1. |
 | `outline` | `rect` (`[x, y, width, height]`) or `around` (a selection), one of them required; `pad`; `style`: `box`, `ring`, `hint` or `target`, required; `ink`; `width`. |
-| `shape` | One of `rect` (with `corner`, a radius), `ellipse` (a rectangle it fills) or `points` (an array of points, with `closed`, by default `false`); `fill`, a role for the inside; `ink`, a role for the stroke. At least one of `fill` and `ink`; `width`. |
+| `shape` | One of `rect` (with `corner`, a radius), `ellipse` (a rectangle it fills) or `points` (an array of points and arcs, with `closed`, by default `false`); `fill`, a role for the inside; `ink`, a role for the stroke. At least one of `fill` and `ink`; `width`. |
 
 An arrow between two points is straight. The head points along the arrow's last segment, in the direction
 the arrow travels there; a last segment of no length gives way to the nearest earlier one that has length,
@@ -540,6 +543,35 @@ outline styles are:
 | `ring` | A solid rounded rectangle (corner 16), round a group. | `ink`, required. |
 | `hint` | A dashed loop (corner 18), at 0.8 opacity, pointing at what a step looks at. | `muted`. |
 | `target` | A dashed box where an answer is to be written. | `result`. |
+
+**Arcs.** An entry of a shape's `points` may be an arc in place of a point:
+
+```json
+{ "arc": [cx, cy, r], "from": a, "to": b }
+{ "arc": [cx, cy, rx, ry], "from": a, "to": b }
+```
+
+The entry is the curve through the points `[cx + rx * sin t, cy - ry * cos t]` for *t* from `from` to
+`to`, in degrees clockwise from twelve as in section 6.4, with `ry` equal to `rx` when only `r` is
+given. The direction is given by the numbers, as for `turn`: from 0 to 180 is the right half of a
+circle, clockwise, and from 270 to -90 is a whole circle anticlockwise from nine o'clock. The values
+are numbers or expressions, with the element's `let` names in scope. An arc entry has no key other
+than `arc`, `from` and `to`, and each is required; an entry with another key, or with an `arc` of
+other than three or four numbers, is a `schema` error. The sweep, `to` less `from`, is at most 360 in
+magnitude; one that is more is an `eval` error. A radius may be any number: a negative one mirrors
+the arc on its axis, and 0 flattens it to a straight line, so that one formula can draw the edge of
+a lit part of a sphere for every phase.
+
+The entries and points make one outline in order. An arc is joined to the entry before it by a
+straight line from that entry's last point to the arc's start; `closed` closes the outline by a
+straight line from its last point to its first. `draw` draws the stroke from the start of the
+outline along each entry in its direction. A player may draw an arc as Bézier curves, or as lines,
+within a tenth of a unit of the curve. With `drawing.turn`, an outline with arcs turns as its
+points do (section 9.5).
+
+An `ellipse`'s stroke starts at its rightmost point, three o'clock, and runs clockwise, so a `draw`
+of an `ellipse` is drawn from there. To start a circle elsewhere, or to draw it the other way, draw
+it as an arc.
 
 **Width.** A line, arrow, outline or shape may have `width`: the width of its stroke, in drawing
 units, a number above 0 or an expression that gives one. A `width` that is a number not above 0, or
@@ -614,7 +646,7 @@ bounds, as every other instance does.
 
 The *bounds* of a turned instance (section 9.1), which `around`, parts, the camera's extent and
 shots use, are the box round its geometry turned about its pivot, at its place: round the turned
-points of a line, arrow or shape with `points`; round the four turned corners of a `rect`; and
+points of a line, arrow or shape with `points`, and the turned curve of each arc; round the four turned corners of a `rect`; and
 round the turned ellipse of an `ellipse`. The angle is the instance's place's angle (section
 13.14): its `turn` until a step has left another.
 

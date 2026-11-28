@@ -247,6 +247,12 @@ An outline's `around` fits text as drawn, so a single digit gets a tall, narrow 
 
 `width` is the stroke's width in drawing units, a number above 0 or an expression, and is scaled with the drawing; without it a stroke keeps the renderer's, 2.4 for most. A clock's hour hand is a `line` or `arrow` of `"width": 14` and its minute hand one of `"width": 5`, not a filled shape. An arrow's head grows with a width above 2.4.
 
+A shape's `points` may hold arcs among its points: `{"arc": [cx, cy, r], "from": a, "to": b}` (or `[cx, cy, rx, ry]`) draws the curve of the angles `a` to `b`, in degrees clockwise from twelve, in the direction the numbers go. An arc is joined to the entry before it by a straight line, a negative radius mirrors it and the sweep is at most 360. A circle drawn from elsewhere than three o'clock, where an `ellipse`'s stroke starts, is an arc. The orbit of a moon, drawn anticlockwise from nine o'clock, with no list of points:
+
+```json
+"orbit": {"kind": "shape", "ink": "line", "points": [{"arc": [440, 270, 170], "from": 270, "to": -90}]}
+```
+
 Roles. Without a capability: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult` and
 `result`. With `components.arithmetic` in `requires`, in any form (a bare `add` too): `subtract`,
 `trade`, `add`, `multiply`, `divide`. An operation role is bare (`add`) or has `.fill`, `.ink` or

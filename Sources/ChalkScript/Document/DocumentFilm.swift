@@ -205,11 +205,10 @@ extension DocumentFilm {
             let fill = try role("fill", fill: true)
             let stroke = try role("ink")
             let outline: Outline
-            if let pts = el["points"]?.array {
-                var points: [CGPoint] = []
-                for k in pts.indices { points.append(try point("points/\(k)")) }
-                outline = .lines(points, closed: el["closed"] == .bool(true))
-                reference = points.first ?? .zero
+            if el["points"] != nil {
+                let entries = try r.outlineEntries(inst, locals: l)
+                outline = OutlineEntry.outline(entries, closed: el["closed"] == .bool(true))
+                reference = entries.first?.start ?? .zero
             } else if el["ellipse"] != nil {
                 outline = .ellipse(bounds)
                 reference = bounds.origin

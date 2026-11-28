@@ -87,4 +87,30 @@ struct PrimitivesTests {
         #expect(MarkGeometry.crossed(both, among: [a, b]) == [0, 1])
         #expect(MarkGeometry.crossed([CGPoint(x: 300, y: 0), CGPoint(x: 300, y: 50)], among: [a, b]).isEmpty)
     }
+
+    @Test func anArcIsDrawnAsCurvesWithinATenthOfAUnitOfTheTrueArc() {
+        let arc = Arc(centre: CGPoint(x: 40, y: 60), rx: 170, ry: 100, from: 270, to: -90)
+        let curves = arc.curves
+        #expect(curves.count == 8)
+        #expect(curves.last?.to == arc.end)
+        // The middle of each Bézier piece, at its parameter 0.5, against the ellipse's point there.
+        var from = arc.start
+        for (k, c) in curves.enumerated() {
+            let mid = CGPoint(
+                x: (from.x + 3 * c.control1.x + 3 * c.control2.x + c.to.x) / 8, y: (from.y + 3 * c.control1.y + 3 * c.control2.y + c.to.y) / 8)
+            let t = 270 - 45 * (Double(k) + 0.5)
+            let want = arc.point(at: t)
+            #expect(hypot(mid.x - want.x, mid.y - want.y) < 0.1, "piece \(k): \(mid), not \(want)")
+            from = c.to
+        }
+        #expect(Arc(centre: .zero, rx: 10, ry: 10, from: 5, to: 5).curves.isEmpty)
+    }
+
+    @Test func anArcsBoxIsRoundItsCurveWhereverItSweeps() {
+        #expect(Arc(centre: .zero, rx: 10, ry: 10, from: 0, to: 180).box() == CGRect(x: 0, y: -10, width: 10, height: 20))
+        #expect(Arc(centre: .zero, rx: 10, ry: 10, from: 350, to: 370).box().maxY < -9.8)
+        // Anticlockwise from 90 to -90 is the right half again, by the way round.
+        #expect(Arc(centre: .zero, rx: 10, ry: 10, from: 180, to: 0).box() == CGRect(x: 0, y: -10, width: 10, height: 20))
+        #expect(Arc(centre: .zero, rx: 10, ry: 10, from: 0, to: -180).box() == CGRect(x: -10, y: -10, width: 10, height: 20))
+    }
 }

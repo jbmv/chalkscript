@@ -557,6 +557,42 @@
       "minItems": 2,
       "maxItems": 2
     },
+    "arc": {
+      "type": "object",
+      "properties": {
+        "arc": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/number"
+            },
+            {
+              "$ref": "#/$defs/number"
+            },
+            {
+              "$ref": "#/$defs/number"
+            },
+            {
+              "$ref": "#/$defs/number"
+            }
+          ],
+          "minItems": 3,
+          "maxItems": 4
+        },
+        "from": {
+          "$ref": "#/$defs/number"
+        },
+        "to": {
+          "$ref": "#/$defs/number"
+        }
+      },
+      "required": [
+        "arc",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false
+    },
     "rect": {
       "type": "array",
       "prefixItems": [
@@ -965,9 +1001,16 @@
         "points": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/point"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/point"
+              },
+              {
+                "$ref": "#/$defs/arc"
+              }
+            ]
           },
-          "minItems": 2
+          "minItems": 1
         },
         "closed": {
           "type": "boolean"

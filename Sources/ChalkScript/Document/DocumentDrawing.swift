@@ -33,7 +33,7 @@ enum InstanceShape: Equatable, Sendable {
             case let .lines(points, _): .points(points)
             case let .rect(r, _): .rect(r)
             case let .ellipse(r): .ellipse(r)
-            case .path: nil
+            case let .path(segments): OutlineEntry.entries(of: segments).map { .entries($0) }
             }
         default: nil
         }

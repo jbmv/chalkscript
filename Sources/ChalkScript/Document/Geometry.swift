@@ -6,7 +6,82 @@ import Foundation
 // reference), as far as a step's timing needs it: a step's camera lead depends on whether its
 // shot frames differently from the one the camera holds.
 
+/// One entry of a shape's `points` at its place (section 9.3): a point, or an arc.
+enum OutlineEntry: Equatable, Sendable {
+    case point(CGPoint)
+    case arc(Arc)
+
+    var start: CGPoint {
+        switch self {
+        case let .point(p): p
+        case let .arc(a): a.start
+        }
+    }
+
+    /// The outline of `entries`: straight lines when every entry is a point, and otherwise a path
+    /// in which each arc is joined to what comes before it by a straight line to its start. A closed
+    /// outline closes from its last entry to its first, straight.
+    static func outline(_ entries: [OutlineEntry], closed: Bool) -> Outline {
+        var points: [CGPoint] = []
+        for case let .point(p) in entries { points.append(p) }
+        if points.count == entries.count { return .lines(points, closed: closed) }
+        var segments: [Outline.Segment] = []
+        for entry in entries {
+            switch entry {
+            case let .point(p): segments.append(segments.isEmpty ? .move(p) : .line(p))
+            case let .arc(a):
+                segments.append(segments.isEmpty ? .move(a.start) : .line(a.start))
+                segments.append(.arc(a))
+            }
+        }
+        if closed { segments.append(.close) }
+        return .path(segments)
+    }
+
+    /// The entries of a path of moves, lines and arcs; nil when it has any other segment.
+    static func entries(of segments: [Outline.Segment]) -> [OutlineEntry]? {
+        var out: [OutlineEntry] = []
+        for s in segments {
+            switch s {
+            case let .move(p), let .line(p):
+                out.append(.point(p))
+            case let .arc(a):
+                // The move or line to the arc's start is part of the arc, not a point of its own.
+                if case let .point(q)? = out.last, q == a.start { out.removeLast() }
+                out.append(.arc(a))
+            case .close: break
+            case .quad, .curve: return nil
+            }
+        }
+        return out
+    }
+}
+
 extension Resolver {
+    /// The entries of shape instance `instance`'s `points` (section 9.3): `[x, y]` points, and arcs
+    /// `{"arc": [cx, cy, r], "from", "to"}` or `[cx, cy, rx, ry]`.
+    func outlineEntries(_ instance: DocumentInstance, locals l: [String: DocumentValue]) throws(EvalFailure) -> [OutlineEntry] {
+        let p = DocumentPath.join("/elements", instance.element)
+        var out: [OutlineEntry] = []
+        for (k, entry) in (root["elements"]?[instance.element]?["points"]?.array ?? []).enumerated() {
+            let pk = p + "/points/\(k)"
+            guard entry.object != nil else {
+                out.append(.point(CGPoint(x: try number(pk + "/0", locals: l, what: "x"), y: try number(pk + "/1", locals: l, what: "y"))))
+                continue
+            }
+            let rx = try number(pk + "/arc/2", locals: l, what: "radius")
+            let arc = Arc(
+                centre: CGPoint(x: try number(pk + "/arc/0", locals: l, what: "x"), y: try number(pk + "/arc/1", locals: l, what: "y")),
+                rx: rx, ry: doc.expressions[pk + "/arc/3"] != nil ? try number(pk + "/arc/3", locals: l, what: "radius") : rx,
+                from: try number(pk + "/from", locals: l, what: "from"), to: try number(pk + "/to", locals: l, what: "to"))
+            guard abs(arc.to - arc.from) <= 360 + 1e-9 else {
+                throw EvalFailure(path: pk, message: "an arc from \(Canonical.number(arc.from)) to \(Canonical.number(arc.to)) sweeps more than 360 degrees")
+            }
+            out.append(.arc(arc))
+        }
+        return out
+    }
+
     /// The bounds of `instance` at its place (section 9.1): its `rect`; the box round the points
     /// of a line, arrow or shape; and, for a text element, the box its line of text fills as drawn.
     func bounds(_ instance: DocumentInstance) throws(EvalFailure) -> CGRect {
@@ -89,12 +164,10 @@ extension Resolver {
             }
         case "shape":
             if el["points"] != nil {
-                let n = el["points"]?.array?.count ?? 0
-                var pts: [CGPoint] = []
-                for k in 0..<n { pts.append(try point("points/\(k)")) }
-                b = pts.isEmpty ? .zero : box(pts)
-                turning = .points(pts)
-                reference = pts.first ?? .zero
+                let entries = try outlineEntries(instance, locals: l)
+                b = entries.isEmpty ? .zero : Turning.box(of: .entries(entries), turned: 0, about: .zero)
+                turning = .entries(entries)
+                reference = entries.first?.start ?? .zero
             } else {
                 b = try rect(el["rect"] != nil ? "rect" : "ellipse")
                 turning = el["rect"] != nil ? .rect(b) : .ellipse(b)
@@ -230,6 +303,8 @@ enum Turning {
     /// ellipse of a shape.
     enum Geometry {
         case points([CGPoint])
+        /// The points and arcs of a shape's outline.
+        case entries([OutlineEntry])
         case rect(CGRect)
         case ellipse(CGRect)
     }
@@ -265,6 +340,17 @@ enum Turning {
         switch geometry {
         case let .points(points):
             return round(points)
+        case let .entries(entries):
+            var u: CGRect?
+            for entry in entries {
+                let r: CGRect =
+                    switch entry {
+                    case let .point(p): CGRect(origin: degrees == 0 ? p : turn(p, by: degrees, about: pivot), size: .zero)
+                    case let .arc(a): a.box(turned: degrees, about: pivot)
+                    }
+                u = u.map { $0.union(r) } ?? r
+            }
+            return u ?? .zero
         case let .rect(r):
             return round([CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)])
         case let .ellipse(r):

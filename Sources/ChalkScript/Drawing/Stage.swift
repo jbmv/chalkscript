@@ -279,6 +279,9 @@ struct StageDrawing {
                 switch s {
                 case let .move(to): p.move(to: to)
                 case let .line(to): p.addLine(to: to)
+                case let .arc(arc):
+                    if p.isEmpty { p.move(to: arc.start) }
+                    for c in arc.curves { p.addCurve(to: c.to, control1: c.control1, control2: c.control2) }
                 case let .quad(to, control): p.addQuadCurve(to: to, control: control)
                 case let .curve(to, c1, c2): p.addCurve(to: to, control1: c1, control2: c2)
                 case .close: p.closeSubpath()

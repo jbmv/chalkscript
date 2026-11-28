@@ -33,6 +33,93 @@ public enum Ink: Hashable, Sendable {
     }
 }
 
+/// A curve of an ellipse: the points `[cx + rx * sin t, cy - ry * cos t]` for `t` from `from` to
+/// `to`, in degrees clockwise from twelve, so that `from` 0 to 180 is the right half of a circle
+/// and `from` 270 to -90 a whole circle drawn anticlockwise from nine o'clock. A negative radius
+/// mirrors the curve on its axis. `to - from` is at most 360 in magnitude.
+public struct Arc: Equatable, Sendable {
+    public var centre: CGPoint
+    public var rx: Double
+    public var ry: Double
+    public var from: Double
+    public var to: Double
+
+    public init(centre: CGPoint, rx: Double, ry: Double, from: Double, to: Double) {
+        self.centre = centre
+        self.rx = rx
+        self.ry = ry
+        self.from = from
+        self.to = to
+    }
+
+    /// The most a piece of the curve may sweep when it is drawn as a Bézier curve, which keeps the
+    /// curve within a ten-thousandth of its radius.
+    static let pieceSweep = 45.0
+
+    public var start: CGPoint { point(at: from) }
+    public var end: CGPoint { point(at: to) }
+
+    /// The curve's point at angle `t`, with the exact sine and cosine of the format's reference at
+    /// multiples of 30 degrees.
+    public func point(at t: Double) -> CGPoint {
+        CGPoint(x: centre.x + rx * Evaluator.trigonometric(true, degrees: t), y: centre.y - ry * Evaluator.trigonometric(false, degrees: t))
+    }
+
+    /// The curve as cubic Bézier curves of at most `pieceSweep` degrees each, joined end to end,
+    /// from `start` to `end`.
+    public var curves: [(to: CGPoint, control1: CGPoint, control2: CGPoint)] {
+        let sweep = to - from
+        guard sweep != 0 else { return [] }
+        let n = Int((abs(sweep) / Self.pieceSweep).rounded(.up))
+        let step = sweep / Double(n)
+        // The point's rate of change per radian, which a Bézier curve's control points follow.
+        func slope(_ t: Double) -> CGPoint {
+            CGPoint(x: rx * Evaluator.trigonometric(false, degrees: t), y: ry * Evaluator.trigonometric(true, degrees: t))
+        }
+        let k = 4.0 / 3.0 * tan(step * Double.pi / 180 / 4)
+        return (0..<n).map { i in
+            let a = from + step * Double(i)
+            let b = i == n - 1 ? to : a + step
+            let p = point(at: a)
+            let q = point(at: b)
+            let da = slope(a)
+            let db = slope(b)
+            return (q, CGPoint(x: p.x + k * da.x, y: p.y + k * da.y), CGPoint(x: q.x - k * db.x, y: q.y - k * db.y))
+        }
+    }
+
+    /// The box round the curve, with its extreme points as well as its ends, after the curve is
+    /// turned by `degrees` clockwise about `pivot` (not turned when 0).
+    public func box(turned degrees: Double = 0, about pivot: CGPoint = .zero) -> CGRect {
+        func place(_ t: Double) -> CGPoint {
+            let p = point(at: t)
+            return degrees == 0 ? p : Turning.turn(p, by: degrees, about: pivot)
+        }
+        // After the turn, x and y are each a constant plus u sin t + v cos t, which is most or
+        // least where t is atan2(u, v) or half a turn from it.
+        let s = degrees == 0 ? 0 : Evaluator.trigonometric(true, degrees: degrees)
+        let c = degrees == 0 ? 1 : Evaluator.trigonometric(false, degrees: degrees)
+        var candidates = [from, to]
+        let lo = min(from, to)
+        let hi = max(from, to)
+        for (u, v) in [(rx * c, ry * s), (rx * s, -ry * c)] {
+            let t = atan2(u, v) * 180 / Double.pi
+            for base in [t, t + 180] {
+                let exact = (base * 1e9).rounded() / 1e9
+                var k = ((lo - exact) / 360).rounded(.up)
+                while exact + 360 * k <= hi + 1e-9 {
+                    candidates.append(exact + 360 * k)
+                    k += 1
+                }
+            }
+        }
+        let points = candidates.map(place)
+        let xs = points.map(\.x)
+        let ys = points.map(\.y)
+        return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+    }
+}
+
 /// The outline of a shape an explainer draws itself, in scene units.
 public enum Outline: Equatable, Sendable {
     case rect(CGRect, corner: CGFloat = 0)
@@ -45,6 +132,8 @@ public enum Outline: Equatable, Sendable {
     public enum Segment: Equatable, Sendable {
         case move(CGPoint)
         case line(CGPoint)
+        /// An arc from its start, which is the point before it (a `line` to it comes first).
+        case arc(Arc)
         case quad(to: CGPoint, control: CGPoint)
         case curve(to: CGPoint, control1: CGPoint, control2: CGPoint)
         case close
