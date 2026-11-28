@@ -69,6 +69,9 @@ Practice:
    not rebuild another document into it, which destroys that document.
 5. Keep ids stable. Renaming an element, step or entry is allowed, but every reference to the
    old name must be changed in the same patch.
+6. In a `maths` document the colour of an operation (`subtract`, `trade`, `result`, `add`,
+   `multiply`, `divide`) is fixed. When the person asks to change one, read topic `colour` first:
+   say why it is fixed and ask before the edit.
 
 Editing outside the studio is picked up too: the person may change a file in an editor, and the
 hash changes. A stale base means someone else edited; read again before retrying.
