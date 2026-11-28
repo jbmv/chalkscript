@@ -303,6 +303,9 @@ struct ExportVideoSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 60)
+                // Escape pressed in the field cancels the sheet from the field itself, so that
+                // the field cannot take the first press to end its editing.
+                .onExitCommand { run.cancel() }
             Text(name).font(.caption).foregroundStyle(.secondary)
         }
     }
