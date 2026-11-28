@@ -509,6 +509,15 @@
       ],
       "minLength": 1
     },
+    "width": {
+      "description": "The width of a stroke in drawing units: a number above 0, or an expression that gives one.",
+      "type": [
+        "number",
+        "string"
+      ],
+      "exclusiveMinimum": 0,
+      "minLength": 1
+    },
     "truth": {
       "description": "A truth value, or an expression that gives one.",
       "type": [
@@ -738,6 +747,9 @@
         "ink": {
           "$ref": "#/$defs/role"
         },
+        "width": {
+          "$ref": "#/$defs/width"
+        },
         "turn": {
           "$ref": "#/$defs/number"
         },
@@ -802,6 +814,9 @@
         },
         "ink": {
           "$ref": "#/$defs/role"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
         },
         "turn": {
           "$ref": "#/$defs/number"
@@ -876,6 +891,9 @@
         },
         "ink": {
           "$ref": "#/$defs/role"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
         }
       },
       "required": [
@@ -959,6 +977,9 @@
         },
         "ink": {
           "$ref": "#/$defs/role"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
         },
         "turn": {
           "$ref": "#/$defs/number"

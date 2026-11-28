@@ -56,6 +56,9 @@ struct DrawnInstance: Sendable {
     /// An outline whose `around` selects nothing for this instance of a repeated element: it is
     /// not drawn.
     var hollow = false
+    /// The width of the stroke of a line, arrow, outline or shape that gives a `width` (section
+    /// 9.3), in the drawing's units; nil for the renderer's own.
+    var width: CGFloat?
 
     /// The scene element's id: the element's name, and the index of a repeated one.
     var id: String { instance.index.map { "\(instance.element).\($0)" } ?? instance.element }
@@ -300,15 +303,16 @@ struct DocumentPainter: Sendable {
         case let .line(from, to, divider, ink):
             let f = moved(from)
             let t = moved(to)
-            if divider && ink == .line && l.progress >= 1 {
+            if divider && ink == .line && l.progress >= 1 && inst.width == nil {
                 return [SceneElement(inst.id, .divider(from: f, to: t), opacity: l.opacity, transform: turned)]
             }
             let paint = Paint(
-                stroke: ink, width: divider ? Components.dividerWidth : Components.pencilWidth, dash: divider ? Components.dividerDash : [],
-                progress: l.progress)
+                stroke: ink, width: inst.width ?? (divider ? Components.dividerWidth : Components.pencilWidth),
+                dash: divider ? Components.dividerDash : [], progress: l.progress)
             return [SceneElement(inst.id, .shape(.lines([f, t]), paint), opacity: l.opacity, transform: turned)]
         case let .arrow(points, op):
-            return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: turned)]
+            return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: turned,
+                strokeWidth: inst.width)]
         case let .outline(rect, style, op):
             if inst.hollow { return [] }
             let r = rect.offsetBy(dx: d.dx, dy: d.dy)
@@ -317,13 +321,13 @@ struct DocumentPainter: Sendable {
                 case "hint": .hint(r, progress: l.progress)
                 case "target":
                     .shape(.rect(r, corner: Components.targetCorner),
-                        Paint(stroke: .fill(.result), width: Components.targetWidth, dash: Components.targetDash, progress: l.progress))
+                        Paint(stroke: .fill(.result), width: inst.width ?? Components.targetWidth, dash: Components.targetDash, progress: l.progress))
                 default: .box(r, progress: l.progress, op: op ?? .result)
                 }
-            return [SceneElement(inst.id, k, opacity: l.opacity, transform: around)]
+            return [SceneElement(inst.id, k, opacity: l.opacity, transform: around, strokeWidth: inst.width)]
         case let .shape(outline, fill, stroke):
             let shift = CGAffineTransform(translationX: d.dx, y: d.dy)
-            return [SceneElement(inst.id, .shape(outline, Paint(fill: fill, stroke: stroke, progress: l.progress)), opacity: l.opacity,
+            return [SceneElement(inst.id, .shape(outline, Paint(fill: fill, stroke: stroke, width: inst.width ?? Components.pencilWidth, progress: l.progress)), opacity: l.opacity,
                 transform: shift.concatenating(turned))]
         }
     }

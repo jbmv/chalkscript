@@ -224,6 +224,13 @@ extension DocumentFilm {
             instance: inst, shape: shape, reference: reference, bounds: bounds, fixed: el["fixed"] == .bool(true), start: look, pivot: pivot,
             pivoted: pivoted)
         if kind == "outline", el["around"] != nil { drawn.hollow = try r.selection(p + "/around", locals: l).isEmpty }
+        if DocumentChecker.strokedKinds.contains(kind), el["width"] != nil {
+            let width = try number("width")
+            guard width > 0, width.isFinite else {
+                throw EvalFailure(path: p + "/width", message: "width is \(Canonical.number(width)), not a positive number")
+            }
+            drawn.width = CGFloat(width)
+        }
         return drawn
     }
 

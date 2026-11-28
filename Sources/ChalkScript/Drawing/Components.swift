@@ -178,9 +178,16 @@ public enum Components {
         ]
     }
 
+    /// How much larger than the default an arrow's head is drawn for an arrow of stroke `width`: in
+    /// proportion to the width above `tradeWidth`, and never smaller than the default head.
+    public static func arrowHeadScale(forWidth width: CGFloat) -> CGFloat {
+        width.isFinite && width > tradeWidth ? width / tradeWidth : 1
+    }
+
     /// The arrow's head at `tip`, the end of its path, pointing along `direction`, a vector that
-    /// need not be a unit vector. A zero or non-finite direction points down.
-    public static func arrowHead(at tip: CGPoint, direction: CGVector = CGVector(dx: 0, dy: 1)) -> [CGPoint] {
+    /// need not be a unit vector. A zero or non-finite direction points down. `scale` multiplies
+    /// the head's width across and its length back from the tip, and leaves the tip where it is.
+    public static func arrowHead(at tip: CGPoint, direction: CGVector = CGVector(dx: 0, dy: 1), scale: CGFloat = 1) -> [CGPoint] {
         let norm = hypot(direction.dx, direction.dy)
         let u = norm > 0 && norm.isFinite ? CGVector(dx: direction.dx / norm, dy: direction.dy / norm) : CGVector(dx: 0, dy: 1)
         // `side` runs across the head and `along` runs the way the arrow travels; for a downward
@@ -188,17 +195,17 @@ public enum Components {
         func point(side: CGFloat, along: CGFloat) -> CGPoint {
             CGPoint(x: tip.x + u.dy * side + u.dx * along, y: tip.y - u.dx * side + u.dy * along)
         }
-        return [point(side: -8, along: -10), point(side: 0, along: 1), point(side: 8, along: -10)]
+        return [point(side: -8 * scale, along: -10 * scale), point(side: 0, along: 1), point(side: 8 * scale, along: -10 * scale)]
     }
 
     /// The head for an arrow along `path`, at its last point, pointing along its last segment
-    /// that has length, or down when none has.
-    public static func arrowHead(endingPath path: [CGPoint]) -> [CGPoint] {
+    /// that has length, or down when none has, scaled by `scale` (`arrowHeadScale(forWidth:)`).
+    public static func arrowHead(endingPath path: [CGPoint], scale: CGFloat = 1) -> [CGPoint] {
         guard let tip = path.last else { return [] }
         for (a, b) in zip(path, path.dropFirst()).reversed() where a != b {
-            return arrowHead(at: tip, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y))
+            return arrowHead(at: tip, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y), scale: scale)
         }
-        return arrowHead(at: tip)
+        return arrowHead(at: tip, scale: scale)
     }
 
     /// The length of a path through `points`.

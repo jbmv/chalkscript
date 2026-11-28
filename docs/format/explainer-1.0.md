@@ -502,10 +502,10 @@ These are the *stroked* kinds: their `progress` is how much of the stroke is dra
 
 | Kind | Keys |
 |---|---|
-| `line` | `from` and `to`, points (required); `style`: `rule` (solid, by default) or `divider` (dashed); `ink`, by default `pencil` for a rule and `line` for a divider. |
-| `arrow` | `from` and `to`, each a point or a selection of exactly one instance; `y`, a number; `ink`, required. The head is drawn at `to` once `progress` is 1. |
-| `outline` | `rect` (`[x, y, width, height]`) or `around` (a selection), one of them required; `pad`; `style`: `box`, `ring`, `hint` or `target`, required; `ink`. |
-| `shape` | One of `rect` (with `corner`, a radius), `ellipse` (a rectangle it fills) or `points` (an array of points, with `closed`, by default `false`); `fill`, a role for the inside; `ink`, a role for the stroke. At least one of `fill` and `ink`. |
+| `line` | `from` and `to`, points (required); `style`: `rule` (solid, by default) or `divider` (dashed); `ink`, by default `pencil` for a rule and `line` for a divider; `width`. |
+| `arrow` | `from` and `to`, each a point or a selection of exactly one instance; `y`, a number; `ink`, required; `width`. The head is drawn at `to` once `progress` is 1. |
+| `outline` | `rect` (`[x, y, width, height]`) or `around` (a selection), one of them required; `pad`; `style`: `box`, `ring`, `hint` or `target`, required; `ink`; `width`. |
+| `shape` | One of `rect` (with `corner`, a radius), `ellipse` (a rectangle it fills) or `points` (an array of points, with `closed`, by default `false`); `fill`, a role for the inside; `ink`, a role for the stroke. At least one of `fill` and `ink`; `width`. |
 
 An arrow between two points is straight. The head points along the arrow's last segment, in the direction
 the arrow travels there; a last segment of no length gives way to the nearest earlier one that has length,
@@ -529,6 +529,20 @@ outline styles are:
 | `ring` | A solid rounded rectangle (corner 16), round a group. | `ink`, required. |
 | `hint` | A dashed loop (corner 18), at 0.8 opacity, pointing at what a step looks at. | `muted`. |
 | `target` | A dashed box where an answer is to be written. | `result`. |
+
+**Width.** A line, arrow, outline or shape may have `width`: the width of its stroke, in drawing
+units, a number above 0 or an expression that gives one. A `width` that is a number not above 0, or
+is not a number or an expression, is a `schema` error; an expression that gives a number not above 0
+for a problem is an `eval` error. The stroke is drawn at that width for every `style` of an outline, a
+hint and a target included, and for a line of either style, and keeps its dash. The width is in the drawing's
+units, so it is scaled with the drawing, as the geometry is, and a `grow` or `pulse` scales it with
+the rest. A `width` on a shape with no `ink` has nothing to draw. Without `width` a stroke is
+drawn at the renderer's own width.
+
+A stroke with a `width` has round ends and round joins. An arrow's head is stroked at the arrow's width. Above a
+width of 2.4, the reference renderer's own, the head is enlarged in proportion to the width: its 16
+units across and 10 back from its tip are multiplied by the width over 2.4, and its tip stays at the
+end of the arrow. At a width of 2.4 or less, and with no `width`, the head is the renderer's own.
 
 Stroke widths, dash lengths and corner radii other than those stated are the renderer's; the
 reference renderer's values are a stroke of 2.4 units, a cross-out of 3, a divider of 2 dashed 4 on

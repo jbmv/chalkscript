@@ -117,7 +117,7 @@ public struct ExplainerStage: View {
             var layer = element.fixed ? context : seen
             layer.opacity = element.opacity * (1 - (scene.camera?.dimming(of: element) ?? 0))
             if element.transform != .identity { layer.concatenate(element.transform) }
-            drawing.draw(element.kind, in: &layer)
+            drawing.draw(element.kind, strokeWidth: element.strokeWidth, in: &layer)
         }
     }
 }
@@ -142,7 +142,9 @@ struct StageDrawing {
 
     private func c(_ ink: Ink) -> RGB { colour(ink) }
 
-    func draw(_ kind: SceneElement.Kind, in context: inout GraphicsContext) {
+    /// Draws `kind`; `strokeWidth`, when given, replaces the width of the stroke of an arrow, a box
+    /// or a hint (a shape's is in its paint).
+    func draw(_ kind: SceneElement.Kind, strokeWidth: CGFloat? = nil, in context: inout GraphicsContext) {
         switch kind {
         case let .ten(rect, style), let .one(rect, style):
             piece(rect, style, in: &context)
@@ -182,7 +184,7 @@ struct StageDrawing {
             var layer = context
             layer.opacity *= Components.hintOpacity
             layer.stroke(path, with: .color(c(.muted).color),
-                style: StrokeStyle(lineWidth: Components.hintWidth, lineCap: .round, dash: Components.hintDash))
+                style: StrokeStyle(lineWidth: strokeWidth ?? Components.hintWidth, lineCap: .round, dash: Components.hintDash))
         case let .target(rect):
             context.stroke(Path(roundedRect: rect, cornerRadius: Components.targetCorner),
                 with: .color(c(.fill(.result)).color),
@@ -209,14 +211,16 @@ struct StageDrawing {
                 width: Components.crossWidth, in: &context)
         case let .arrow(points, p, op):
             let ink = c(.ink(op))
-            stroke(Components.partial(points, p), color: ink, width: Components.tradeWidth, in: &context)
+            let width = strokeWidth ?? Components.tradeWidth
+            stroke(Components.partial(points, p), color: ink, width: width, in: &context)
             if p >= 1 {
-                stroke(Components.arrowHead(endingPath: points), color: ink, width: Components.tradeWidth, in: &context)
+                stroke(Components.arrowHead(endingPath: points, scale: Components.arrowHeadScale(forWidth: width)), color: ink, width: width,
+                    in: &context)
             }
         case let .box(rect, p, op):
             let path = Path(roundedRect: rect, cornerRadius: Components.boxCorner).trimmedPath(from: 0, to: p)
             context.stroke(path, with: .color(c(.ink(op)).color),
-                style: StrokeStyle(lineWidth: Components.tradeWidth, lineCap: .round, lineJoin: .round))
+                style: StrokeStyle(lineWidth: strokeWidth ?? Components.tradeWidth, lineCap: .round, lineJoin: .round))
         case let .divider(from, to):
             var path = Path()
             path.move(to: from)

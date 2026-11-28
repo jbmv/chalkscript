@@ -225,11 +225,13 @@ camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind)
 | Kind | Keys |
 |---|---|
 | `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor` (`start`, `middle` or `end`: which point of the baseline `at` is). |
-| `line` | `from`, `to`; `style` `rule` or `divider`; `ink`. |
-| `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required). |
-| `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`. |
-| `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`. |
+| `line` | `from`, `to`; `style` `rule` or `divider`; `ink`; `width`. |
+| `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required); `width`. |
+| `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`; `width`. |
+| `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`; `width`. |
 | `ten`, `one`, `stick`, `circle` | Pieces of `components.arithmetic`: `rect`, and `look` `pencil`, `traded` or `counted`. Each has a cross-out, `.cross`. |
+
+`width` is the stroke's width in drawing units, a number above 0 or an expression, and is scaled with the drawing; without it a stroke keeps the renderer's, 2.4 for most. A clock's hour hand is a `line` or `arrow` of `"width": 14` and its minute hand one of `"width": 5`, not a filled shape. An arrow's head grows with a width above 2.4.
 
 Roles. Without a capability: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult` and
 `result`. With `components.arithmetic` in `requires`, in any form (a bare `add` too): `subtract`,
