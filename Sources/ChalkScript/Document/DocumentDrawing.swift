@@ -220,6 +220,8 @@ struct DocumentPainter: Sendable {
         var tags: [SceneElement] = []
         var fixed: [SceneElement] = []
         let members = Set(groups.values.flatMap { $0 })
+        // A turned camera's text is turned back, so that it reads level (section 10.3).
+        let up = camera ? cam?.up ?? 0 : 0
         for (k, inst) in instances.enumerated() {
             let l = looks[k]
             let isFixed = inst.fixed && camera
@@ -227,6 +229,7 @@ struct DocumentPainter: Sendable {
             if !members.contains(k) {
                 var drawn = elements(inst, l, children: (groups[k] ?? []).flatMap { elements(instances[$0], looks[$0]) })
                 for j in drawn.indices { drawn[j].fixed = isFixed }
+                if up != 0 && !isFixed { drawn = drawn.map { Self.upright($0, turnedBy: up) } }
                 if isFixed { fixed += drawn } else { out += drawn }
             }
             if let tag = l.tag {
@@ -234,13 +237,34 @@ struct DocumentPainter: Sendable {
                 let ten: Bool = if case let .piece(kind, _) = inst.shape { kind == "ten" || kind == "stick" } else { false }
                 let card = Components.numberTag(
                     on: b, ten: ten, textWidth: TextExtent.measure(tag.text, size: Components.tagTextSize, display: true).width)
-                tags.append(SceneElement(
+                let element = SceneElement(
                     inst.id + ".tag",
                     tag.hue == .result ? .numberTag(tag.text, in: card, scale: tag.scale) : .hueTag(tag.text, in: card, scale: tag.scale, hue: tag.hue),
-                    opacity: tag.opacity, fixed: isFixed))
+                    opacity: tag.opacity, fixed: isFixed)
+                tags.append(up != 0 && !isFixed ? Self.upright(element, turnedBy: up) : element)
             }
         }
         return Scene(elements: out + tags + fixed, size: size, camera: camera ? cam : nil, operationColours: roles.overrides)
+    }
+
+    /// `element` turned by `up` about its anchor when it is text or a tag (and so for each text in
+    /// a group), so that a camera turned to show `up` at the top draws it level: a text about its
+    /// `at`, as the element has moved it, and a tag about its card's middle.
+    static func upright(_ element: SceneElement, turnedBy up: Double) -> SceneElement {
+        var e = element
+        let anchor: CGPoint
+        switch e.kind {
+        case let .words(_, set): anchor = set.at
+        case let .label(_, at), let .count(_, at), let .total(_, at, _), let .text(_, at, _): anchor = at
+        case let .equation(line): anchor = line.center
+        case let .numberTag(_, card, _), let .hueTag(_, card, _, _): anchor = CGPoint(x: card.midX, y: card.midY)
+        case let .group(children):
+            e.kind = .group(children.map { upright($0, turnedBy: up) })
+            return e
+        default: return e
+        }
+        e.transform = e.transform.concatenating(Turning.transform(by: up, about: anchor.applying(e.transform)))
+        return e
     }
 
     /// `rect` scaled by `s` about its middle.

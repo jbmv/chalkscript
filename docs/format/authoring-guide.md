@@ -457,7 +457,11 @@ layout with `camera: true`. A step with no `shot` keeps the shot of the step bef
 the `opening` shot, and with neither frames the whole drawing. When a step's shot frames
 differently from the one before, the camera moves first (0.9 seconds in the standard style) and the
 step's actions start after the move, so an action at 0 starts at 0.9, as `show` lists it; the
-step's line still begins at 0. What lies outside the shot is dimmed, not hidden; a group is dimmed as one, by its middle. Another layout has `suits` (an expression of `areaW` and
+step's line still begins at 0. What lies outside the shot is dimmed, not hidden; a group is dimmed as one, by its middle. A shot's `up`
+turns the picture so that a direction in the drawing, in degrees clockwise from twelve, points to
+the top, with text kept level: to look along a sight line drawn at angle `a`, write
+`"fromEarth": {"frame": ["home", "chosen"], "up": "a"}`. The camera turns the shorter way during its
+move, and the next shot without `up` turns it back. Another layout has `suits` (an expression of `areaW` and
 `areaH`), `size`, `camera`, `band` (the height at the top of the drawing kept for `fixed`
 elements when the camera is on; 0 by default) and `let` replacements; the first that suits the
 window, by name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the

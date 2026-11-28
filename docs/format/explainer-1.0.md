@@ -707,9 +707,12 @@ nothing has no region.
 | `frame` | Part names. |
 | `region` | A rectangle `[x, y, width, height]`. |
 | `margin` | Added on every side. By default the style's camera margin (12). |
+| `up` | The direction in the drawing shown at the top of the picture, in degrees clockwise from twelve as in section 6.4. By default 0, which shows the drawing unturned. |
 
 A shot's region is the box round its parts' regions and its `region`, grown by its margin. A shot
-with no region frames the drawing's extent (section 10.3). `opening` names the shot before the
+with no region frames the drawing's extent (section 10.3). A shot with `up` turns the picture so
+that the direction `up` points to its top: to look along a line drawn at angle `a`, the shot's
+`up` is `a`. A player that ignores `up` shows the view unturned, so `up` needs no capability. `opening` names the shot before the
 first step; without it the camera starts on the drawing's extent.
 
 ### 10.2 When the camera is used
@@ -726,18 +729,30 @@ its place. To frame a shot, the player grows the shot's region about its middle 
 shape, then slides it, where it fits, to lie inside the box round the extent and the region, and
 centres it on that box where it does not fit. It maps the view uniformly onto the viewport.
 
+A shot with `up` is framed the same way in the frame of the turned picture. Its region and the
+extent are the boxes, in that frame, round the bounds of the instances as the turned picture shows
+them: round each instance's geometry turned with the picture, and, for a text element, which the
+picture keeps level, round its own box about its turned `at`. A shot's `region` key contributes the
+box round that rectangle's turned corners. The view is grown and slid as above, along the turned
+picture's edges, and mapped onto the viewport turned about its middle so that the direction `up`
+points to the top. In a turned picture each text element is turned back about its `at`, and each
+tag about its middle, so that it reads level. A fixed element does not turn.
+
 A group (section 9.6) is one element here: its bounds are the box round its members', and it is
 dimmed as one, by its middle. Elements whose middle lies outside the shot's region are *dimmed*: drawn toward the paper by the
 style's camera `dim` (0.45), in proportion to their distance outside, reaching the full amount 24
-units out. A shot whose region contains the extent dims nothing. A fixed element is drawn in
+units out. In a turned picture the distance is measured in the turned picture's frame. A shot whose region contains the extent dims nothing. A fixed element is drawn in
 the drawing's units, outside the camera, after every other element, and is never dimmed.
 
 ### 10.4 The camera's move
 
 When a step's shot frames differently from the shot the camera holds, the step begins with the
-camera's move (section 12.5). Two shots frame differently when their views differ or the regions
-outside which they dim differ (section 10.3); shots with different names may frame the same. The view's middle moves in a straight line, its size changes
-geometrically, and the dimming fades between the two shots, all by the eased progress of the move.
+camera's move (section 12.5). Two shots frame differently when their views differ, the regions
+outside which they dim differ (section 10.3), or their `up` differ other than by whole turns; shots with different names may frame the same. The view's middle moves in a straight line, its size changes
+geometrically, its angle turns from the one shot's `up` to the other's the shorter way round (clockwise
+when they are exactly opposite), and the dimming fades between the two shots, all by the eased
+progress of the move. The direction of the turn carries no meaning, so the numbers do not choose it,
+unlike a `turn` (section 13.14).
 
 ## 11. Steps
 

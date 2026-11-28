@@ -5,7 +5,7 @@ required key, a value of the wrong type, or an `areas` entry that lacks `layout`
 `ratio` is not two numbers above 0, an empty `areas`, an element's `let` that is not an object of
 named values, a `turn` or `pivot` on a text element, an outline or a piece, or a `turn` verb whose `to` is not a
 number, a document colour with no value and no suggested colour or with a value that is not `#RRGGBB`, an `appearances` that is empty, repeats a name, is not an array or names anything but `light` and `dark`, a `profile` that is not a name, and a
-`style.palette`, a `width` on a line, arrow, outline or shape that is 0, below 0, a list or an empty string, and a `width` on a text element, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, an arc entry of two numbers, with a key other than `arc`, `from` and `to`, or without `to`, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, and a `style.overrides` entry without `asked`. It must accept a `style.overrides` entry with its values and `asked`, a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, arc entries among a shape's `points`, a group with its keys, an `appear` from a point or an instance, an element's `let` of expressions, and the keys `turn` and `pivot` of a line, arrow or
+`style.palette`, a `width` on a line, arrow, outline or shape that is 0, below 0, a list or an empty string, and a `width` on a text element, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, an arc entry of two numbers, with a key other than `arc`, `from` and `to`, or without `to`, a shot whose `up` is a list, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, and a `style.overrides` entry without `asked`. It must accept a `style.overrides` entry with its values and `asked`, a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, arc entries among a shape's `points`, a group with its keys, an `appear` from a point or an instance, an element's `let` of expressions, a shot's `up`, and the keys `turn` and `pivot` of a line, arrow or
 shape and the verb `turn` (the capability `drawing.turn`), and a `width` that is a number above 0 or an expression on a line, arrow, outline and shape. Each refused document is an example with one
 change, and the check also requires that the schema refuses it at the place that was changed. That a
 document that uses `drawing.turn` lists it in `requires` is a finding of the reader, not of the schema.
@@ -318,6 +318,8 @@ def main():
          lambda d: d["elements"].update({"hand": dict(HAND, points=[{"arc": [0, 0, 5], "from": 0, "to": 90, "sweep": 90}])})),
         ("an arc entry without to", "/elements/hand/points/0",
          lambda d: d["elements"].update({"hand": dict(HAND, points=[{"arc": [0, 0, 5], "from": 0}])})),
+        ("a shot whose up is a list", "/shots/look/up",
+         lambda d: d.update({"shots": {"look": {"region": [0, 0, 100, 100], "up": [90]}}})),
         ("a changed operation colour without the request", "/style/overrides/multiply",
          lambda d: d.update({"style": {"overrides": {"multiply": {"light": "#B5481F", "dark": "#F59623"}}}})),
     ]
@@ -363,6 +365,8 @@ def main():
         ("a changed operation colour with its values and the request",
          lambda d: d.update({"style": {"overrides": {"multiply": {"light": "#B5481F", "dark": "#F59623", "asked": "orange, please"}}}})),
         ("an element's let of expressions", lambda d: d["elements"]["dot"].update({"let": {"k": "i + 1", "r": "k * 2"}})),
+        ("a shot's up, a number and an expression",
+         lambda d: d.update({"shots": {"look": {"region": [0, 0, 100, 100], "up": 90}, "along": {"region": [0, 0, 100, 100], "up": "a * 45"}}})),
     ]
     for what, change in accepted:
         found = errors(changed(groups, change))

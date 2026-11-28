@@ -84,7 +84,11 @@ extension Resolver {
 
     /// The bounds of `instance` at its place (section 9.1): its `rect`; the box round the points
     /// of a line, arrow or shape; and, for a text element, the box its line of text fills as drawn.
-    func bounds(_ instance: DocumentInstance) throws(EvalFailure) -> CGRect {
+    ///
+    /// With `up`, the box is in the frame of a picture turned to show the direction `up` at its top
+    /// (section 10.3, `Camera.intoFrame`): round the geometry as that picture shows it, and, for a
+    /// text element, which the picture keeps upright, its own box about its turned `at`.
+    func bounds(_ instance: DocumentInstance, up: Double = 0) throws(EvalFailure) -> CGRect {
         let name = instance.element
         let p = DocumentPath.join("/elements", name)
         guard let el = root["elements"]?[name]?.object, let kind = el["kind"]?.string else {
@@ -122,6 +126,8 @@ extension Resolver {
         }
         var b: CGRect
         let reference: CGPoint
+        // A group's members, whose boxes in a turned frame make the group's there.
+        var groupMembers: [DocumentInstance] = []
         // What a turned instance's box is taken round, before it is turned (section 9.5).
         var turning: Turning.Geometry?
         switch kind {
@@ -177,7 +183,8 @@ extension Resolver {
             // A group has no geometry of its own: its bounds are the box round its members' bounds, and
             // its reference point is the middle of that box.
             var u: CGRect?
-            for member in try members(of: instance) {
+            groupMembers = try members(of: instance)
+            for member in groupMembers {
                 let r = try bounds(member)
                 u = u.map { $0.union(r) } ?? r
             }
@@ -190,16 +197,46 @@ extension Resolver {
         }
         // A turned instance's bounds are the box round its geometry turned about its pivot, at
         // its place: the angle a `turn` has left, or else its `turn` key.
+        let unturned = b
+        var turned = 0.0
+        var pivot = reference
         if let turning {
             var angle = state[instance.whole]?.angle
             if angle == nil { angle = try number(p + "/turn", locals: l, default: 0, what: "turn") }
             if let angle, angle != 0 {
-                let pivot = doc.expressions[p + "/pivot/0"] != nil ? try point("pivot") : reference
+                pivot = doc.expressions[p + "/pivot/0"] != nil ? try point("pivot") : reference
                 b = Turning.box(of: turning, turned: angle, about: pivot)
+                turned = angle
             }
         }
-        guard let place = state[instance.whole]?.place else { return b }
-        return b.offsetBy(dx: place.x - reference.x, dy: place.y - reference.y)
+        let place = state[instance.whole]?.place
+        if up == 0 {
+            guard let place else { return b }
+            return b.offsetBy(dx: place.x - reference.x, dy: place.y - reference.y)
+        }
+        // In a turned frame. What the instance's place moves it by, in the drawing.
+        let shift = place.map { CGVector(dx: $0.x - reference.x, dy: $0.y - reference.y) } ?? CGVector(dx: 0, dy: 0)
+        if kind == "text" {
+            // Kept upright about its `at`, which the frame turns.
+            let at = CGPoint(x: reference.x + shift.dx, y: reference.y + shift.dy)
+            let q = Camera.intoFrame(at, up: up)
+            return b.offsetBy(dx: shift.dx + q.x - at.x, dy: shift.dy + q.y - at.y)
+        }
+        if kind == "group", turned == 0 {
+            var u: CGRect?
+            for member in groupMembers {
+                let r = try bounds(member, up: up)
+                u = u.map { $0.union(r) } ?? r
+            }
+            // The group's own place moves its members with it.
+            let moved = Camera.intoFrame(CGPoint(x: shift.dx, y: shift.dy), up: up)
+            return u.map { $0.offsetBy(dx: moved.x, dy: moved.y) } ?? Camera.box(b.offsetBy(dx: shift.dx, dy: shift.dy), up: up)
+        }
+        // The geometry turned by its own angle less the frame's, about its pivot, and then moved to
+        // where the frame shows the pivot at its place.
+        let box = Turning.box(of: turning ?? .rect(unturned), turned: turned - up, about: pivot)
+        let q = Camera.intoFrame(CGPoint(x: pivot.x + shift.dx, y: pivot.y + shift.dy), up: up)
+        return box.offsetBy(dx: q.x - pivot.x, dy: q.y - pivot.y)
     }
 
     /// The box text element `name` fills as drawn, at `at` before any verb has moved it: the line of
@@ -217,12 +254,13 @@ extension Resolver {
     }
 
     /// The region of part `name` (section 10.1): the box round the bounds of its instances at
-    /// their places; nil when it selects nothing.
-    func region(ofPart name: String) throws(EvalFailure) -> CGRect? {
+    /// their places; nil when it selects nothing. With `up`, in the frame of a picture turned to
+    /// show `up` at its top.
+    func region(ofPart name: String, up: Double = 0) throws(EvalFailure) -> CGRect? {
         let s = try selection(DocumentPath.join("/parts", name))
         var u: CGRect?
         for inst in s.instances {
-            let r = try bounds(inst.whole)
+            let r = try bounds(inst.whole, up: up)
             u = u.map { $0.union(r) } ?? r
         }
         return u
@@ -232,10 +270,12 @@ extension Resolver {
 /// How the camera frames each shot in a layout with `camera: true` (section 10.3).
 struct CameraFraming {
     /// What a shot shows: the view of the drawing, and the region outside which elements are
-    /// dimmed (nil when nothing is).
+    /// dimmed (nil when nothing is), and the direction shown at the top, from 0 to 360. Turned, the
+    /// view and the region are boxes in the turned picture's frame, held as `Camera` holds them.
     struct Frame: Equatable {
         var view: CGRect
         var region: CGRect?
+        var up: Double = 0
     }
 
     let resolver: Resolver
@@ -266,6 +306,9 @@ struct CameraFraming {
     func frame(_ shot: String?) throws(EvalFailure) -> Frame {
         guard let shot, let spec = resolver.root["shots"]?[shot]?.object else { return framing(drawing, focused: false) }
         let p = DocumentPath.join("/shots", shot)
+        var up = try resolver.number(p + "/up", default: 0, what: "up").truncatingRemainder(dividingBy: 360)
+        if up < 0 { up += 360 }
+        if up != 0 { return try turnedFrame(spec, p, up: up) }
         var region: CGRect?
         for part in spec["frame"]?.array?.compactMap(\.string) ?? [] {
             if let r = try resolver.region(ofPart: part) { region = region.map { $0.union(r) } ?? r }
@@ -283,10 +326,56 @@ struct CameraFraming {
         return framing(grown, focused: !grown.contains(drawing))
     }
 
+    /// A shot that turns the picture to show `up` at its top (section 10.3): framed as an unturned
+    /// shot is, with its region and the drawing's extent taken as boxes in the turned picture's
+    /// frame, so the view slides along the picture's own edges.
+    func turnedFrame(_ spec: JSONObject, _ p: String, up: Double) throws(EvalFailure) -> Frame {
+        var region: CGRect?
+        for part in spec["frame"]?.array?.compactMap(\.string) ?? [] {
+            if let r = try resolver.region(ofPart: part, up: up) { region = region.map { $0.union(r) } ?? r }
+        }
+        if resolver.doc.expressions[p + "/region/0"] != nil {
+            let r = CGRect(
+                x: try resolver.number(p + "/region/0", what: "x"), y: try resolver.number(p + "/region/1", what: "y"),
+                width: try resolver.number(p + "/region/2", what: "width"), height: try resolver.number(p + "/region/3", what: "height"))
+            let turned = Camera.box(r, up: up)
+            region = region.map { $0.union(turned) } ?? turned
+        }
+        let extent = turnedExtent(up)
+        let f: Frame
+        if let r = region {
+            let margin = try resolver.number(p + "/margin", default: resolver.cameraMargin, what: "margin")
+            let grown = r.insetBy(dx: -margin, dy: -margin)
+            f = framing(grown, within: extent, focused: !grown.contains(extent))
+        } else {
+            f = framing(extent, within: extent, focused: false)
+        }
+        return Frame(view: Camera.held(f.view, up: up), region: f.region.map { Camera.held($0, up: up) }, up: up)
+    }
+
+    /// The drawing's extent in the frame of a picture turned to show `up` at its top: the box round
+    /// the bounds of every instance that is not fixed, at its place, as that picture shows them.
+    func turnedExtent(_ up: Double) -> CGRect {
+        var extent: CGRect?
+        for (name, el) in resolver.root["elements"]?.object?.entries ?? [] where el["fixed"] != .bool(true) {
+            let n = (try? resolver.instanceCount(name)) ?? 0
+            let repeated = el["repeat"] != nil
+            for k in 0..<n {
+                guard let b = try? resolver.bounds(DocumentInstance(name, repeated ? k : nil), up: up) else { continue }
+                extent = extent.map { $0.union(b) } ?? b
+            }
+        }
+        return extent ?? Camera.box(drawing, up: up)
+    }
+
     /// The region grown about its middle to the viewport's shape and, where it fits, slid to lie
     /// inside the box round the drawing's extent and the region; centred on that box where it
     /// does not fit.
-    func framing(_ region: CGRect, focused: Bool) -> Frame {
+    func framing(_ region: CGRect, focused: Bool) -> Frame { framing(region, within: drawing, focused: focused) }
+
+    /// `framing(_:focused:)` with `extent` for the drawing's extent: the box round it in a turned
+    /// picture's frame, where every box here is in that frame.
+    func framing(_ region: CGRect, within extent: CGRect, focused: Bool) -> Frame {
         var view = region
         let aspect = viewport.width / viewport.height
         if view.width / max(view.height, 1e-9) < aspect {
@@ -296,7 +385,7 @@ struct CameraFraming {
             let h = view.width / aspect
             view = CGRect(x: view.minX, y: view.midY - h / 2, width: view.width, height: h)
         }
-        let bounds = drawing.union(region)
+        let bounds = extent.union(region)
         func slide(_ lo: CGFloat, _ len: CGFloat, _ bLo: CGFloat, _ bLen: CGFloat) -> CGFloat {
             if len >= bLen { return bLo + (bLen - len) / 2 }
             return min(max(lo, bLo), bLo + bLen - len)

@@ -981,7 +981,7 @@ final class DocumentChecker {
     func checkPartsAndShots() {
         for (_, v, p) in map(root["parts"], "/parts") { slot(v, p, .selection, SlotScope(values: .all)) }
         for (_, v, p) in map(root["shots"], "/shots") {
-            guard let o = object(v, p, known: ["frame", "region", "margin"]) else { continue }
+            guard let o = object(v, p, known: ["frame", "region", "margin", "up"]) else { continue }
             if let f = o["frame"] {
                 if case let .array(a) = f {
                     for (k, x) in a.enumerated() {
@@ -997,6 +997,7 @@ final class DocumentChecker {
             }
             rect(o["region"], p + "/region", SlotScope(values: .all))
             slot(o["margin"], p + "/margin", .number, SlotScope(values: .all))
+            slot(o["up"], p + "/up", .number, SlotScope(values: .all))
         }
         nameRef(root, "opening", "", in: shots, what: "shot")
     }
