@@ -240,17 +240,18 @@ extension Resolver {
     }
 
     /// The box text element `name` fills as drawn, at `at` before any verb has moved it: the line of
-    /// the entry it shows before the first step, set with its bottom edge at `at` and its left,
-    /// middle or right edge there by its anchor.
+    /// the entry it shows before the first step, set with its bottom edge or its middle at `at` and
+    /// its left, middle or right edge there by its anchor.
     func textBox(_ el: JSONObject, _ name: String, at: CGPoint, locals l: [String: DocumentValue]) throws(EvalFailure) -> CGRect {
         let p = DocumentPath.join("/elements", name)
         let style = el["style"]?.string ?? "body"
         let (size0, anchor0, _) = DocumentFilm.textDefaults[style] ?? DocumentFilm.textDefaults["body"]!
         let size = style == "total" ? Components.totalSize : try number(p + "/size", locals: l, default: size0, what: "size")
         let anchor = el["anchor"]?.string ?? anchor0
+        let vanchor = el["vanchor"]?.string ?? "baseline"
         var text = ""
         if let entry = el["text"]?.string { text = try DocumentFilm.runs(of: name, entry: entry, el: el, locals: l, self).map(\.text).joined() }
-        return TextExtent.box(text, at: at, size: size, display: style != "label", anchor: anchor)
+        return TextExtent.box(text, at: at, size: size, display: style != "label", anchor: anchor, vanchor: vanchor)
     }
 
     /// The region of part `name` (section 10.1): the box round the bounds of its instances at
@@ -471,12 +472,13 @@ enum Turning {
 /// the system's bold face for a display line and its regular face for a small one. A stage given
 /// other faces draws a line a little wider or narrower than this.
 enum TextExtent {
-    /// The box a line of `text` fills when set with its bottom edge at `at.y` and its left, middle or
-    /// right edge at `at.x`, for the anchor `start`, `middle` or `end`.
-    static func box(_ text: String, at: CGPoint, size: Double, display: Bool, anchor: String) -> CGRect {
+    /// The box a line of `text` fills when set with its bottom edge (`vanchor` `baseline`) or its
+    /// middle (`middle`) at `at.y` and its left, middle or right edge at `at.x`, for the anchor
+    /// `start`, `middle` or `end`.
+    static func box(_ text: String, at: CGPoint, size: Double, display: Bool, anchor: String, vanchor: String = "baseline") -> CGRect {
         let (width, height) = measure(text, size: size, display: display)
         let x = anchor == "start" ? at.x : anchor == "end" ? at.x - width : at.x - width / 2
-        return CGRect(x: x, y: at.y - height, width: width, height: height)
+        return CGRect(x: x, y: at.y - (vanchor == "middle" ? height / 2 : height), width: width, height: height)
     }
 
     static func measure(_ text: String, size: Double, display: Bool) -> (width: CGFloat, height: CGFloat) {

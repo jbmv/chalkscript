@@ -16,7 +16,7 @@ struct TextRun: Equatable, Sendable {
 /// The geometry of one instance at its place, in the drawing's units.
 enum InstanceShape: Equatable, Sendable {
     case piece(kind: String, rect: CGRect)
-    case text(at: CGPoint, style: String, size: Double, ink: String, anchor: String)
+    case text(at: CGPoint, style: String, size: Double, ink: String, anchor: String, vanchor: String)
     case line(from: CGPoint, to: CGPoint, divider: Bool, ink: Ink)
     case arrow([CGPoint], Hue)
     case outline(CGRect, style: String, op: Hue?)
@@ -295,10 +295,10 @@ struct DocumentPainter: Sendable {
         var centre = inst.pivoted ? pivot : CGPoint(x: box.midX, y: box.midY)
         // A text element grows and pulses about the middle of the text it shows now, which a verb may
         // have set, and not of the text it showed before the first step.
-        if scale != 1, case let .text(at, style, size, _, anchor) = inst.shape {
+        if scale != 1, case let .text(at, style, size, _, anchor, vanchor) = inst.shape {
             let shown = TextExtent.box(
                 l.text.map(\.text).joined(), at: moved(at), size: style == "total" ? Components.totalSize : size, display: style != "label",
-                anchor: anchor)
+                anchor: anchor, vanchor: vanchor)
             centre = CGPoint(x: shown.midX, y: shown.midY)
         }
         let around = Self.scale(scale, about: centre)
@@ -321,10 +321,15 @@ struct DocumentPainter: Sendable {
                 SceneElement(inst.id + ".cross", .crossOut(from: x.from, to: x.to, progress: l.crossProgress),
                     opacity: l.opacity > 0 ? l.crossOpacity : 0),
             ]
-        case let .text(at, style, size, ink, anchor):
+        case let .text(at, style, size, ink, anchor, vanchor):
             let runs = l.text.filter { !$0.text.isEmpty }
             let text = runs.map(\.text).joined()
-            let a = moved(at)
+            var a = moved(at)
+            // The stage sets a line with its lower edge at the point, so a line placed by its middle
+            // is set that much lower (EXP-19).
+            if vanchor == "middle" {
+                a.y += TextExtent.measure(text, size: style == "total" ? Components.totalSize : size, display: style != "label").height / 2
+            }
             switch style {
             case "equation":
                 var eqRuns: [EquationLine.Run] = []

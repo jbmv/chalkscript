@@ -483,8 +483,8 @@ The *bounds* of an instance, used by `around`, parts, shots, the camera, tags, a
 the reading of marks, are: its `rect`; the box round the points of a line, arrow or shape, which for an arc entry is the box round its curve, including the
 extreme points it passes and not its ends only; and for
 a text element, the box its line of text fills as drawn: the line of the text it shows before the
-first step, with its lower edge at `at` and its left edge, middle or right edge there for the
-`anchor` `start`, `middle` or `end`. A text element that shows nothing before the first step has
+first step, with its lower edge (for the `vanchor` `baseline`) or its middle (for `middle`) at `at`
+and its left edge, middle or right edge there for the `anchor` `start`, `middle` or `end`. A text element that shows nothing before the first step has
 bounds of no size at `at`. The box is measured in the player's faces, so two players may differ in
 it by a little. The bounds of a line, arrow or shape that is turned (section 9.5) are the box round
 its turned geometry, and those of a group are the box round its members' bounds (section 9.6).
@@ -493,13 +493,14 @@ its turned geometry, and those of a group are the box round its members' bounds 
 
 | Key | Holds |
 |---|---|
-| `at` | `[x, y]`: the anchor, on the text's baseline. Required. |
+| `at` | `[x, y]`: the anchor, on the text's baseline, or at the vertical middle of its box with `vanchor`. Required. |
 | `text` | The wording entry shown. Without it the element shows nothing until a verb gives it text. |
 | `runs` | Run name to `{ink, text}`: properties of the runs named below. |
 | `style` | `equation`, `total`, `label`, `note` or `body`. By default `body`. |
 | `ink` | The role the text is drawn in, replacing the style's. |
 | `size` | The type size in drawing units, replacing the style's. |
-| `anchor` | `start`, `middle` or `end`: which point of the baseline `at` is, replacing the style's. |
+| `anchor` | `start`, `middle` or `end`: which point of the line `at` is, across, replacing the style's. |
+| `vanchor` | `baseline` or `middle`: which point of the line `at` is, up and down. `baseline`, by default, puts the lower edge of the text's box at `at`; `middle` puts the middle of that box there, so that `at` is the centre of a numeral set on a point. It applies to every style, with every `anchor`. |
 
 | Style | Size | Anchor | Role |
 |---|---|---|---|

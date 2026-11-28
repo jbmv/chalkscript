@@ -5,7 +5,7 @@ required key, a value of the wrong type, or an `areas` entry that lacks `layout`
 `ratio` is not two numbers above 0, an empty `areas`, an element's `let` that is not an object of
 named values, a `turn` or `pivot` on a text element, an outline or a piece, or a `turn` verb whose `to` is not a
 number, a document colour with no value and no suggested colour or with a value that is not `#RRGGBB`, an `appearances` that is empty, repeats a name, is not an array or names anything but `light` and `dark`, a `profile` that is not a name, and a
-`style.palette`, a `width` on a line, arrow, outline or shape that is 0, below 0, a list or an empty string, and a `width` on a text element, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, an arc entry of two numbers, with a key other than `arc`, `from` and `to`, or without `to`, a shot whose `up` is a list, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, and a `style.overrides` entry with no value. It must accept a `style.overrides` entry with its values, with or without `asked`, a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, arc entries among a shape's `points`, a group with its keys, an `appear` from a point or an instance, an element's `let` of expressions, a shot's `up`, and the keys `turn` and `pivot` of a line, arrow or
+`style.palette`, a `width` on a line, arrow, outline or shape that is 0, below 0, a list or an empty string, and a `width` on a text element, a `vanchor` of a text element that is not `baseline` or `middle`, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, an arc entry of two numbers, with a key other than `arc`, `from` and `to`, or without `to`, a shot whose `up` is a list, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, and a `style.overrides` entry with no value. It must accept a `style.overrides` entry with its values, with or without `asked`, a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, arc entries among a shape's `points`, a group with its keys, an `appear` from a point or an instance, an element's `let` of expressions, a shot's `up`, a text element's `vanchor` of `baseline` or `middle`, and the keys `turn` and `pivot` of a line, arrow or
 shape and the verb `turn` (the capability `drawing.turn`), and a `width` that is a number above 0 or an expression on a line, arrow, outline and shape. Each refused document is an example with one
 change, and the check also requires that the schema refuses it at the place that was changed. That a
 document that uses `drawing.turn` lists it in `requires` is a finding of the reader, not of the schema.
@@ -302,6 +302,8 @@ def main():
          lambda d: d["elements"].update({"rule": {"kind": "line", "from": [0, 0], "to": [0, 10], "width": ""}})),
         ("a width on a text element", "/elements/equation/width",
          lambda d: d["elements"]["equation"].update({"width": 4})),
+        ("a text element whose vanchor is not baseline or middle", "/elements/equation/vanchor",
+         lambda d: d["elements"]["equation"].update({"vanchor": "top"})),
         ("a group without members", "/elements/pair",
          lambda d: d["elements"].update({"pair": {"kind": "group"}})),
         ("a group whose start has a progress", "/elements/pair/start/progress",
@@ -360,6 +362,8 @@ def main():
              d["steps"]["same"]["actions"].update({"card": {"do": "tag", "target": "equation", "text": "same", "ink": "hour"}}))),
         ("appearances of one, with a document colour that gives only that value",
          lambda d: d.update({"appearances": ["dark"], "colours": {"hour": {"dark": "#F59623", "cue": "the short hand"}}})),
+        ("a text element placed by its vertical middle",
+         lambda d: d["elements"]["equation"].update({"vanchor": "middle"})),
         ("appearances of both",
          lambda d: d.update({"appearances": ["light", "dark"]})),
         ("a changed operation colour with its values and no request",

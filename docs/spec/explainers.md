@@ -124,7 +124,7 @@ A document of the maths profile may change the colour of one operation, for that
 status: draft
 governs: Sources/ChalkScript/Resources/profiles/, Sources/ChalkScript/Drawing/ColourVision.swift, Sources/ChalkScript/Style/ExplainerStyle.swift
 
-A document declares the style profile it is made for: `maths` or `open`, or a later profile added as a style file. A document that declares none is made for `open`. A profile says which colours have a fixed meaning and offers suggested colours. The maths profile fixes the operation colours (EXP-6) and offers none. The open profile fixes none, and suggests `orange`, `green` and `purple`. In a profile that fixes no colour, a document may give colours of its own, each by light and dark values or by naming a suggested colour, and states for each what tells its marks apart without colour.
+A document declares the style profile it is made for: `maths` or `open`, or a later profile added as a style file. A document that declares none is made for `open`. A profile says which colours have a fixed meaning and offers suggested colours. The maths profile fixes the operation colours (EXP-6) and offers none. The open profile fixes none, lets a document change an operation's colour with no explanation (EXP-6), and suggests `orange`, `green` and `purple`. In a profile that fixes no colour, a document may give colours of its own, each by light and dark values or by naming a suggested colour, and states for each what tells its marks apart without colour.
 
 A document may declare the appearances it is made for, light, dark or both, and is made for both when it declares none. A colour of its own gives a value for each appearance the document is made for, and a value for another is optional and not checked. The document is drawn only in the appearances it is made for, with the screen round the drawing (EXP-17), and no colour is derived for another appearance. This binds players, which draw the colours as written; the studio writes a derived value into the document when a creator ticks an appearance.
 
@@ -364,7 +364,7 @@ The style file (`style.json`):
 |---|---|
 | `format`, `version` | `"explainer-style"`, `1`. |
 | `palette.light`, `palette.dark` | The roles of EXP-6 as `#RRGGBB`: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult`, and for each operation (`subtract`, `trade`, `result`, `add`, `multiply`, `divide`) its `fill`, `ink` and `soft`; and in a profile, `suggested` colours (EXP-20). |
-| `profile` | In a profile's file only (EXP-20): its `id` and `title`, the roles it `fixed`, and whether a fixed role may be changed (`overrides`). |
+| `profile` | In a profile's file only (EXP-20): its `id` and `title`, the roles it `fixed`, and whether a change of an operation's colour in one document is explained to the person who asks and recorded with the request (`overrides`: `explained`) or made with neither (`free`). |
 | `easings` | Named curves, each a cubic bezier `[x1, y1, x2, y2]`. `linear` always exists. |
 | `motion.durations` | Default seconds for each kind of motion: `appear`, `draw`, `fade`, `travel`, `lag`, `hold`. |
 | `motion.easings` | The default curve, by name, for `appear`, `draw`, `fade` and `travel`. |

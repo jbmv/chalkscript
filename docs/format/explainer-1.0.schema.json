@@ -725,6 +725,12 @@
             "middle",
             "end"
           ]
+        },
+        "vanchor": {
+          "enum": [
+            "baseline",
+            "middle"
+          ]
         }
       },
       "required": [

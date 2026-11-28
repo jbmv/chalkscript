@@ -169,6 +169,7 @@ extension DocumentFilm {
             let at = try point("at")
             let size = try number("size", size0)
             let anchor = el["anchor"]?.string ?? anchor0
+            let vanchor = el["vanchor"]?.string ?? "baseline"
             let ink = el["ink"]?.string ?? ink0
             if roles.ink(ink, fill: false) == nil { throw refuse("ink", PlayerRefusal.inkRole(ink)) }
             if style == "equation" && (anchor != "middle" || ink != "text") {
@@ -183,7 +184,7 @@ extension DocumentFilm {
                 }
             }
             if let entry = el["text"]?.string { text = try runs(of: name, entry: entry, el: el, locals: l, r) }
-            shape = .text(at: at, style: style, size: size, ink: ink, anchor: anchor)
+            shape = .text(at: at, style: style, size: size, ink: ink, anchor: anchor, vanchor: vanchor)
             reference = at
         case "line":
             let divider = el["style"]?.string == "divider"
@@ -429,7 +430,7 @@ extension DocumentFilm {
                     guard let role = o["ink"]?.string, let op = roles.hue(role) else {
                         throw refuse(PlayerRefusal.tintHue)
                     }
-                    if case let .text(_, style, _, _, _) = instances[at].shape, style != "equation" {
+                    if case let .text(_, style, _, _, _, _) = instances[at].shape, style != "equation" {
                         throw refuse(PlayerRefusal.tintEquation)
                     }
                     effect = .tint(op)

@@ -237,7 +237,7 @@ camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind)
 
 | Kind | Keys |
 |---|---|
-| `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor` (`start`, `middle` or `end`: which point of the baseline `at` is). |
+| `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor` (`start`, `middle` or `end`: which point of the baseline `at` is), `vanchor` (`baseline`, or `middle` to put the vertical middle of the text at `at`, as for a number centred on a point). |
 | `line` | `from`, `to`; `style` `rule` or `divider`; `ink`; `width`. |
 | `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required); `width`. |
 | `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`; `width`. |

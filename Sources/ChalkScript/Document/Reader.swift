@@ -831,7 +831,7 @@ final class DocumentChecker {
             }
             let common = ["kind", "repeat", "when", "z", "fixed", "start", "let"]
             let byKind: [String: (known: [String], required: [String])] = [
-                "text": (["at", "text", "runs", "style", "ink", "size", "anchor"], ["at"]),
+                "text": (["at", "text", "runs", "style", "ink", "size", "anchor", "vanchor"], ["at"]),
                 "line": (["from", "to", "style", "ink", "width", "turn", "pivot"], ["from", "to"]),
                 "arrow": (["from", "to", "y", "ink", "width", "turn", "pivot"], ["from", "to", "ink"]),
                 "outline": (["rect", "around", "pad", "style", "ink", "width"], ["style"]),
@@ -890,6 +890,7 @@ final class DocumentChecker {
                 }
                 slot(el["size"], p + "/size", .number, scope)
                 let anchor = oneOf(el, "anchor", p, ["start", "middle", "end"])
+                _ = oneOf(el, "vanchor", p, ["baseline", "middle"])
                 let ink = role(el, "ink", p)
                 refuseInk(ink, p + "/ink")
                 // What the player draws of a style, by the style's own anchor and ink where the element gives none.
