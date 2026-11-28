@@ -197,6 +197,16 @@ struct StageDrawing {
                 context.stroke(path.trimmedPath(from: 0, to: min(1, paint.progress)), with: .color(c(stroke).color),
                     style: StrokeStyle(lineWidth: paint.width, lineCap: .round, lineJoin: .round, dash: paint.dash))
             }
+        case let .group(children):
+            // One layer: it is composited as a whole at the opacity the group's context has.
+            context.drawLayer { layer in
+                for child in children where child.isVisible {
+                    var inner = layer
+                    inner.opacity = child.opacity
+                    if child.transform != .identity { inner.concatenate(child.transform) }
+                    draw(child.kind, strokeWidth: child.strokeWidth, in: &inner)
+                }
+            }
         case let .words(text, set):
             let font = set.display ? fonts.display(set.size) : fonts.body(set.size)
             let t = context.resolve(Text(verbatim: text).font(font).foregroundStyle(c(set.ink).color))

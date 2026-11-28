@@ -156,11 +156,14 @@ final class DocumentChecker {
     /// Every role the style gives, which a colour of the document's own may not be named.
     static let styleRoles: Set<String> = neutralRoles.union(coreOperationRoles).union(arithmeticRoles)
     static let pieceKinds: Set<String> = ["ten", "one", "stick", "circle"]
-    static let coreKinds: Set<String> = ["text", "line", "arrow", "outline", "shape"]
+    static let coreKinds: Set<String> = ["text", "line", "arrow", "outline", "shape", "group"]
     static let strokedKinds: Set<String> = ["line", "arrow", "outline", "shape"]
     static let verbs: Set<String> = ["appear", "fade", "draw", "cross", "tint", "move", "gather", "look", "set", "tag", "pulse", "turn", "say", "each"]
-    /// The kinds of element that turn about a pivot, with the capability `drawing.turn`.
-    static let turnableKinds: Set<String> = ["line", "arrow", "shape"]
+    /// The kinds of element that have a `pivot`, which they grow and pulse about, and a `turn`, which
+    /// needs the capability `drawing.turn`.
+    static let turnableKinds: Set<String> = ["line", "arrow", "shape", "group"]
+    /// The kinds a group may turn: those that have geometry that turns.
+    static let turningMembers: Set<String> = ["line", "arrow", "shape"]
     static let instantVerbs: Set<String> = ["look", "set", "say"]
 
     init(_ root: JSONObject, capabilities: Set<String>) {
@@ -832,6 +835,7 @@ final class DocumentChecker {
                 "arrow": (["from", "to", "y", "ink", "width", "turn", "pivot"], ["from", "to", "ink"]),
                 "outline": (["rect", "around", "pad", "style", "ink", "width"], ["style"]),
                 "shape": (["rect", "corner", "ellipse", "points", "closed", "fill", "ink", "width", "turn", "pivot"], []),
+                "group": (["members", "turn", "pivot"], ["members"]),
                 "ten": (["rect", "look"], ["rect"]), "one": (["rect", "look"], ["rect"]),
                 "stick": (["rect", "look"], ["rect"]), "circle": (["rect", "look"], ["rect"]),
             ]
@@ -845,7 +849,7 @@ final class DocumentChecker {
             // fixed, so a `turn` or `pivot` on one is an error, not a key to ignore.
             if !Self.turnableKinds.contains(kind) {
                 for key in ["turn", "pivot"] where el[key] != nil {
-                    error(.schema, DocumentPath.join(p, key), "'\(key)' turns a line, arrow or shape, and \(name) is a \(kind)")
+                    error(.schema, DocumentPath.join(p, key), "'\(key)' is for a line, arrow, shape or group, and \(name) is a \(kind)")
                 }
             }
             let fixedScope = SlotScope(values: .paramsAndLets)
@@ -861,11 +865,11 @@ final class DocumentChecker {
             if Self.turnableKinds.contains(kind) {
                 slot(el["turn"], p + "/turn", .number, scope)
                 point(el["pivot"], p + "/pivot", scope)
-                for key in ["turn", "pivot"] where el[key] != nil { used.append(("drawing.turn", p + "/" + key)) }
+                if el["turn"] != nil { used.append(("drawing.turn", p + "/turn")) }
             }
             bool(el, "fixed", p)
             if Self.strokedKinds.contains(kind) { width(el["width"], p + "/width", scope) }
-            if let start = object(el["start"], p + "/start", known: ["opacity", "progress"]) {
+            if let start = object(el["start"], p + "/start", known: kind == "group" ? ["opacity"] : ["opacity", "progress"]) {
                 slot(start["opacity"], p + "/start/opacity", .number, scope)
                 slot(start["progress"], p + "/start/progress", .number, scope)
             }
@@ -893,6 +897,14 @@ final class DocumentChecker {
                 {
                     if styleName == "equation" && (anchorNow != "middle" || inkNow != "text") { error(.capability, p, PlayerRefusal.equation) }
                     if styleName == "total" && (anchorNow != "middle" || inkNow != "result") { error(.capability, p, PlayerRefusal.total) }
+                }
+            case "group":
+                slot(el["members"], p + "/members", .selection, scope)
+                // A group's members are the same for every state of the film, which `whole` is not.
+                expressions[p + "/members"]?.root.walk { node in
+                    if case let .call(f, _) = node.kind, f == "whole" {
+                        error(.schema, p + "/members", "a group's members do not depend on the state, so they must not use whole()")
+                    }
                 }
             case "line":
                 point(el["from"], p + "/from", scope)
@@ -1082,7 +1094,7 @@ final class DocumentChecker {
         let timing = ["dur", "each", "reverse", "ease"]
         var known = ["do", "target", "at", "when", "mark"] + (inner ? [] : ["wait"])
         let params: [String: [String]] = [
-            "appear": ["rise", "grow", "place", "text"], "fade": ["to"], "draw": [], "cross": ["fade"], "tint": ["ink"],
+            "appear": ["rise", "grow", "place", "text", "from"], "fade": ["to"], "draw": [], "cross": ["fade"], "tint": ["ink"],
             "move": ["to", "via"], "gather": ["from"], "look": ["value"], "set": ["text"], "tag": ["text", "ink"], "pulse": [], "turn": ["to"],
             "say": ["line", "count", "caption"], "each": ["gap", "let", "then"],
         ]
@@ -1113,6 +1125,8 @@ final class DocumentChecker {
             slot(o["rise"], p + "/rise", .number, perInstance)
             slot(o["grow"], p + "/grow", .number, perInstance)
             slot(o["place"], p + "/place", .value, plain)
+            if case .string = o["from"] { slot(o["from"], p + "/from", .selection, perInstance) } else { point(o["from"], p + "/from", perInstance) }
+            if o["from"] != nil && o["rise"] != nil { error(.schema, p, "an appear has from or rise, not both") }
             entry(o, "text", p, part: part, locals: plain.locals)
         case "fade":
             if o["to"] != .string("ghost") { slot(o["to"], p + "/to", .number, perInstance) }

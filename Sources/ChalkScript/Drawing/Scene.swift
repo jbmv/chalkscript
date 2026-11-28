@@ -51,7 +51,14 @@ public struct Scene: Equatable, Sendable {
     /// The elements that can be seen: not fully transparent, and with something drawn.
     public var visible: [SceneElement] { elements.filter(\.isVisible) }
 
-    public func element(_ id: String) -> SceneElement? { elements.first { $0.id == id } }
+    /// The element with `id`, among a group's children too.
+    public func element(_ id: String) -> SceneElement? {
+        for e in elements {
+            if e.id == id { return e }
+            if case let .group(children) = e.kind, let found = Scene(elements: children).element(id) { return found }
+        }
+        return nil
+    }
 
     /// The elements whose id starts with `prefix`.
     public func elements(_ prefix: String) -> [SceneElement] { elements.filter { $0.id.hasPrefix(prefix) } }
@@ -66,7 +73,7 @@ public struct Scene: Equatable, Sendable {
         var crossing = false
         var trading = false
         var counted = false
-        for e in visible {
+        for e in visible.flatMap(\.flattened) {
             switch e.kind {
             case let .equation(eq): digit = digit || (eq.mark?.progress ?? 0) > 0
             case let .crossOut(_, _, p): crossing = crossing || p < 1
@@ -122,6 +129,12 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
         self.strokeWidth = strokeWidth
     }
 
+    /// This element, or the elements of its group when it is one.
+    var flattened: [SceneElement] {
+        if case let .group(children) = kind { return children.filter(\.isVisible).flatMap(\.flattened) }
+        return [self]
+    }
+
     public var isVisible: Bool {
         guard opacity > 0 else { return false }
         switch kind {
@@ -129,6 +142,7 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
         case let .shape(_, paint): return paint.fill != nil || (paint.stroke != nil && paint.progress > 0)
         case let .words(text, _): return !text.isEmpty
         case let .ink(points, _): return points.count > 1
+        case let .group(children): return children.contains(where: \.isVisible)
         default: return true
         }
     }
@@ -187,6 +201,10 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
         case shape(Outline, Paint)
         /// Text an explainer sets itself.
         case words(String, Typeset)
+        /// Elements drawn as one layer: the layer has the element's opacity and transform, and each
+        /// child its own inside it, so that where children overlap the picture is the upper one's
+        /// colour at the group's strength.
+        case group([SceneElement])
     }
 }
 

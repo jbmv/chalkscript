@@ -69,7 +69,7 @@ struct ColourVisionTests {
                 case let .fill(hue), let .ink(hue), let .soft(hue): insert(hue)
                 default: break
                 }
-            case .divider, .label, .text, .rule, .hint: break
+            case .divider, .label, .text, .rule, .hint, .group: break
             }
         }
         return ops

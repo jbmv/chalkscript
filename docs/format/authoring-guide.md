@@ -159,7 +159,7 @@ the others are optional, and a document without them is complete.
 | Key | Holds |
 |---|---|
 | `format`, `version` | Required. `"chalkscript-explainer"`, `"1.0"`. Never edited. |
-| `requires` | Capabilities used: `components.arithmetic` for tens, ones and counters, and `drawing.turn` to turn a line, arrow or shape (topic `elements`). |
+| `requires` | Capabilities used: `components.arithmetic` for tens, ones and counters, and `drawing.turn` to turn a line, arrow, shape or group (topic `elements`). |
 | `profile` | `open` when absent, or `maths`. Colours of the document's own go under `colours` (topic `colour`). |
 | `id`, `title` | Required. Identity. `id` is the document's name as the studio made it, the same as its file's name; leave it alone in a patch. |
 | `about` | Information that changes nothing seen or heard. |
@@ -228,8 +228,8 @@ literal string inside one is in single quotes: `"bT > 0 ? str(bT) : ''"`.
 ## elements: what is drawn, and where
 
 The drawing's units start at the top left, *y* down. The layout `stage` is `[1000, 540]` unless
-`layouts.stage.size` says otherwise. The core kinds are `text`, `line`, `arrow`, `outline` and
-`shape`. There are two capabilities: `components.arithmetic`, whose pieces are the last row of
+`layouts.stage.size` says otherwise. The core kinds are `text`, `line`, `arrow`, `outline`, `shape` and
+`group`. There are two capabilities: `components.arithmetic`, whose pieces are the last row of
 the table, and `drawing.turn` (below); draw anything else from the core kinds. Every element has `kind`, and may have `repeat` (count of
 instances; `i` is the index in other keys), `let` (below), `when`, `z`, `fixed` (outside the
 camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind).
@@ -241,6 +241,7 @@ camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind)
 | `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required); `width`. |
 | `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`; `width`. |
 | `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`; `width`. |
+| `group` | `members` (a selection of whole instances of other elements; required), `pivot`, `turn`; `start` has `opacity` only. Below. |
 | `ten`, `one`, `stick`, `circle` | Pieces of `components.arithmetic`: `rect`, and `look` `pencil`, `traded` or `counted`. Each has a cross-out, `.cross`. |
 
 An outline's `around` fits text as drawn, so a single digit gets a tall, narrow box, and `pad` is one number for every side. To make boxes round one- and two-digit numbers alike, give each outline a `rect` of one size, centred on the numeral.
@@ -285,11 +286,11 @@ fifth longer, need no approximation and no `each`:
 
 with the entry `"numEntry": {"text": "{k}", "visual": true}`; `{i}` is also shown, from 0.
 
-To make a hand come out from a hub and turn to an angle, list `drawing.turn` in `requires`, draw
-the hand pointing at twelve with no trigonometry, give it a `pivot` at the hub, and turn it in a
+A line, arrow, shape or group may have a `pivot`, a point `[x, y]` that it grows and pulses about (and turns about), so a bar that grows up from its base has a `pivot` at the base. A `pivot` needs no capability. To make a hand come out from a hub and turn to an angle, draw
+the hand pointing at twelve with no trigonometry, give it a `pivot` at the hub, list `drawing.turn` in `requires` (the key `turn` and the verb need it), and turn it in a
 step. The angle is in degrees clockwise from twelve, and the hand turns the way the numbers go: from
 0, `to: 150` is clockwise, and `to: -30` is anticlockwise. `grow: 0` on `appear` brings it out of the
-`pivot`. A `line`, `arrow` or `shape` turns; text and pieces do not. A `turn` on the element draws
+`pivot`. A `line`, `arrow`, `shape` or `group` turns; text and pieces do not, and a group turns only if all its members do. A `turn` on the element draws
 it at that angle with no motion.
 
 ```json
@@ -297,6 +298,13 @@ it at that angle with no motion.
          "points": [[448, 380], [440, 155], [432, 380], [440, 405]]},
 "out":  {"do": "appear", "target": "hand", "grow": 0},
 "turn": {"do": "turn", "target": "hand", "to": "6 * minute", "at": "end(out)"}
+```
+
+A `group` draws the instances its `members` selects as one layer: they appear, fade, move, grow, pulse and turn as one thing, about the middle of their bounds or the group's `pivot`, and none shows through another while the group fades. An instance is in one group at most, groups do not nest and members are not `fixed`. Hide the group, not its members, when they appear together: a member's opacity is multiplied by the group's. A label does not go in a group that travels. A moon of a dark disc, a lit part and a facing arc:
+
+```json
+"moon": {"kind": "group", "repeat": 8, "members": "moonDark[i] + moonLit[i] + faceArc[i]", "start": {"opacity": 0}},
+"in":   {"do": "appear", "target": "moon[phase]", "from": "moonDark[phase]", "grow": 0.25, "dur": 1.1}
 ```
 
 A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` the runs are `a`,
@@ -374,18 +382,18 @@ line, not seconds guessed for it. The studio plays with a stand-in voice that sa
 
 | Verb | Kind | Does |
 |---|---|---|
-| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one (which needs `drawing.turn` in `requires`), and else about its middle: a text's, of the text as drawn, so it needs no `rise`), `place` (`split(ten[k])`), `text`. |
-| `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
+| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one, and else about its middle: a text's, of the text as drawn, so it needs no `rise`), `from` (a point `[x, y]`, or one instance such as `moonDark[phase]`: it starts with its middle, or `pivot`, there and travels to its place as it grows; not with `rise`), `place` (`split(ten[k])`), `text`. The target may be a group. |
+| `fade` | fade | To `to`, 0 to 1 or `"ghost"`. A crossfade from one arrangement to another is two groups, one faded to 0 and the other appeared in the same action time. |
 | `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. A `width` thickens the stroke (topic `elements`); do not draw a thick line as a filled `shape`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
 | `tint` | draw | A pale `ink` role behind a run of an `equation` text; with `mark`, marks a digit. The studio refuses `tint` on an element, or on a run of a text in another style, as `capability`: to mark a numeral or a word, draw an `outline` round it. |
-| `move` | travel | To `to`, or back to its place. `to` places the instance's reference point (a text's `at`, the `from` of a line or arrow, a shape's first point, else the top-left corner of its bounds) and the geometry goes with it, so elements moved to one point each go by their own point and do not keep their places relative to each other. `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
+| `move` | travel | To `to`, or back to its place. `to` places the instance's reference point (a text's `at`, the `from` of a line or arrow, a shape's first point, a group's middle, else the top-left corner of its bounds) and the geometry goes with it, so elements moved to one point each go by their own point and do not keep their places relative to each other. `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
 | `gather` | travel | From the positions of `from` to their places. |
-| `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
+| `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow`, `shape` or group of them about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
 | `look` | instant | Sets a piece's `value` look. |
 | `set` | instant | Sets a text or run to the entry `text`. |
 | `tag` | appear | A small card with the entry `text` over each target, as wide as its text; its `dur` is how long it is shown, at full strength for the middle half (0.3 by default, so give `dur: 2` for a card to be read); its `ink` is `result` unless given. |
-| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one (which needs `drawing.turn` in `requires`, as for `grow`), and else its middle. |
+| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one, and else its middle; a group pulses as one. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
 
@@ -449,7 +457,7 @@ layout with `camera: true`. A step with no `shot` keeps the shot of the step bef
 the `opening` shot, and with neither frames the whole drawing. When a step's shot frames
 differently from the one before, the camera moves first (0.9 seconds in the standard style) and the
 step's actions start after the move, so an action at 0 starts at 0.9, as `show` lists it; the
-step's line still begins at 0. What lies outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
+step's line still begins at 0. What lies outside the shot is dimmed, not hidden; a group is dimmed as one, by its middle. Another layout has `suits` (an expression of `areaW` and
 `areaH`), `size`, `camera`, `band` (the height at the top of the drawing kept for `fixed`
 elements when the camera is on; 0 by default) and `let` replacements; the first that suits the
 window, by name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the

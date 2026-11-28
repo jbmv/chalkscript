@@ -21,9 +21,12 @@ enum InstanceShape: Equatable, Sendable {
     case arrow([CGPoint], Hue)
     case outline(CGRect, style: String, op: Hue?)
     case shape(Outline, fill: Ink?, stroke: Ink?)
+    /// A group: the box round its members' bounds before it is turned, which is all the geometry it has.
+    case group(CGRect)
 
     /// What a turn moves, for the kinds that turn (section 9.5): the points of a line, arrow or
-    /// shape, or the rectangle or ellipse of a shape. Nil for text, outlines and pieces.
+    /// shape, or the rectangle or ellipse of a shape, or the box round a group's members. Nil for
+    /// text, outlines and pieces.
     var turning: Turning.Geometry? {
         switch self {
         case let .line(from, to, _, _): .points([from, to])
@@ -35,6 +38,7 @@ enum InstanceShape: Equatable, Sendable {
             case let .ellipse(r): .ellipse(r)
             case let .path(segments): OutlineEntry.entries(of: segments).map { .entries($0) }
             }
+        case let .group(box): .rect(box)
         default: nil
         }
     }
@@ -102,8 +106,15 @@ struct InstanceLook: Equatable, Sendable {
 /// start, when the instance takes its start state, and from `start` for `duration`, its own
 /// motion (sections 12.2 and 13).
 struct Track: Sendable {
+    /// An entrance from a point (section 13.1): the instance is `offset` from where it started
+    /// when the action begins, and carried to it in a straight line as it grows.
+    struct Entrance: Sendable {
+        var base: CGPoint
+        var offset: CGVector
+    }
+
     enum Effect: Sendable {
-        case appear(rise: Double, grow: Double?, place: CGPoint?, text: String?)
+        case appear(rise: Double, grow: Double?, place: CGPoint?, text: String?, entrance: Entrance?)
         case fade(from: Double, to: Double)
         case draw
         case cross(fade: Double, easing: Easing, from: Double, crossFrom: Double)
@@ -134,7 +145,7 @@ struct Track: Sendable {
         let p = progress(duration > 0 ? Motion.settled(t, toEnd: start + duration, heldAt: wait) : t, start: start, duration: duration, easing)
         var l = looks[target]
         switch effect {
-        case let .appear(rise, grow, place, text):
+        case let .appear(rise, grow, place, text, entrance):
             if case let .run(name)? = part {
                 l.runOpacity[name] = p
                 if let text { l.setRun(name, text) }
@@ -143,6 +154,7 @@ struct Track: Sendable {
                 l.rise = rise * (1 - p)
                 if let grow { l.grow = mix(grow, 1, p) }
                 if let place { l.position = place }
+                if let entrance { l.position = CGPoint(x: entrance.base.x + entrance.offset.dx * (1 - p), y: entrance.base.y + entrance.offset.dy * (1 - p)) }
                 if let text { l.text = [TextRun(name: nil, text: text)] }
             }
         case let .fade(from, to):
@@ -199,17 +211,24 @@ struct DocumentPainter: Sendable {
     let instances: [DrawnInstance]
     let size: CGSize
     let camera: Bool
+    /// The members of each group instance, as indices of `instances`: they are drawn inside the
+    /// group's layer and not on their own.
+    var groups: [Int: [Int]] = [:]
 
     func scene(_ looks: [InstanceLook], camera cam: Camera?) -> Scene {
         var out: [SceneElement] = []
         var tags: [SceneElement] = []
         var fixed: [SceneElement] = []
+        let members = Set(groups.values.flatMap { $0 })
         for (k, inst) in instances.enumerated() {
             let l = looks[k]
             let isFixed = inst.fixed && camera
-            var drawn = elements(inst, l)
-            for j in drawn.indices { drawn[j].fixed = isFixed }
-            if isFixed { fixed += drawn } else { out += drawn }
+            // A member is drawn inside its group's layer, which is fixed or not as the group is.
+            if !members.contains(k) {
+                var drawn = elements(inst, l, children: (groups[k] ?? []).flatMap { elements(instances[$0], looks[$0]) })
+                for j in drawn.indices { drawn[j].fixed = isFixed }
+                if isFixed { fixed += drawn } else { out += drawn }
+            }
             if let tag = l.tag {
                 let b = inst.bounds.offsetBy(dx: l.position.x - inst.reference.x, dy: l.position.y - inst.reference.y)
                 let ten: Bool = if case let .piece(kind, _) = inst.shape { kind == "ten" || kind == "stick" } else { false }
@@ -236,7 +255,7 @@ struct DocumentPainter: Sendable {
         return CGAffineTransform(translationX: c.x, y: c.y).scaledBy(x: s, y: s).translatedBy(x: -c.x, y: -c.y)
     }
 
-    func elements(_ inst: DrawnInstance, _ l: InstanceLook) -> [SceneElement] {
+    func elements(_ inst: DrawnInstance, _ l: InstanceLook, children: [SceneElement] = []) -> [SceneElement] {
         let d = CGVector(dx: l.position.x - inst.reference.x, dy: l.position.y - inst.reference.y + l.rise)
         func moved(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + d.dx, y: p.y + d.dy) }
         let scale = l.grow * l.pulse
@@ -336,6 +355,9 @@ struct DocumentPainter: Sendable {
                 default: .box(r, progress: l.progress, op: op ?? .result)
                 }
             return [SceneElement(inst.id, k, opacity: l.opacity, transform: around, strokeWidth: inst.width)]
+        case .group:
+            let shift = CGAffineTransform(translationX: d.dx, y: d.dy)
+            return [SceneElement(inst.id, .group(children), opacity: l.opacity, transform: shift.concatenating(turned))]
         case let .shape(outline, fill, stroke):
             let shift = CGAffineTransform(translationX: d.dx, y: d.dy)
             return [SceneElement(inst.id, .shape(outline, Paint(fill: fill, stroke: stroke, width: inst.width ?? Components.pencilWidth, progress: l.progress)), opacity: l.opacity,

@@ -1065,6 +1065,58 @@
         }
       ]
     },
+    "element.group": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "group"
+        },
+        "members": {
+          "$ref": "#/$defs/selection"
+        },
+        "repeat": {
+          "$ref": "#/$defs/number"
+        },
+        "when": {
+          "$ref": "#/$defs/truth"
+        },
+        "z": {
+          "$ref": "#/$defs/number"
+        },
+        "fixed": {
+          "type": "boolean"
+        },
+        "let": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "opacity": {
+              "$ref": "#/$defs/number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "turn": {
+          "$ref": "#/$defs/number"
+        },
+        "pivot": {
+          "$ref": "#/$defs/point"
+        }
+      },
+      "required": [
+        "kind",
+        "members"
+      ],
+      "additionalProperties": false
+    },
     "element.ten": {
       "type": "object",
       "properties": {
@@ -1286,6 +1338,7 @@
             "arrow",
             "outline",
             "shape",
+            "group",
             "ten",
             "one",
             "stick",
@@ -1352,6 +1405,18 @@
           },
           "then": {
             "$ref": "#/$defs/element.shape"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "group"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/element.group"
           }
         },
         {
@@ -1437,6 +1502,9 @@
         "mark": {
           "type": "boolean"
         },
+        "from": {
+          "$ref": "#/$defs/pointOrSelection"
+        },
         "rise": {
           "$ref": "#/$defs/number"
         },
@@ -1453,7 +1521,17 @@
       "required": [
         "do"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "if": {
+        "required": [
+          "from"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rise": false
+        }
+      }
     },
     "action.fade": {
       "type": "object",
@@ -2226,6 +2304,9 @@
         "mark": {
           "type": "boolean"
         },
+        "from": {
+          "$ref": "#/$defs/pointOrSelection"
+        },
         "rise": {
           "$ref": "#/$defs/number"
         },
@@ -2242,7 +2323,17 @@
       "required": [
         "do"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "if": {
+        "required": [
+          "from"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rise": false
+        }
+      }
     },
     "innerAction.fade": {
       "type": "object",

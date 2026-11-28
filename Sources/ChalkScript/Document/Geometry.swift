@@ -173,6 +173,17 @@ extension Resolver {
                 turning = el["rect"] != nil ? .rect(b) : .ellipse(b)
                 reference = b.origin
             }
+        case "group":
+            // A group has no geometry of its own: its bounds are the box round its members' bounds, and
+            // its reference point is the middle of that box.
+            var u: CGRect?
+            for member in try members(of: instance) {
+                let r = try bounds(member)
+                u = u.map { $0.union(r) } ?? r
+            }
+            b = u ?? .zero
+            turning = .rect(b)
+            reference = CGPoint(x: b.midX, y: b.midY)
         default:
             b = try rect("rect")
             reference = b.origin

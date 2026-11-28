@@ -139,6 +139,7 @@ final class Resolver: EvaluationScope {
     var notRunning: Set<String> = []
     var timing: Set<String> = []
     /// Places given by `move` with `to` in the step being resolved, applied when it ends.
+    var memberCache: [DocumentInstance: [DocumentInstance]] = [:]
     var newPlaces: [(DocumentInstance, CGPoint)] = []
     /// Angles given by `turn` with `to` in the step being resolved, each with the moment it starts,
     /// applied when the step ends in the order of those moments.
@@ -369,6 +370,24 @@ final class Resolver: EvaluationScope {
         let p = DocumentPath.join("/elements", instance.element)
         for key in letOrder(lets, p) { l[key] = try eval(DocumentPath.join(p, "let", key), locals: l) }
         return l
+    }
+
+    /// The members of group instance `group` (section 9.6): whole instances of other elements that
+    /// are not groups and not fixed, evaluated once for the problem.
+    func members(of group: DocumentInstance) throws(EvalFailure) -> [DocumentInstance] {
+        if let kept = memberCache[group.whole] { return kept }
+        let p = DocumentPath.join("/elements", group.element) + "/members"
+        var out: [DocumentInstance] = []
+        for m in try selection(p, locals: try instanceLocals(group)).instances {
+            guard m.part == nil else { throw EvalFailure(path: p, message: "\(m) is a part of an instance, and a group's members are whole instances") }
+            let el = root["elements"]?[m.element]?.object
+            if el?["kind"] == .string("group") { throw EvalFailure(path: p, message: "\(m) is a group, and groups do not nest") }
+            if el?["fixed"] == .bool(true) { throw EvalFailure(path: p, message: "\(m) is fixed, and a member of a group must not be") }
+            out.append(m)
+        }
+        guard !out.isEmpty else { throw EvalFailure(path: p, message: "\(group) has no members: its members select nothing") }
+        memberCache[group.whole] = out
+        return out
     }
 
     // MARK: the watched part
@@ -735,10 +754,22 @@ final class Resolver: EvaluationScope {
             case "draw": ok = DocumentChecker.strokedKinds.contains(el.kind) && t.part == nil
             case "tint", "set": ok = t.part == nil ? (verb == "tint" || el.kind == "text") : { if case .run = t.part { true } else { false } }()
             case "move", "gather", "tag", "pulse": ok = t.part == nil
-            case "turn": ok = t.part == nil && DocumentChecker.turnableKinds.contains(el.kind)
+            case "turn":
+                ok = t.part == nil && DocumentChecker.turnableKinds.contains(el.kind)
+                if ok && el.kind == "group" { try checkGroupTurns(t, path + "/target") }
             default: ok = true
             }
             if !ok { throw EvalFailure(path: path + "/target", message: "\(verb) cannot act on \(t)") }
+        }
+    }
+
+    /// An error unless every member of group instance `group` has geometry that turns (section 9.6).
+    func checkGroupTurns(_ group: DocumentInstance, _ path: String) throws(EvalFailure) {
+        for m in try members(of: group) {
+            let kind = root["elements"]?[m.element]?["kind"]?.string ?? ""
+            if !DocumentChecker.turningMembers.contains(kind) {
+                throw EvalFailure(path: path, message: "\(group) cannot be turned: its member \(m) is a \(kind), which does not turn")
+            }
         }
     }
 

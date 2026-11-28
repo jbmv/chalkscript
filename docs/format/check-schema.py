@@ -5,7 +5,7 @@ required key, a value of the wrong type, or an `areas` entry that lacks `layout`
 `ratio` is not two numbers above 0, an empty `areas`, an element's `let` that is not an object of
 named values, a `turn` or `pivot` on a text element, an outline or a piece, or a `turn` verb whose `to` is not a
 number, a document colour with no value and no suggested colour or with a value that is not `#RRGGBB`, an `appearances` that is empty, repeats a name, is not an array or names anything but `light` and `dark`, a `profile` that is not a name, and a
-`style.palette`, a `width` on a line, arrow, outline or shape that is 0, below 0, a list or an empty string, and a `width` on a text element, an arc entry of two numbers, with a key other than `arc`, `from` and `to`, or without `to`, and a `style.overrides` entry without `asked`. It must accept a `style.overrides` entry with its values and `asked`, a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, arc entries among a shape's `points`, an element's `let` of expressions, and the keys `turn` and `pivot` of a line, arrow or
+`style.palette`, a `width` on a line, arrow, outline or shape that is 0, below 0, a list or an empty string, and a `width` on a text element, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, an arc entry of two numbers, with a key other than `arc`, `from` and `to`, or without `to`, a group without `members`, with a `progress` in its `start` or with a `width`, an `appear` with both `from` and `rise` or with a `from` that is not a point or a selection, and a `style.overrides` entry without `asked`. It must accept a `style.overrides` entry with its values and `asked`, a `profile`, `appearances` of one or of both, `colours` by values (one value in a document made for one appearance) and by a suggested colour, a `tag` with an `ink`, arc entries among a shape's `points`, a group with its keys, an `appear` from a point or an instance, an element's `let` of expressions, and the keys `turn` and `pivot` of a line, arrow or
 shape and the verb `turn` (the capability `drawing.turn`), and a `width` that is a number above 0 or an expression on a line, arrow, outline and shape. Each refused document is an example with one
 change, and the check also requires that the schema refuses it at the place that was changed. That a
 document that uses `drawing.turn` lists it in `requires` is a finding of the reader, not of the schema.
@@ -302,6 +302,16 @@ def main():
          lambda d: d["elements"].update({"rule": {"kind": "line", "from": [0, 0], "to": [0, 10], "width": ""}})),
         ("a width on a text element", "/elements/equation/width",
          lambda d: d["elements"]["equation"].update({"width": 4})),
+        ("a group without members", "/elements/pair",
+         lambda d: d["elements"].update({"pair": {"kind": "group"}})),
+        ("a group whose start has a progress", "/elements/pair/start/progress",
+         lambda d: d["elements"].update({"pair": {"kind": "group", "members": "dot", "start": {"progress": 0}}})),
+        ("a group with a width", "/elements/pair/width",
+         lambda d: d["elements"].update({"pair": {"kind": "group", "members": "dot", "width": 3}})),
+        ("an appear with from and rise", "/steps/same/actions/enter/rise",
+         lambda d: d["steps"]["same"]["actions"].update({"enter": {"do": "appear", "target": "dot", "from": [0, 0], "rise": 10}})),
+        ("an appear whose from is one number", "/steps/same/actions/enter/from",
+         lambda d: d["steps"]["same"]["actions"].update({"enter": {"do": "appear", "target": "dot", "from": [0]}})),
         ("an arc entry of two numbers", "/elements/hand/points/0",
          lambda d: d["elements"].update({"hand": dict(HAND, points=[{"arc": [0, 0], "from": 0, "to": 90}])})),
         ("an arc entry with a key other than arc, from and to", "/elements/hand/points/0",
@@ -322,6 +332,15 @@ def main():
              "spin": {"do": "turn", "target": "hand", "to": "a * 30", "dur": 1, "ease": "linear", "mark": True},
              "back": {"do": "turn", "target": "hand", "at": "end(spin)"},
              "each": {"do": "each", "target": "hand", "gap": 0.2, "then": {"spin": {"do": "turn", "to": 90}}}})),
+        ("a group, with members, a pivot and a turn, and a repeated one with a let",
+         lambda d: d["elements"].update({
+             "pair": {"kind": "group", "members": "dot + ring", "pivot": [10, "a"], "turn": 30, "start": {"opacity": 0}, "z": 2, "fixed": False},
+             "pairs": {"kind": "group", "repeat": 2, "let": {"k": "i"}, "when": "a > 0", "members": "dot[k]"}})),
+        ("an appear from a point and from one instance, in an each too",
+         lambda d: d["steps"]["same"]["actions"].update({
+             "enter": {"do": "appear", "target": "dot", "from": [0, "a"], "grow": 0.25},
+             "again": {"do": "appear", "target": "dot", "from": "ring", "dur": 1},
+             "each": {"do": "each", "target": "dot", "gap": 0.2, "then": {"enter": {"do": "appear", "from": "ring[i]"}}}})),
         ("arc entries, with expressions, among a shape's points",
          lambda d: d["elements"].update({
              "orbit": {"kind": "shape", "ink": "line", "points": [{"arc": [440, 270, 170], "from": 270, "to": -90}]},

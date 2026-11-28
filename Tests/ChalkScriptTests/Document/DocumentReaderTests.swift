@@ -354,9 +354,11 @@ struct DocumentReaderTests {
         let r = read(turning)
         has(r, .error, .capability, "/elements/rule/turn", "drawing.turn")
         #expect(!r.conforms && r.findings.filter { $0.code == .capability }.count == 1)
-        // The key alone, the pivot alone and the verb alone each name it.
+        // The key alone and the verb alone each name it; a pivot alone does not, since it only moves the
+        // point a thing grows and pulses about.
         has(read(tiny.setting("/elements/rule/turn", .number(30))), .error, .capability, "/elements/rule/turn", "drawing.turn")
-        has(read(tiny.setting("/elements/rule/pivot", try! JSONValue.parse("[0, 0]"))), .error, .capability, "/elements/rule/pivot", "drawing.turn")
+        let pivot = read(tiny.setting("/elements/rule/pivot", try! JSONValue.parse("[0, 0]")))
+        #expect(pivot.conforms && pivot.findings.isEmpty, "\(pivot.findings)")
         let verb = tiny.setting("/steps/show/actions/spin", try! JSONValue.parse(#"{"do": "turn", "target": "rule"}"#))
         has(read(verb), .error, .capability, "/steps/show/actions/spin/do", "drawing.turn")
         // Required, the same document reads with no finding; a reader without it refuses what requires it.
@@ -371,11 +373,11 @@ struct DocumentReaderTests {
         for key in ["turn", "pivot"] {
             let value: JSONValue = key == "turn" ? .number(90) : try JSONValue.parse("[0, 0]")
             let r = read(required.setting("/elements/label/\(key)", value))
-            has(r, .error, .schema, "/elements/label/\(key)", "turns a line, arrow or shape")
+            has(r, .error, .schema, "/elements/label/\(key)", "is for a line, arrow, shape or group")
             #expect(!r.conforms)
         }
         let box = try JSONValue.parse(#"{"kind": "outline", "style": "hint", "rect": [0, 0, 10, 10], "turn": 90}"#)
-        has(read(required.setting("/elements/frame", box)), .error, .schema, "/elements/frame/turn", "turns a line, arrow or shape")
+        has(read(required.setting("/elements/frame", box)), .error, .schema, "/elements/frame/turn", "is for a line, arrow, shape or group")
         // A line, an arrow and a shape each turn, with expressions in the angle and the pivot.
         let kinds = [
             #"{"kind": "line", "from": [0, 0], "to": [0, 10], "turn": "i * 30", "pivot": ["i", 0], "repeat": 3}"#,

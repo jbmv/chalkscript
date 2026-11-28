@@ -103,7 +103,7 @@ first only. A fault in the instances an element draws is listed before faults in
 the actions, which depend on the instances.
 
 This version defines two capabilities: `components.arithmetic` (section 9.4) and `drawing.turn`
-(section 9.5). Later versions are expected to add capabilities for other kinds of drawing, such as
+(section 9.5), which holds the key `turn` and the verb `turn`. Later versions are expected to add capabilities for other kinds of drawing, such as
 parts placed in a projected space for exploded views, and imported vector artwork with named parts.
 Each will be listed in `requires` by the documents that use it, so it cannot change the meaning of
 a document that does not.
@@ -403,6 +403,8 @@ cross-out of a piece.
 | `slice(s, start, n)` | The *n* instances of `s` from position *start*. An error if they are not all in `s`. |
 | `whole(s)` | The instances of `s` that are *whole*: not crossed out by `cross` and not faded to a ghost (section 13.2). |
 
+The name of a group (section 9.6) selects its instances, and not the members they hold.
+
 An action's selection is evaluated once, as its step begins, against the state the step begins in
 (section 18). This is what lets one step serve both a watched playback and one in which the viewer
 chose which piece to act on: `last(bT, whole(ten))` names the tens still standing, whichever were
@@ -466,14 +468,16 @@ reader checks this (section 21, `areas`).
 | `z` | Draw order; lower is drawn first. By default 0. Ties are drawn in the order of element names by code point, then by instance index, so every player draws the same. |
 | `fixed` | `true` if the element is drawn outside the camera and never dimmed (section 10.3). By default `false`. |
 | `start` | The starting `opacity` (0 to 1, by default 1) and, for a stroked kind, the starting `progress` (0 to 1, by default 1) of every instance. |
+| `pivot` | On a line, arrow, shape or group: the point `[x, y]` that each instance grows and pulses about (sections 13.1 and 13.11), and turns about (section 9.5), at its place. By default its reference point; a group's by default is its middle. A `pivot` on any other kind is a `schema` error. It is part of the core: a player that ignored it would grow and pulse about the middle of the bounds, which is the same picture at the end of every step. |
 | `let` | An object of names to expressions, evaluated for each instance, each after the values it names, with `i` (when the element has `repeat`) and the document's values in scope. The names are locals of the element's other keys except `repeat` and `when`, and of the entries its text and runs show (section 6.5), and must not be any other name of the first namespace (section 3). For example, `"repeat": 12, "let": {"k": "i + 1"}` with the entry `{k}` shows the numerals 1 to 12. |
 
 Colours are given only as *roles* (section 16.1) or as the document's own named colours (section 16.5), never as colour values.
 
 Each instance has a *place* (where its geometry puts it) and a *position*, which is its place unless a
 verb has moved it. Its position is a reference point: the top-left corner of its `rect`, its `at`,
-the `from` of a line or arrow, or the first point of a shape's `points`, which for an arc entry that
-comes first is the arc's start; moving an instance moves its whole geometry with that point.
+the `from` of a line or arrow, the first point of a shape's `points`, which for an arc entry that
+comes first is the arc's start, or the middle of a group's bounds (section 9.6); moving an instance
+moves its whole geometry with that point, and `move`'s `to` (section 13.6) places it.
 
 The *bounds* of an instance, used by `around`, parts, shots, the camera, tags, an arrow to it and
 the reading of marks, are: its `rect`; the box round the points of a line, arrow or shape, which for an arc entry is the box round its curve, including the
@@ -483,7 +487,7 @@ first step, with its lower edge at `at` and its left edge, middle or right edge 
 `anchor` `start`, `middle` or `end`. A text element that shows nothing before the first step has
 bounds of no size at `at`. The box is measured in the player's faces, so two players may differ in
 it by a little. The bounds of a line, arrow or shape that is turned (section 9.5) are the box round
-its turned geometry.
+its turned geometry, and those of a group are the box round its members' bounds (section 9.6).
 
 ### 9.2 Text
 
@@ -622,17 +626,21 @@ never erased.
 
 ### 9.5 The capability `drawing.turn`
 
-This capability adds two keys to lines, arrows and shapes, the verb `turn` (section 13.14), and the
-growing and pulsing of an instance about a point of its own. It is a capability because a player
-that ignored the keys would draw every turned instance at its unturned angle, which is a different
-drawing and not a plainer one. Text elements, outlines and pieces do not turn: a numeral stays
-upright, and a piece's drawing is fixed (section 9.4). A `turn` or `pivot` on one of them is a
-`schema` error.
+This capability adds the key `turn` to lines, arrows, shapes and groups, and the verb `turn`
+(section 13.14). It is a capability because a player that ignored the key would draw every turned
+instance at its unturned angle, which is a different drawing and not a plainer one. Text elements,
+outlines and pieces do not turn: a numeral stays upright, and a piece's drawing is fixed (section
+9.4). A `turn` or `pivot` on one of them is a `schema` error, and a group with one of them as a
+member cannot be turned (section 9.6). The key `pivot` (section 9.1) is part of the core and needs
+no capability.
 
 | Key | On | Holds |
 |---|---|---|
-| `turn` | `line`, `arrow`, `shape` | The angle, in degrees clockwise, at which each instance is drawn about its pivot, at its place. A number or an expression, with `i` and the element's `let` in scope. By default 0. |
-| `pivot` | `line`, `arrow`, `shape` | The point `[x, y]` that each instance turns about, at its place. By default its reference point (section 9.1): the `from` of a line or arrow, the first of a shape's `points`, or the top-left corner of a shape's `rect` or `ellipse`. |
+| `turn` | `line`, `arrow`, `shape`, `group` | The angle, in degrees clockwise, at which each instance is drawn about its pivot, at its place. A number or an expression, with `i` and the element's `let` in scope. By default 0. |
+
+The pivot is the instance's `pivot` (section 9.1). By default it is the instance's reference point:
+the `from` of a line or arrow, the first of a shape's `points`, the top-left corner of a shape's
+`rect` or `ellipse`, or the middle of a group's bounds.
 
 The geometry is given as it is at an angle of 0, and `turn` carries it to its angle. A hand that
 points at twelve is drawn pointing at twelve, and is turned to the time. An arrow's head follows
@@ -649,6 +657,40 @@ shots use, are the box round its geometry turned about its pivot, at its place: 
 points of a line, arrow or shape with `points`, and the turned curve of each arc; round the four turned corners of a `rect`; and
 round the turned ellipse of an `ellipse`. The angle is the instance's place's angle (section
 13.14): its `turn` until a step has left another.
+
+### 9.6 Groups
+
+The element kind `group` draws other elements' instances as one layer, so that they appear, fade,
+move, grow, pulse and (with `drawing.turn`) turn as one thing, and a part that fades does not show
+its lower shapes through its upper ones.
+
+| Key | Holds |
+|---|---|
+| `members` | A selection of whole instances of other elements, which are not groups, runs, cross-outs or `fixed`. Required. It is evaluated once for the problem, as an element's instances are, with `i` and the group's `let` in scope; it must not use `whole`, which depends on the state. A selection that is empty for the problem is an `eval` error. |
+| `repeat`, `when`, `z`, `fixed`, `let` | As for every element (section 9.1). |
+| `start` | The starting `opacity` only. |
+| `pivot`, `turn` | As in sections 9.1 and 9.5. |
+
+- **Drawing.** A group instance is drawn as one layer at its own `z`, with its members inside it in
+  their own `z` order, and they are not drawn outside it. The layer has the group's opacity and
+  transform; each member keeps its own state (opacity, progress, position, turn) inside it. A
+  member's opacity is multiplied by the group's, so that a member that starts at opacity 0 and that
+  no action shows stays hidden when its group is shown: hide the group, not its members, when they
+  appear together. Where members overlap and the layer is part-transparent, the picture is the upper
+  member's colour at the layer's strength and the lower member does not show through. A group with
+  no instance, because its `when` is false, leaves its members to be drawn on their own.
+- **Reference point and bounds.** A group has no geometry of its own. Its bounds are the box round
+  its members' bounds at their places, and its reference point, which `move`'s `to` places, is the
+  middle of those bounds. It grows and pulses about that middle, or about its `pivot`. Turned, its
+  bounds are the box round its members' bounds turned about its pivot.
+- **Membership.** An instance is a member of at most one group; a second is an `eval` error that
+  names both groups. Groups do not nest.
+- **Verbs.** `appear`, `fade`, `move`, `gather`, `pulse`, `tag` and, with `drawing.turn`, `turn` take
+  a group as a target; `draw`, `cross`, `tint`, `look` and `set` do not. A member can still be the
+  target of any verb on its own. A group with a text element, an outline or a piece as a member
+  cannot be turned, by the key or the verb: an `eval` error that names the member.
+- **A tag** over a group is centred on the group's bounds. A label does not belong in a group that
+  travels, since a label never travels (EXP-11).
 
 ## 10. Parts, shots and the camera
 
@@ -684,7 +726,8 @@ its place. To frame a shot, the player grows the shot's region about its middle 
 shape, then slides it, where it fits, to lie inside the box round the extent and the region, and
 centres it on that box where it does not fit. It maps the view uniformly onto the viewport.
 
-Elements whose middle lies outside the shot's region are *dimmed*: drawn toward the paper by the
+A group (section 9.6) is one element here: its bounds are the box round its members', and it is
+dimmed as one, by its middle. Elements whose middle lies outside the shot's region are *dimmed*: drawn toward the paper by the
 style's camera `dim` (0.45), in proportion to their distance outside, reaching the full amount 24
 units out. A shot whose region contains the extent dims nothing. A fixed element is drawn in
 the drawing's units, outside the camera, after every other element, and is never dimmed.
@@ -805,10 +848,11 @@ action's end. Anything not named is unchanged. There is no verb that removes an 
 
 ### 13.1 `appear`
 
-Kind `appear`. Targets: elements and runs.
+Kind `appear`. Targets: elements (groups included) and runs.
 
 | Parameter | Holds |
 |---|---|
+| `from` | A point `[x, y]`, or a selection of exactly one instance, whose bounds' middle is taken. The instance starts with its middle, or its `pivot` when it has one, at that point, at the scale `grow` gives (1 without it), and is carried in a straight line to its place as it grows, by the eased progress. Not with `rise`. It is the motion of growing about a fixed point, so that the author names where a thing comes from rather than the point to grow about. A player that ignored it would grow the instance in place. |
 | `rise` | A distance: the instance starts this far below its position and rises to it. A negative distance starts it above its position, so that it drops in. |
 | `grow` | A scale from 0 to 1: the instance starts at this size about its middle (for a text element, the middle of the box of the text it shows then), or about its `pivot` when it has one (section 9.5), and grows to its own. |
 | `place` | A placement (such as `split(...)`, section 9.4): the instance's position becomes the placement's for it as the action starts. |
@@ -819,7 +863,7 @@ placement's), at full size, with its new text.
 
 ### 13.2 `fade`
 
-Kind `fade`. Targets: elements, runs and cross-outs. Parameter: `to`, a number from 0 to 1, or
+Kind `fade`. Targets: elements (groups included), runs and cross-outs. Parameter: `to`, a number from 0 to 1, or
 `"ghost"`, which is opacity 0.28 and leaves the instance *ghosted*. In `to`, the string `"ghost"`
 is this word and not an expression.
 
@@ -854,11 +898,11 @@ is not drawn as an approximation.
 
 ### 13.6 `move`
 
-Kind `travel`. Targets: elements and pieces.
+Kind `travel`. Targets: elements (groups included) and pieces.
 
 | Parameter | Holds |
 |---|---|
-| `to` | `[x, y]`: a new place for the instance's reference point. Without it, the instance returns to its place. |
+| `to` | `[x, y]`: a new place for the instance's reference point (section 9.1: the first point of a shape, the `from` of a line or arrow, the top-left corner of a rectangle, the middle of a group). Without it, the instance returns to its place. |
 | `via` | Keyframes `[offset, x, y]`, with offsets strictly between 0 and 1 in increasing order, and `x`, `y` positions, which may use `x0`, `y0` and `i`. |
 
 Start: at its position (`x0`, `y0`). The instance's position at eased progress *p* is found by
@@ -868,7 +912,7 @@ place, or at its place.
 
 ### 13.7 `gather`
 
-Kind `travel`. Targets: elements and pieces. Parameter: `from`, a selection (required), with as
+Kind `travel`. Targets: elements (groups included) and pieces. Parameter: `from`, a selection (required), with as
 many instances as the target.
 
 Start: the *k*-th target at the position of the *k*-th instance of `from`, at opacity 1. It travels
@@ -886,7 +930,7 @@ instance shows that entry, filled at that moment with the names then in scope (s
 
 ### 13.10 `tag`
 
-Kind `appear`. Targets: elements and pieces. Parameters: `text`, an entry (required); `ink`, a role
+Kind `appear`. Targets: elements (groups included) and pieces. Parameters: `text`, an entry (required); `ink`, a role
 named alone (an operation role or one of the document's own colours), by default `result`.
 
 A small card in the `ink` role, showing the entry, appears over each target and goes. It is 34
@@ -898,7 +942,7 @@ end: no tag.
 
 ### 13.11 `pulse`
 
-Kind `appear`. Targets: elements. The instance grows to 1.15 times its size by *p* = 0.5 and
+Kind `appear`. Targets: elements (groups included). The instance grows to 1.15 times its size by *p* = 0.5 and
 returns to its size by *p* = 1, about its middle (for a text element, the middle of the box of the text it shows then), or about its `pivot` when it has one (section 9.5).
 Start and end: unchanged.
 
@@ -927,8 +971,9 @@ action of any iteration.
 
 ### 13.14 `turn`
 
-Part of the capability `drawing.turn` (section 9.5). Kind `travel`. Targets: lines, arrows and
-shapes; a text element, an outline or a piece is not a target.
+Part of the capability `drawing.turn` (section 9.5). Kind `travel`. Targets: lines, arrows, shapes
+and groups whose members all turn; a text element, an outline or a piece is not a target, nor is a
+group with one as a member.
 
 | Parameter | Holds |
 |---|---|
@@ -1344,7 +1389,8 @@ It is also given the appearance it is asked to draw in, from which it finds the 
 
 The *state* of the drawing is, for every instance, its opacity, progress, position, place, angle,
 size, look, text, tint, and whether it is crossed out or ghosted, with the same for each cross-out;
-and the values of `vars`. The state before the first step is given by the elements' keys and `start`.
+and the values of `vars`. A group instance (section 9.6) has its own opacity, position, place, angle and
+size, and each of its members its own state inside it. The state before the first step is given by the elements' keys and `start`.
 A step plays from the state the previous step ended in, and its actions' selections are evaluated
 against that state as it begins.
 

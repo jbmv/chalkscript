@@ -183,6 +183,10 @@ extension SceneElement {
         case let .label(_, at), let .count(_, at), let .total(_, at, _), let .text(_, at, _): r = CGRect(origin: at, size: .zero)
         case let .words(_, set): r = CGRect(origin: set.at, size: .zero)
         case let .shape(outline, _): r = StageDrawing.path(outline).boundingRect
+        case let .group(children):
+            var u: CGRect?
+            for b in children.compactMap(\.bounds) { u = u.map { $0.union(b) } ?? b }
+            r = u
         case .equation, .numeral: r = nil
         }
         return r.map { transform == .identity ? $0 : $0.applying(transform) }

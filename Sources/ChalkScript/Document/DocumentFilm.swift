@@ -87,7 +87,28 @@ extension DocumentFilm {
         cameras = cams
         cameraMove = CameraMove(at: style.camera.at, duration: style.camera.duration, easingName: style.camera.easing,
             easing: style.easing(style.camera.easing))
-        painter = DocumentPainter(roles: roles, instances: instances, size: resolved.size, camera: resolved.camera)
+        // The members of each group, in draw order, which the group draws inside its own layer.
+        var groups: [Int: [Int]] = [:]
+        var groupOf: [DocumentInstance: DocumentInstance] = [:]
+        for (k, drawn) in instances.enumerated() {
+            guard case .group = drawn.shape else { continue }
+            do {
+                for m in try r.members(of: drawn.instance) {
+                    if let other = groupOf[m] {
+                        failures.append(EvalFailure(
+                            path: DocumentPath.join("/elements", drawn.instance.element, "members"),
+                            message: "\(m) is a member of both \(other) and \(drawn.instance); an instance is in at most one group"))
+                        continue
+                    }
+                    groupOf[m] = drawn.instance
+                    if let at = index[m] { groups[k, default: []].append(at) }
+                }
+                groups[k]?.sort()
+            } catch { failures.append(error) }
+        }
+        var painter = DocumentPainter(roles: roles, instances: instances, size: resolved.size, camera: resolved.camera)
+        painter.groups = groups
+        self.painter = painter
 
         var carried = [instances.map(\.start)]
         var stills: [[InstanceLook]] = []
@@ -217,6 +238,17 @@ extension DocumentFilm {
                 reference = bounds.origin
             }
             shape = .shape(outline, fill: fill, stroke: stroke)
+        case "group":
+            var box: CGRect?
+            for member in try r.members(of: inst) {
+                let b = try r.bounds(member)
+                box = box.map { $0.union(b) } ?? b
+            }
+            let members = box ?? .zero
+            // A group turns only if all its members have geometry that turns.
+            if el["turn"] != nil { try r.checkGroupTurns(inst, p + "/turn") }
+            shape = .group(members)
+            reference = CGPoint(x: members.midX, y: members.midY)
         default:
             shape = .piece(kind: kind, rect: bounds)
             reference = bounds.origin
@@ -305,6 +337,24 @@ extension DocumentFilm {
         return out
     }
 
+    /// The point an `appear` comes from (section 13.1): its `from` as a point, or the middle of the
+    /// bounds of the one instance it selects; nil without a `from`.
+    static func origin(of a: ResolvedAction, _ p: String, locals: [String: DocumentValue], _ r: Resolver) throws(EvalFailure) -> CGPoint? {
+        guard a.verb == "appear" else { return nil }
+        if r.doc.expressions[p + "/from"] != nil {
+            let s = try r.selection(p + "/from", locals: locals)
+            guard s.count == 1, let one = s.instances.first else {
+                throw EvalFailure(path: p + "/from", message: "from selects \(s.count) instances, not one")
+            }
+            let b = try r.bounds(one.whole)
+            return CGPoint(x: b.midX, y: b.midY)
+        }
+        if r.doc.expressions[p + "/from/0"] != nil {
+            return CGPoint(x: try r.number(p + "/from/0", locals: locals, what: "x"), y: try r.number(p + "/from/1", locals: locals, what: "y"))
+        }
+        return nil
+    }
+
     /// A step's tracks, built in the order its actions start, each reading the state it starts
     /// from (the position a `move` sets out from, the opacity a `fade` starts at).
     static func tracks(
@@ -347,7 +397,18 @@ extension DocumentFilm {
                 case "appear":
                     let rise = try r.number(p + "/rise", locals: l, default: 0, what: "rise")
                     let grow = r.doc.expressions[p + "/grow"] != nil ? try r.number(p + "/grow", locals: l, what: "grow") : nil
-                    effect = .appear(rise: rise, grow: grow, place: placement?[j], text: a.text?.shown)
+                    var entrance: Track.Entrance?
+                    if target.part == nil, let origin = try Self.origin(of: a, p, locals: l, r) {
+                        // The instance starts with its pivot, or the middle of its bounds, at the point, and
+                        // is carried to its place in a straight line as it grows.
+                        let inst = instances[at]
+                        let base = state(at: start)[at].position
+                        let moved = CGVector(dx: base.x - inst.reference.x, dy: base.y - inst.reference.y)
+                        let centre = inst.pivoted ? inst.pivot : CGPoint(x: inst.bounds.midX, y: inst.bounds.midY)
+                        entrance = Track.Entrance(
+                            base: base, offset: CGVector(dx: origin.x - (centre.x + moved.dx), dy: origin.y - (centre.y + moved.dy)))
+                    }
+                    effect = .appear(rise: rise, grow: grow, place: placement?[j], text: a.text?.shown, entrance: entrance)
                 case "fade":
                     let to = o["to"] == .string("ghost") ? Components.ghostOpacity : try r.number(p + "/to", locals: l, what: "to")
                     let now = state(at: start)[at]
