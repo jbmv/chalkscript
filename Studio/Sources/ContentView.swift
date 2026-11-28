@@ -268,51 +268,37 @@ struct OverrideNotices: View {
 
     var body: some View {
         ForEach(model.overrideNotices) { notice in
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    words(notice)
-                    Spacer(minLength: 0)
-                    button(notice)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "paintpalette").foregroundStyle(.secondary).frame(width: 16)
+                    Text(notice.title).font(.callout.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    Button(StudioModel.standardColourTitle) {
+                        refused = model.useStandardColour(for: notice.operation).first.map { "The colour was not changed. \($0.message)" }
+                    }
+                    .controlSize(.small)
+                    .help("Draw \(notice.meaning) in the colour every maths explainer uses. Edit > Undo brings the change back.")
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    words(notice)
-                    button(notice).padding(.leading, 24)
+                Group {
+                    Text(notice.reason).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    if let asked = notice.asked {
+                        Text("Asked: “\(asked)”").font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                    if let refused {
+                        Text(refused).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .padding(.leading, 24)
             }
+            // The text wraps and is never cut short, so it is measured at a width the pane always
+            // has: measured narrower, as a window's least size is, it would be many lines tall.
+            .frame(minWidth: 270, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .contain)
             Divider()
         }
         .onChange(of: model.playerSerial) { refused = nil }
-    }
-
-    private func words(_ notice: StudioModel.OverrideNotice) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "paintpalette").foregroundStyle(.secondary).frame(width: 16)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(notice.title).font(.callout.weight(.medium))
-                Text(notice.reason).font(.callout).foregroundStyle(.secondary)
-                if let asked = notice.asked {
-                    Text("Asked: “\(asked)”").font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                }
-                if let refused {
-                    Text(refused).font(.caption).foregroundStyle(.red)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(minWidth: 260, alignment: .leading)
-        }
-    }
-
-    private func button(_ notice: StudioModel.OverrideNotice) -> some View {
-        Button(StudioModel.standardColourTitle) {
-            refused = model.useStandardColour(for: notice.operation).first.map { "The colour was not changed. \($0.message)" }
-        }
-        .controlSize(.small)
-        .fixedSize()
-        .help("Draw \(notice.operation.rawValue) in the colour every maths explainer uses. Edit > Undo brings the change back.")
     }
 }
 

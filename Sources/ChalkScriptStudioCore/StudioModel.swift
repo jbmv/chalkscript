@@ -299,6 +299,8 @@ public final class StudioModel {
     /// What the window says of one operation whose colour the shown document changes (EXP-6).
     public struct OverrideNotice: Equatable, Identifiable, Sendable {
         public let operation: ExplainerOperation
+        /// What the operation's colour means, such as "taking away".
+        public let meaning: String
         /// That the document changes the colour, naming the operation by what it means.
         public let title: String
         /// Why an operation's colour is normally fixed.
@@ -319,7 +321,7 @@ public final class StudioModel {
             overrides[op].map {
                 let asked = $0.asked.trimmingCharacters(in: .whitespacesAndNewlines)
                 return OverrideNotice(
-                    operation: op, title: "This explainer changes the colour for \($0.meaning).",
+                    operation: op, meaning: $0.meaning, title: "This explainer changes the colour for \($0.meaning).",
                     reason: OperationOverride.reason, asked: asked.isEmpty ? nil : asked)
             }
         }
