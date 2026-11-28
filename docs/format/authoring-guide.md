@@ -340,7 +340,7 @@ Name the operation by what it means: taking away (`subtract`), trading or regrou
 }
 ```
 
-`asked` is required and holds the person's request, in their words. Give a value for each appearance the document is made for: the table's row for a colour named in words, or the person's own values. Every `check` and `edit` then returns an `override` warning for the operation, which is expected and stays; do not try to clear it. Report any `colour` warning on the new colour in plain words, as for a colour of the document's own, and offer the nearest colour that shows or a colour that stays apart; the person's choice stands. The studio's window shows a notice with a button, "Use the standard colour", which removes the override. To restore the colour yourself, remove the operation's entry, and `overrides` when it is left empty. In `open` nothing is fixed and an override is an error: use `colours`.
+`asked` is required and holds the person's request, in their words. Give a value for each appearance the document is made for: the table's row for a colour named in words, or the person's own values. Every `check` and `edit` then returns an `override` warning for the operation, which is expected and stays; do not try to clear it. Report any `colour` warning on the new colour in plain words, as for a colour of the document's own, and offer the nearest colour that shows or a colour that stays apart; the person's choice stands. The studio's window shows a notice with a button, "Use the Standard Colour", which removes the override. To restore the colour yourself, remove the operation's entry, and `overrides` when it is left empty. In `open` nothing is fixed and an override is an error: use `colours`.
 
 ### Appearances
 

@@ -180,6 +180,16 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
 - **A document that cannot be played.** In place of the player, the window lists the document's
   first errors under "Ask Claude to fix it; Claude sees the same errors.", since the agent's
   tools report the same findings.
+- **A changed operation colour.** A document of the maths profile may draw an operation in a
+  colour a person asked for in place of the standard one (EXP-6). While the shown document does,
+  a notice stands above the findings for each such operation: "This explainer changes the colour
+  for taking away.", then why the colour is normally fixed (operation colours are the same in
+  every maths explainer, are chosen from research on colour vision, and are checked so that
+  colour-blind viewers can tell them apart), and the request the document records. The notice
+  informs and prevents nothing: the document plays in the colour it gives. Its button, "Use the
+  Standard Colour", removes that operation's override through the same path as an agent's edit,
+  so the change is checked, saved at once and one step of Edit > Undo. The findings list the
+  same override as a warning, which the agent's tools also report.
 - **Findings.** Below the player are the document's findings: the reader's, and what refuses any
   sample in any wording when the document is played. Each shows its line in the file and its JSON
   Pointer; clicking one on a step plays that step.

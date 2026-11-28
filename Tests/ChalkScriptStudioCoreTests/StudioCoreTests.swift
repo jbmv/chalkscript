@@ -1196,3 +1196,93 @@ struct GuideRecipeTests {
         #expect(alike[0] == alike[1] && alike[0].size == CGSize(width: 60, height: 70))
     }
 }
+
+/// The notice for an operation whose colour a document changes (EXP-6), and the control that
+/// restores the standard colour.
+@MainActor
+struct OverrideNoticeTests {
+    static let purple = ##"{"light": "#995DE1", "dark": "#C67EFF", "asked": "Make taking away purple."}"##
+
+    /// A model showing the subtraction example with `style` as given, and an undo manager.
+    private func model(_ project: TemporaryProject, style: String) throws -> (StudioModel, UndoManager) {
+        var json = try DocJSON.parse(String(contentsOf: project.url("subtraction"), encoding: .utf8))
+        var root = try #require(json.object)
+        root["style"] = try DocJSON.parse(style)
+        json = .object(root)
+        try Data(DocumentText.format(json).utf8).write(to: project.url("subtraction"))
+        let model = try openModel(project)
+        model.select("subtraction")
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        model.undoManager = undo
+        return (model, undo)
+    }
+
+    private func saved(_ model: StudioModel) throws -> ExplainerDocument {
+        try #require(ExplainerDocument.read(contentsOf: model.document(named: "subtraction")!.url).document)
+    }
+
+    @Test func aDocumentWithoutAnOverrideHasNoNotice() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.select("subtraction")
+        #expect(model.overrideNotices.isEmpty)
+        #expect(model.useStandardColour(for: .subtract).isEmpty)
+        #expect(try saved(model).json["style"] == nil)
+    }
+
+    @Test func theNoticeNamesTheOperationAndWhyItsColourIsFixedAndTheRequest() throws {
+        let project = try TemporaryProject()
+        let (model, _) = try model(project, style: #"{"overrides": {"subtract": \#(Self.purple)}}"#)
+        #expect(model.player != nil, "the notice does not stop the document playing: \(model.refusal)")
+        let notice = try #require(model.overrideNotices.first)
+        #expect(model.overrideNotices.count == 1 && notice.operation == .subtract)
+        #expect(notice.title == "This explainer changes the colour for taking away.")
+        #expect(notice.reason.contains("the same in every maths explainer") && notice.reason.contains("research") && notice.reason.contains("colour-blind"))
+        #expect(notice.asked == "Make taking away purple.")
+        // The agent's tools report the same override, as a warning.
+        let check = try #require(model.respond(to: Studio.Method.check, params: try params(#"{"doc":"subtraction"}"#), client: nil).result)
+        #expect("\(check)".contains("override") && "\(check)".contains("taking away"))
+    }
+
+    @Test func theButtonRemovesTheOverrideAsOneStepOfUndo() throws {
+        let project = try TemporaryProject()
+        let (model, undo) = try model(project, style: #"{"overrides": {"subtract": \#(Self.purple)}}"#)
+        let before = try saved(model)
+        #expect(model.player?.scene.operationColours[.subtract] != nil)
+
+        #expect(model.useStandardColour(for: .subtract).isEmpty)
+        var doc = try saved(model)
+        // The override was all the style held, so the style goes with it.
+        #expect(doc.json["style"] == nil && doc.overrides.isEmpty)
+        #expect(model.overrideNotices.isEmpty)
+        #expect(model.selected?.findings.contains { $0.code == .override } == false)
+        #expect(model.player?.scene.operationColours.isEmpty == true)
+        #expect(undo.undoActionName == StudioModel.standardColourTitle)
+
+        undo.undo()
+        doc = try saved(model)
+        #expect(doc.shortHash == before.shortHash && !undo.canUndo)
+        #expect(model.overrideNotices.map(\.operation) == [.subtract])
+        #expect(model.player?.scene.operationColours[.subtract] != nil)
+    }
+
+    @Test func removingOneOverrideLeavesTheOthersAndTheRestOfTheStyle() throws {
+        let project = try TemporaryProject()
+        let trade = ##"{"light": "#1B8A8A", "dark": "#4EBABA", "asked": "Teal for trading."}"##
+        let (model, _) = try model(project, style: #"{"overrides": {"trade": \#(trade), "subtract": \#(Self.purple)}, "motion": {"durations": {"appear": 0.4}}}"#)
+        // In the operations' order, whatever the document's.
+        #expect(model.overrideNotices.map(\.operation) == [.subtract, .trade])
+        #expect(model.overrideNotices.last?.title == "This explainer changes the colour for trading or regrouping.")
+
+        #expect(model.useStandardColour(for: .subtract).isEmpty)
+        var doc = try saved(model)
+        #expect(doc.json["style"]?["overrides"]?.object?.keys == ["trade"])
+        #expect(model.overrideNotices.map(\.operation) == [.trade])
+
+        #expect(model.useStandardColour(for: .trade).isEmpty)
+        doc = try saved(model)
+        #expect(doc.json["style"]?.object?.keys == ["motion"])
+        #expect(model.overrideNotices.isEmpty)
+    }
+}

@@ -294,6 +294,51 @@ public final class StudioModel {
         return []
     }
 
+    // MARK: an operation's colour changed
+
+    /// What the window says of one operation whose colour the shown document changes (EXP-6).
+    public struct OverrideNotice: Equatable, Identifiable, Sendable {
+        public let operation: ExplainerOperation
+        /// That the document changes the colour, naming the operation by what it means.
+        public let title: String
+        /// Why an operation's colour is normally fixed.
+        public let reason: String
+        /// The request the document records, or nil when it records none.
+        public let asked: String?
+        public var id: String { operation.rawValue }
+    }
+
+    /// The label of the control that removes an override, and the name of its step of Undo.
+    public static let standardColourTitle = "Use the Standard Colour"
+
+    /// A notice for each operation whose colour the shown document changes, in the operations'
+    /// order. The notices inform: nothing waits on them.
+    public var overrideNotices: [OverrideNotice] {
+        guard let overrides = selected?.document?.overrides, !overrides.isEmpty else { return [] }
+        return ExplainerOperation.allCases.compactMap { op in
+            overrides[op].map {
+                let asked = $0.asked.trimmingCharacters(in: .whitespacesAndNewlines)
+                return OverrideNotice(
+                    operation: op, title: "This explainer changes the colour for \($0.meaning).",
+                    reason: OperationOverride.reason, asked: asked.isEmpty ? nil : asked)
+            }
+        }
+    }
+
+    /// Removes the shown document's override of `operation`, so that it is drawn in the standard
+    /// colour again, as one patch through the patch engine: checked, saved and one step of Undo.
+    /// An `overrides` left empty is removed with it, and a `style` left empty after that. Returns
+    /// why the patch was refused, or nothing.
+    @discardableResult
+    public func useStandardColour(for operation: ExplainerOperation) -> [DocumentFinding] {
+        guard let shown = selected, let doc = shown.document,
+            let style = doc.json["style"]?.object, let overrides = style["overrides"]?.object, overrides[operation.rawValue] != nil
+        else { return [] }
+        let path = overrides.keys.count > 1 ? "/style/overrides/\(operation.rawValue)" : style.keys.count > 1 ? "/style/overrides" : "/style"
+        let op = DocJSON.object(DocObject([("op", .string("remove")), ("path", .string(path))]))
+        return apply([op], to: shown.name, base: doc.shortHash, actionName: Self.standardColourTitle)
+    }
+
     private func apply(_ ops: [DocJSON], to name: String, base: String, actionName: String) -> [DocumentFinding] {
         do {
             let result = try patch(name, base: base, ops: ops, actionName: actionName)
