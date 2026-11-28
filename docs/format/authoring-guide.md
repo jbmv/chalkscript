@@ -26,7 +26,7 @@ redraws as soon as an edit is saved, so an image is rarely needed.
   each sample, so an edit can be accepted and still report an error for some sample.
 - `create {title, name?, from?}`: makes a new document in the project and shows it in the window
   (topic `new`). The result gives the document, so it need not be read.
-- `show {doc, step?, problem?, ratio?, appearance?, image?}`: plays a step in the window and
+- `show {doc, step?, problem?, ratio?, appearance?, at?, image?}`: plays a step in the window and
   returns the step's timeline (below). `problem` is an object of parameter values, such as
   `{"a": 54, "b": 26}`; without it the window's current problem is played. Ask for `image` only
   when the person cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
@@ -34,6 +34,8 @@ redraws as soon as an edit is saved, so an image is rarely needed.
   `appearance` is `light` or `dark`; without it, the appearance the window is previewing. A
   document that is not made for the appearance asked for is drawn in the one it is made for, and
   the result says so.
+  `at` is a moment of the step in the timeline's seconds; with `image`, the picture is of that
+  moment and not of the step's end.
 - `guide {topic?}`: this guide.
 
 The timeline is the text that comes after `show`'s first line, for the step and problem shown. Its
@@ -46,6 +48,12 @@ indented row for each iteration, and consecutive iterations that do nothing are 
 so. The times use the studio's stand-in voice, so the end of a line is an estimate. Read it
 instead of asking for an `image` when the question is when something happens, how long a step
 lasts, or whether anything is left at its end.
+
+When the question is how something looks part-way through a step, such as where a number is
+while it grows, take a moment from the timeline and ask for one picture at it: `show` with
+`image` and `at`. A moment while the clock is held for the voice shows the picture as it stands
+before the wait, and a moment past the step's length is refused with the length. One picture at a
+chosen moment answers more than several taken blind.
 
 An `at`, a `dur`, `hold` or `duration` in a document is on the step's own clock, which stops
 while the clock is held for the voice. The timeline's times are the played ones, so a second read

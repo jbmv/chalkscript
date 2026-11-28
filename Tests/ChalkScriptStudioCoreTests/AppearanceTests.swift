@@ -99,6 +99,15 @@ struct Pixels {
     }
 
     func has(_ colour: RGB) -> Bool { count(colour) > 0 }
+
+    /// How many pixels differ from `other`'s by more than 2 in a channel, which is more than one
+    /// drawing of a picture differs from another of the same; every pixel when the sizes differ.
+    func differing(from other: Pixels) -> Int {
+        guard width == other.width, height == other.height else { return width * height }
+        var n = 0
+        for i in stride(from: 0, to: bytes.count, by: 4) where (0..<4).contains(where: { abs(Int(bytes[i + $0]) - Int(other.bytes[i + $0])) > 2 }) { n += 1 }
+        return n
+    }
 }
 
 /// A document is drawn in the studio only in an appearance it is made for, with its own colours

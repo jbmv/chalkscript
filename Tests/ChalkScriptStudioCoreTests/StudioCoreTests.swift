@@ -966,3 +966,88 @@ struct StepTimelineTests {
         #expect(steps > 40)
     }
 }
+
+/// The picture `step.show` returns at a moment of a step, in the seconds of its timeline.
+@MainActor
+struct StepMomentTests {
+    private let clock = repository.appendingPathComponent("Tests/ChalkScriptStudioCoreTests/Fixtures/clock-hour-minute.explainer")
+
+    private func show(_ model: StudioModel, _ text: String) -> StudioReply {
+        model.respond(to: Studio.Method.show, params: try! params(text), client: nil)
+    }
+
+    private func picture(_ model: StudioModel, _ text: String) throws -> Pixels {
+        let r = try #require(show(model, text).result)
+        return try #require(r["image"]?["data"]?.string.flatMap { Data(base64Encoded: $0) }.flatMap(Pixels.init(png:)))
+    }
+
+    @Test func atTheStartAStepWithOneAppearShowsNothingOfItsTargetAndAtItsLengthItsStill() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        model.previewAppearance = .light
+        try model.createDocument(title: "Starter")
+        let doc = try #require(model.document(named: "starter")?.document)
+        let e = try DocumentExplainer(document: doc, problem: [:])
+        let length = StepTimeline.make(e, step: 0).length
+        #expect(e.resolved.steps[0].actions.map(\.verb) == ["appear"])
+
+        // The scene: the note is not there at 0, is part shown on the way, and is whole at the end.
+        func note(at moment: Double) -> Double? {
+            let scene = StepPicture.scene(ShapedExplainer(e, ratio: 1.1), area: CGSize(width: 480, height: 436), step: 0, atPlayed: moment)
+            return scene.elements.first { $0.id == "note" }?.opacity
+        }
+        #expect(note(at: 0) == 0)
+        let part = try #require(note(at: 0.1))
+        #expect(part > 0 && part < 1)
+        #expect(note(at: length) == 1)
+
+        // The picture, at the document's own shape: the sheet alone at 0, and the step's still at
+        // its length.
+        let asked = #""doc":"starter","image":true,"ratio":1.1"#
+        let still = try picture(model, "{\(asked)}")
+        let start = try picture(model, "{\(asked),\"at\":0}")
+        let sheet = ExplainerStyle.standard.palette(dark: false).sheet
+        #expect(start.count(sheet) == start.width * start.height)
+        #expect(still.count(sheet) < still.width * still.height)
+        #expect(try picture(model, "{\(asked),\"at\":\(length)}").differing(from: still) == 0)
+        // The timeline writes the length to a tenth, and that is the end too.
+        let tenth = (length * 10).rounded() / 10
+        #expect(try picture(model, "{\(asked),\"at\":\(tenth)}").differing(from: still) == 0)
+        let r = try #require(show(model, "{\(asked),\"at\":0.1}").result)
+        #expect(r["at"] == .number("0.1"))
+        #expect(show(model, "{\(asked)}").result?["at"] == nil)
+    }
+
+    @Test func aMomentInsideAHoldShowsThePictureBeforeTheWait() throws {
+        let project = try TemporaryProject(examples: [clock])
+        let model = try openModel(project)
+        // The step's line is said from 0 to 6.3 with the clock held, and the minute hand sweeps after.
+        func at(_ moment: String) throws -> Pixels {
+            try picture(model, #"{"doc":"clock-hour-minute","step":"minutes","problem":{"hour":7,"minute":25},"image":true,"at":\#(moment)}"#)
+        }
+        let before = try at("0")
+        #expect(try at("3").differing(from: before) == 0)
+        #expect(try at("6.2").differing(from: before) == 0)
+        let swept = try at("10")
+        #expect(swept.differing(from: before) > 100)
+        #expect(try at("12").differing(from: swept) > 100)
+    }
+
+    @Test func aMomentPastTheStepsLengthIsRefusedWithTheLength() throws {
+        let project = try TemporaryProject(examples: [clock])
+        let model = try openModel(project)
+        let circle = #""doc":"clock-hour-minute","step":"circle","problem":{"hour":7,"minute":25},"image":true"#
+        let past = show(model, "{\(circle),\"at\":3.5}")
+        #expect(past.errorCode == Studio.ErrorCode.failed)
+        #expect(past.errorMessage == "at 3.5 is past the end of the step circle, which lasts 3 s as played; "
+                + "at is in the seconds of the step's timeline, from 0 to 3.")
+        #expect(show(model, "{\(circle),\"at\":3}").result?["image"] != nil)
+        for bad in ["-1", #""2""#, "true"] {
+            let reply = show(model, "{\(circle),\"at\":\(bad)}")
+            #expect(reply.errorCode == Studio.RPCError.invalidParams, "\(bad)")
+            #expect(reply.errorMessage == "at must be a number of seconds from the step's start, 0 or more.")
+        }
+        // Without a picture, a moment is still checked against the step's length.
+        #expect(show(model, #"{"doc":"clock-hour-minute","step":"circle","at":99}"#).errorCode == Studio.ErrorCode.failed)
+    }
+}

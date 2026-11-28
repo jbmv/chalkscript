@@ -264,7 +264,8 @@ document if it is not already shown, and answers once the step has started, not 
 | `problem` | no | The values of the document's `params`; without it, the studio's current problem for the document, or its first sample. |
 | `ratio` | no | A number greater than 0: the width over the height of the drawing area the picture is laid out for. Without it, the shape the window is showing. It changes only the picture, not the window. |
 | `appearance` | no | `light` or `dark`: the appearance the picture is asked for in. Without it, the appearance the window is previewing. It changes only the picture, not the window. |
-| `image` | no | `true` to return a picture of the step's still (the format reference, section 18). |
+| `at` | no | A number of 0 or more: a moment of the step, in the seconds of its timeline, as played. With `image`, the picture is of that moment and not of the step's end. It changes only the picture: the window plays the step from its start. |
+| `image` | no | `true` to return a picture of the step's still (the format reference, section 18), or, with `at`, of the step at that moment. |
 
 | Result | Required | Holds |
 |---|---|---|
@@ -275,7 +276,16 @@ document if it is not already shown, and answers once the step has started, not 
 | `ratio`, `layout` | no | Present with `image`: the ratio of the area the picture is of, to two decimals, and the layout drawn there. |
 | `drawn` | no | Present with `image` only when the document declares shapes and not `ratio`: the ratio of the shape the document is drawn at inside the area, to two decimals. |
 | `appearance` | no | Present with `image`: the appearance the picture is drawn in. |
+| `at` | no | Present with `image` when `at` was given: the moment asked for. |
 | `notMadeFor` | no | Present with `image` only when the document is not made for the appearance asked for: that appearance. The picture is then drawn as a player draws the document, in the appearance it is made for (the format reference, section 16.6). |
+
+A picture at a moment is the picture the window shows that many seconds after the step starts,
+with the studio's stand-in voice: the studio plays the step on a player of its own, without
+showing it, and moves that player's clock to the moment. While the clock is held for the voice
+(the format reference, section 12.6) the picture does not change, so a moment inside a hold gives
+the picture just before the wait. A moment at the step's length, or within the tenth of a second
+to which the timeline writes it, gives the step's still. A moment past that is error `6`, whose
+message gives the step's length; the step is shown in the window all the same.
 
 The timeline is the step as the window plays it for the problem shown, on the clock of the studio's
 stand-in voice, which says nothing and finishes each line after the time `ReadingTime` estimates
@@ -413,7 +423,7 @@ agent receives.
 | `read` | `document.read` | `hash <hash>`, then the value as compact JSON on one line. |
 | `edit` | `document.patch` | `applied; hash <hash>; <counts>`, or a tool error: `refused; hash <hash>` and one line per finding. |
 | `check` | `document.check` | `hash <hash>; <counts>`, then one line per finding, at most 40, and how many more there are. |
-| `show` | `step.show` | `showing <step> (<index> of <count>)`; with a picture, its ratio, layout and appearance, and the appearance asked for when the document is not made for it; then the step's timeline on the following lines when the result has one, and the picture when one was asked for. |
+| `show` | `step.show` | `showing <step> (<index> of <count>)`; with a picture, its moment when one was asked for, its ratio, layout and appearance, and the appearance asked for when the document is not made for it; then the step's timeline on the following lines when the result has one, and the picture when one was asked for. |
 | `create` | `document.create` | `created <doc>; hash <hash>; <counts>`, then the new document as compact JSON on one line. |
 | `guide` | `guide.read` | The text. |
 
