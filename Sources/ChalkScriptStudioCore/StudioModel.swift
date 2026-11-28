@@ -721,6 +721,18 @@ public final class StudioModel {
         player.show(step: k)
     }
 
+    // MARK: export
+
+    /// What a video of the shown document is made from: the document as the window plays it, with
+    /// its problem, wording and language, and the appearance the window previews. Nil when the
+    /// document cannot be played.
+    public var videoExportSource: VideoExportSource? {
+        guard player != nil, let shown = selected, let doc = shown.document else { return nil }
+        return VideoExportSource(
+            title: shown.title ?? shown.name, document: doc, problem: problem(for: shown.name), wording: effectiveWording,
+            locale: effectiveLocale, appearance: previewAppearance)
+    }
+
     // MARK: the socket
 
     /// Starts answering the helper on the socket at `path`. Fails when another studio is

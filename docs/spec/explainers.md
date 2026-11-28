@@ -321,7 +321,27 @@ An explainer is a vector drawing, rendered and animated on the device from the t
 - An explainer plays with no network.
 - One template renders every version, on iOS and macOS.
 
-Export of an explainer to a video file is not built.
+An explainer can be recorded to a video file in the studio (EXP-21). The recording is of one problem.
+
+## EXP-21. The studio exports an explainer's watched steps to a video
+
+status: draft
+governs: Sources/ChalkScriptStudioCore/VideoExport.swift
+
+The studio writes an mp4 of a document's watched steps for one problem, played straight through: the intro, then each step as the player plays it, with a chosen pause between steps and none by default, then the last picture held. The drawing is laid out at a shape the document is made for (EXP-17) and drawn in an appearance it is made for (EXP-20), inside a frame of a video shape, 16:9, 4:3 or one entered, with a margin and the sheet colour round it. The lines are shown in the picture, as subtitles the viewer turns on, both or neither. The video has no narration.
+
+**Why:** a person can then send an explainer to someone who has no player, such as a teacher. A video is a recording of one problem (EXP-12), so it is made for the problem chosen when it is exported.
+
+**Acceptance:**
+- Each step lasts in the video what it lasts in the studio's window with the stand-in voice, within a frame.
+- The drawing is never cropped and never touches the frame's edge.
+- Each line shown is shown from the moment the player shows it, in the picture and in the subtitles.
+- A video's shorter side is 1080 pixels, and a shape wider than 3 to 1 or taller than 1 to 3 is refused with a sentence that says so.
+- A pause lengthens the video by its length for each change of step, and nothing follows the last step but its hold.
+- The export uses no network, and no voice that is not fit to send to others.
+- A cancelled export leaves no file.
+
+*In the package:* `VideoExport` in `ChalkScriptStudioCore` writes H.264 at 30 frames a second, with no audio track. It plays the document with a player of its own and the stand-in voice, holds the intro for its line's estimated time and at least 2 seconds, and holds the last picture for 2 seconds. `VideoExportSettings` holds the choices and `VideoExportPlan` what they give: the frame, the drawing's shape, which starts at the one nearest the frame's among those the document is made for, the appearance, which starts at the one the studio's window shows, and the length. The subtitles are a track of 3GPP timed text inside the mp4, in the language the document is played in, off until the viewer turns it on; it does not carry the colour of a line's emphasis. Narration, a video of every sample at once, and a subtitle file beside the video are not built. An agent has no tool for export.
 
 ## EXP-19. An explainer is a document in one documented format
 

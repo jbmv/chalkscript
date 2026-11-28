@@ -12,6 +12,7 @@ struct StudioApp: App {
     var body: some Scene {
         Window("ChalkScript Studio", id: "main") {
             ContentView(model: delegate.model, delegate: delegate)
+                .exportVideoSheet(delegate.exportVideo)
         }
         // Half the width of a 13-inch display, and most of its height.
         .defaultSize(width: 720, height: 860)
@@ -30,6 +31,7 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
 
     let model: StudioModel
     let newDocument = NewDocumentRequest()
+    let exportVideo = VideoExportRun()
 
     override init() {
         let guide = Bundle.main.url(forResource: "authoring-guide", withExtension: "md")
@@ -79,11 +81,22 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
     /// object, `return`, `escape`, or text to type, in the sheet over the window if there is one.
     static let newExplainerRequest = Notification.Name("org.chalkscript.studio.newExplainer")
     static let keysRequest = Notification.Name("org.chalkscript.studio.keys")
+    /// A third notification does what File > Export Video does. With a file's path as its
+    /// object, it also makes the video there, with the choices the sheet opens with and without
+    /// asking where to save it.
+    static let exportVideoRequest = Notification.Name("org.chalkscript.studio.exportVideo")
 
     private func observeKeyRequests() {
         let center = DistributedNotificationCenter.default()
         center.addObserver(forName: Self.newExplainerRequest, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.newDocument.isShown = true }
+        }
+        center.addObserver(forName: Self.exportVideoRequest, object: nil, queue: .main) { [weak self] note in
+            let path = note.object as? String
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.exportVideo.begin(self.model, destination: path.map { URL(fileURLWithPath: $0) })
+            }
         }
         center.addObserver(forName: Self.keysRequest, object: nil, queue: .main) { note in
             guard let keys = note.object as? String else { return }
@@ -178,6 +191,11 @@ struct StudioCommands: Commands {
                 if let folder = model.folder { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
             }
             .disabled(model.folder == nil)
+        }
+        CommandGroup(replacing: .importExport) {
+            Button("Export Video…") { delegate.exportVideo.begin(model) }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(model.videoExportSource == nil || delegate.exportVideo.isShown)
         }
     }
 }
