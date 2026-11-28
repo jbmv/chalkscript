@@ -184,6 +184,117 @@ public enum Shapes {
     }
 }
 
+extension Appearance {
+    /// "Light" or "Dark", as the studio writes it.
+    public var title: String { self == .dark ? "Dark" : "Light" }
+
+    /// The appearances in the order a document lists them.
+    static let ordered: [Appearance] = [.light, .dark]
+
+    var other: Appearance { self == .dark ? .light : .dark }
+}
+
+/// The appearances a document is made for, as a person ticks them (EXP-20): the patch a tick
+/// writes, and the value written for a colour that has none in an appearance being ticked.
+///
+/// Only the studio derives a value, and only at that moment: the value is written to the
+/// document, where it is checked and seen like any other, and no player derives one.
+public enum AppearanceTicks {
+    /// The CIELAB lightness a derived value starts from, in each appearance.
+    static let lightness = (light: 52.0, dark: 72.0)
+
+    /// A value for `appearance` made from `given`, a colour's value in the other: the colour's
+    /// hue and chroma at the appearance's own lightness, and then the nearest colour that keeps
+    /// the least contrast with the sheet and on its own soft form and stays the least distance
+    /// from `text`, `pencil` and `line` in every condition of colour vision. Nearness counts a
+    /// change of hue and a loss of chroma twice, as the reader's nearest colour does, and the
+    /// search is over the sRGB cube in steps of 3. Nil when no colour passes.
+    public static func derived(from given: RGB, for appearance: Appearance, style: ExplainerStyle = .standard) -> RGB? {
+        let dark = appearance.isDark
+        let palette = style.palette(dark: dark)
+        let refs = [palette.ink, palette.pencil, palette.line]
+        let from = ColourVision.normal.lab(given)
+        let seed = (l: dark ? lightness.dark : lightness.light, a: from.a, b: from.b)
+        let seedChroma = (seed.a * seed.a + seed.b * seed.b).squareRoot()
+        var best: (cost: Double, colour: RGB)?
+        for r in stride(from: 0, through: 255, by: 3) {
+            for g in stride(from: 0, through: 255, by: 3) {
+                for b in stride(from: 0, through: 255, by: 3) {
+                    let c = RGB(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+                    let l = ColourVision.normal.lab(c)
+                    let chroma = (l.a * l.a + l.b * l.b).squareRoot()
+                    var dc = chroma - seedChroma
+                    if dc < 0 { dc *= 2 }
+                    let dab2 = (l.a - seed.a) * (l.a - seed.a) + (l.b - seed.b) * (l.b - seed.b)
+                    let dh2 = max(dab2 - dc * dc, 0)
+                    let dl = l.l - seed.l
+                    let cost = (dl * dl + dc * dc + 4 * dh2).squareRoot()
+                    if let best, cost >= best.cost { continue }
+                    let k = ColourChecks.contrasts(c, sheet: palette.sheet, dark: dark)
+                    guard k.sheet >= ColourChecks.minimumContrast, k.soft >= ColourChecks.minimumContrast else { continue }
+                    guard refs.allSatisfy({ ColourVision.worst(c, $0).distance >= ColourChecks.minimumDistance }) else { continue }
+                    best = (cost, c)
+                }
+            }
+        }
+        return best?.colour
+    }
+
+    /// What a tick writes.
+    struct Change {
+        var ops: [DocJSON]
+        /// The colours given a derived value, by the appearance it is for, in the document's order.
+        var added: [(appearance: Appearance, colours: [String])]
+    }
+
+    /// The patch that makes the document made for exactly `appearances`, or nil when it already
+    /// is or when none is given, since a document is made for at least one. It writes
+    /// `appearances`, and, for an appearance the document was not made for, a derived value for
+    /// each colour of the document's own that has none there. A value for an appearance no longer
+    /// declared is left in place.
+    static func change(_ doc: ExplainerDocument, madeFor appearances: Set<Appearance>) -> Change? {
+        let now = doc.appearances
+        guard !appearances.isEmpty, appearances != now else { return nil }
+        let names = DocJSON.array(Appearance.ordered.filter(appearances.contains).map { .string($0.rawValue) })
+        var ops = [op(doc.json["appearances"] == nil ? "add" : "replace", "/appearances", names)]
+        var added: [(appearance: Appearance, colours: [String])] = []
+        for appearance in Appearance.ordered where appearances.contains(appearance) && !now.contains(appearance) {
+            var colours: [String] = []
+            for (name, colour) in doc.json["colours"]?.object?.entries ?? [] {
+                guard colour["suggested"] == nil, colour[appearance.rawValue] == nil,
+                      let given = colour[appearance.other.rawValue]?.string.flatMap(RGB.init(hexString:)),
+                      let value = derived(from: given, for: appearance) else { continue }
+                let key = name.replacingOccurrences(of: "~", with: "~0").replacingOccurrences(of: "/", with: "~1")
+                ops.append(op("add", "/colours/\(key)/\(appearance.rawValue)", .string(value.hex)))
+                colours.append(name)
+            }
+            if !colours.isEmpty { added.append((appearance, colours)) }
+        }
+        return Change(ops: ops, added: added)
+    }
+
+    /// `json` with `appearances` just before `areas`, where the two declarations of what a
+    /// document is made for are read together; unchanged when it has no `areas`.
+    static func placed(_ json: DocJSON) -> DocJSON {
+        guard case let .object(o) = json, let value = o["appearances"], o["areas"] != nil else { return json }
+        var pairs: [(String, DocJSON)] = []
+        for (key, v) in o.entries where key != "appearances" {
+            if key == "areas" { pairs.append(("appearances", value)) }
+            pairs.append((key, v))
+        }
+        return .object(DocObject(pairs))
+    }
+
+    private static func op(_ name: String, _ path: String, _ value: DocJSON) -> DocJSON {
+        .object(DocObject([("op", .string(name)), ("path", .string(path)), ("value", value)]))
+    }
+
+    /// "hour", "hour and minute", "hour, minute and second".
+    static func list(_ names: [String]) -> String {
+        names.count < 2 ? names.joined() : names.dropLast().joined(separator: ", ") + " and " + names[names.count - 1]
+    }
+}
+
 /// A document's explainer as the window shows it (EXP-17): laid out for the largest area of the
 /// previewed ratio inside the space the pane gives, or for that space itself, and in either case
 /// as a conforming player lays it out, for the nearest shape the document is made for when the
@@ -216,6 +327,8 @@ struct ShapedExplainer: Explainer {
     var stepCount: Int { shown.stepCount }
     var intro: Line { shown.intro }
     var areaUse: AreaUse? { use }
+    /// The document's own, so that the player draws it only in an appearance it is made for (EXP-20).
+    var appearances: Set<Appearance> { made.appearances }
     func script(for step: Int) -> StepScript { shown.script(for: step) }
     func scene(step: Int, at t: Double) -> Scene { framed(shown.scene(step: step, at: t)) }
     func still(after step: Int) -> Scene { framed(shown.still(after: step)) }

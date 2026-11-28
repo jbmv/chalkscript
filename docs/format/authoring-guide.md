@@ -26,11 +26,16 @@ redraws as soon as an edit is saved, so an image is rarely needed.
   each sample, so an edit can be accepted and still report an error for some sample.
 - `create {title, name?, from?}`: makes a new document in the project and shows it in the window
   (topic `new`). The result gives the document, so it need not be read.
-- `show {doc, step?, problem?, ratio?, image?}`: plays a step in the window and returns the
-  step's timeline (below). `problem` is an object of parameter values, such as
+- `show {doc, step?, problem?, ratio?, appearance?, at?, image?}`: plays a step in the window and
+  returns the step's timeline (below). `problem` is an object of parameter values, such as
   `{"a": 54, "b": 26}`; without it the window's current problem is played. Ask for `image` only
   when the person cannot see the window. `ratio`, the drawing area's width over its height, is the shape the
   picture is laid out for, with a longer side of 480 points; without it, the window's shape.
+  `appearance` is `light` or `dark`; without it, the appearance the window is previewing. A
+  document that is not made for the appearance asked for is drawn in the one it is made for, and
+  the result says so.
+  `at` is a moment of the step in the timeline's seconds; with `image`, the picture is of that
+  moment and not of the step's end.
 - `guide {topic?}`: this guide.
 
 The timeline is the text that comes after `show`'s first line, for the step and problem shown. Its
@@ -43,6 +48,12 @@ indented row for each iteration, and consecutive iterations that do nothing are 
 so. The times use the studio's stand-in voice, so the end of a line is an estimate. Read it
 instead of asking for an `image` when the question is when something happens, how long a step
 lasts, or whether anything is left at its end.
+
+When the question is how something looks part-way through a step, such as where a number is
+while it grows, take a moment from the timeline and ask for one picture at it: `show` with
+`image` and `at`. A moment while the clock is held for the voice shows the picture as it stands
+before the wait, and a moment past the step's length is refused with the length. One picture at a
+chosen moment answers more than several taken blind.
 
 An `at`, a `dur`, `hold` or `duration` in a document is on the step's own clock, which stops
 while the clock is held for the voice. The timeline's times are the played ones, so a second read
@@ -68,7 +79,7 @@ hash changes. A stale base means someone else edited; read again before retrying
 after it starts from a document that plays. It holds `params` of `{}` with one sample `{}`, one
 `text` element `note`, one step `start` with its line, the wording `placeholder` (shown) and
 `start` (said) in `en-US`, and one layout, `stage`, of 880 by 800, declared in `areas` for the
-Square range, 0.9 to 1.35. The studio names the file and the document's `id` from the title
+Square range, 0.9 to 1.35. It declares both appearances (topic `colour`). The studio names the file and the document's `id` from the title
 ("Reading the clock" is `reading-the-clock`, and `-2` is added when that is taken), shows it in
 the window and returns it. With `from` the document is a copy of that one, with its own `id`
 and `title`; use it when the person wants to start from an example. `name` sets the name when
@@ -300,7 +311,7 @@ Colours that keep 3:1 contrast with each sheet and with their own tint, and are 
 - Values the person gives: use them, and report each `colour` warning in plain words. When a colour is hard to see, say on which background and offer the nearest value that shows, which the warning names. A person's choice stands.
 - The person wants different colours and names none: offer orange and purple, and say that they stay apart for colour-blind viewers and on both backgrounds.
 
-A document is made for both appearances, light and dark, unless `appearances` says otherwise. Keep both unless the person says that the explainer is only for one, or has chosen colours by looking at one and does not want to tune the other; then write `"appearances": ["dark"]` (or `["light"]`) and give each colour only that value. A value given for the other appearance is kept and not checked. Do not drop an appearance to silence a warning: offer the nearest colour first, and drop the appearance only if the person prefers. Tell a person who asks that a player whose screen is in the other appearance still draws the explainer in the one it is made for, with its caption and controls.
+A document is made for both appearances, light and dark, unless `appearances` says otherwise. Keep both unless the person says that the explainer is only for one, or has chosen colours by looking at one and does not want to tune the other; then write `"appearances": ["dark"]` (or `["light"]`) and give each colour only that value. A value given for the other appearance is kept and not checked. Do not drop an appearance to silence a warning: offer the nearest colour first, and drop the appearance only if the person prefers. Tell a person who asks that a player whose screen is in the other appearance still draws the explainer in the one it is made for, with its caption and controls. Look at a colour in each appearance the document is made for with `show`, `image` and `appearance`. The person can also tick Light or Dark in the studio; ticking one writes a value for each colour that has none there, which `check` then measures like any other.
 
 ## steps: steps, actions, timing and the verbs
 

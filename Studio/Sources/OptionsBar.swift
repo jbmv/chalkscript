@@ -6,7 +6,8 @@ import SwiftUI
 /// parameters, the wording, language and playback, and whether lines are spoken; then, grouped
 /// apart as view-only, the area the drawing is previewed at, the appearance it is previewed in and
 /// the arrangement an app might give the screen; and, set apart from both, the ticks for the
-/// shapes the explainer is made for, which change the document (EXP-17).
+/// shapes and the appearances the explainer is made for, which change the document (EXP-17,
+/// EXP-20).
 struct OptionsBar: View {
     let model: StudioModel
     let document: StudioDocument
@@ -57,8 +58,8 @@ struct OptionsBar: View {
                 Spacer(minLength: 0)
             }
             // One row where the window is wide enough; otherwise the ticks take a row of their
-            // own, and in a narrower window the view-only group takes two rows and then three, so
-            // that nothing is squeezed or wrapped.
+            // own, and in a narrower window the view-only group takes two rows and then three,
+            // and at last the ticks take two, so that nothing is squeezed or wrapped.
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 10) {
                     viewOnly(rows: 1)
@@ -76,6 +77,10 @@ struct OptionsBar: View {
                 VStack(alignment: .leading, spacing: 8) {
                     viewOnly(rows: 3)
                     madeFor(alignment: .leading)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    viewOnly(rows: 3)
+                    madeFor(alignment: .leading, rows: 2)
                 }
             }
         }
@@ -135,17 +140,28 @@ struct OptionsBar: View {
         return Preset.allCases.first { abs($0.nominal - r) < 1e-9 }
     }
 
-    /// The shapes the document is made for: the one control here that changes the document.
-    private func madeFor(alignment: HorizontalAlignment) -> some View {
+    /// The shapes and the appearances the document is made for: the controls here that change the
+    /// document. The two kinds stand a little apart in one row, or the appearances under the
+    /// shapes in two.
+    private func madeFor(alignment: HorizontalAlignment, rows: Int = 1) -> some View {
         VStack(alignment: alignment, spacing: 2) {
-            HStack(spacing: 8) {
-                Text("Explainer is made for:")
-                ForEach(Preset.allCases) { preset in
-                    Toggle(preset.title, isOn: Binding(get: { model.madeFor.contains(preset) }, set: { on in
-                        let refused = model.setMadeFor(preset, on)
-                        outside = refused.isEmpty ? nil : "The studio refused the change: " + refused.prefix(2).map(\.message).joined(separator: "; ")
-                    }))
-                    .toggleStyle(.checkbox)
+            if rows == 1 {
+                HStack(spacing: 8) {
+                    Text("Explainer is made for:")
+                    shapeTicks
+                    Divider().frame(height: 12)
+                    appearanceTicks
+                }
+            } else {
+                Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 4) {
+                    GridRow {
+                        Text("Explainer is made for:")
+                        HStack(spacing: 8) { shapeTicks }
+                    }
+                    GridRow {
+                        Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                        HStack(spacing: 8) { appearanceTicks }
+                    }
                 }
             }
             Text("Saved to document — tells the player app which views it can use.")
@@ -155,7 +171,35 @@ struct OptionsBar: View {
         }
         .fixedSize()
         .disabled(doc == nil)
-        .help("Tick the shapes of drawing area this explainer is meant to be shown in. Edit > Undo takes a change back. In any other shape, a player shows it at the nearest ticked shape, scaled and centred.")
+    }
+
+    private var shapeTicks: some View {
+        ForEach(Preset.allCases) { preset in
+            Toggle(preset.title, isOn: Binding(get: { model.madeFor.contains(preset) }, set: { on in
+                report(model.setMadeFor(preset, on))
+            }))
+            .toggleStyle(.checkbox)
+            .help("Tick the shapes of drawing area this explainer is meant to be shown in. Edit > Undo takes a change back. In any other shape, a player shows it at the nearest ticked shape, scaled and centred.")
+        }
+    }
+
+    /// The last ticked appearance cannot be unticked: a document is made for at least one.
+    private var appearanceTicks: some View {
+        ForEach([Appearance.light, .dark], id: \.self) { appearance in
+            let only = model.madeForAppearances == [appearance]
+            Toggle(appearance.title, isOn: Binding(get: { model.madeForAppearances.contains(appearance) }, set: { on in
+                report(model.setMadeFor(appearance, on))
+            }))
+            .toggleStyle(.checkbox)
+            .disabled(only)
+            .help(only
+                ? "An explainer is made for at least one of light and dark, so this stays ticked until the other is."
+                : "Tick the appearances this explainer is meant to be shown in. A player whose screen is in the other still draws it in a ticked one. Ticking one adds a value for each of the explainer's own colours that has none there. Edit > Undo takes a change back.")
+        }
+    }
+
+    private func report(_ refused: [DocumentFinding]) {
+        outside = refused.isEmpty ? nil : "The studio refused the change: " + refused.prefix(2).map(\.message).joined(separator: "; ")
     }
 
     /// The arrangement is an app's choice, not the document's, so it is kept from one document to

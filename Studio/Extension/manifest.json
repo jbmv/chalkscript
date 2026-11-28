@@ -37,7 +37,7 @@
     },
     {
       "name": "show",
-      "description": "Play a step in the studio window: the first without step, the current problem without problem. Returns its timeline. With image, also a picture of its end, at ratio (width/height) or the window's shape."
+      "description": "Play a step in the window: the first without step, the current problem without problem. Returns its timeline. With image, also a picture at second at or of its end, at ratio (width/height) and appearance or the window's."
     },
     {
       "name": "create",

@@ -46,14 +46,18 @@ public struct AppearanceUse: Equatable, Hashable, Sendable {
 }
 
 /// A colour a document names for itself (EXP-20): one value for fill and ink in each appearance
-/// the document gives one for, with the soft form derived from the ink over the sheet. A value is
-/// nil for an appearance the document is not made for and does not give.
+/// the document gives one for, with the soft form derived from the ink over the sheet. It has a
+/// value for at least one appearance; a value is nil for an appearance the document is not made
+/// for and does not give.
 public struct DocumentColour: Hashable, Sendable {
-    public var name: String
-    public var light: RGB?
-    public var dark: RGB?
+    public let name: String
+    public let light: RGB?
+    public let dark: RGB?
 
+    /// A colour with a value for one appearance or for both. A colour with neither is a fault in
+    /// the caller: a reader makes none.
     public init(name: String, light: RGB?, dark: RGB?) {
+        precondition(light != nil || dark != nil, "a document colour gives a value for at least one appearance")
         self.name = name
         self.light = light
         self.dark = dark
@@ -61,6 +65,15 @@ public struct DocumentColour: Hashable, Sendable {
 
     /// The value for one appearance, if the colour gives one.
     public func value(dark isDark: Bool) -> RGB? { isDark ? dark : light }
+
+    /// The value the colour is drawn in when a drawing is made in one appearance: its value for
+    /// that appearance, and otherwise its value for the appearance the document is made for. The
+    /// second is met only by a host that draws a document in an appearance it is not made for;
+    /// nothing is derived, and no role of the style stands in for the colour.
+    public func drawn(dark isDark: Bool) -> RGB {
+        // The initialiser holds that one of the two is given.
+        (isDark ? dark ?? light : light ?? dark)!
+    }
 
     /// The share of the ink in its soft form, over the light sheet and over the dark one.
     public static let softShare = (light: 0.16, dark: 0.18)
@@ -99,9 +112,7 @@ public enum Hue: Hashable, Sendable {
         switch self {
         case let .operation(op): return palette.colors(op)
         case let .document(c):
-            // A colour with no value in the appearance drawn is not derived from the other; the
-            // reader refuses a document that is made for the appearance and gives none.
-            let ink = c.value(dark: palette.isDark) ?? palette.ink
+            let ink = c.drawn(dark: palette.isDark)
             return ExplainerPalette.OperationColors(
                 fill: ink, ink: ink, soft: DocumentColour.soft(ink, over: palette.sheet, dark: palette.isDark))
         }

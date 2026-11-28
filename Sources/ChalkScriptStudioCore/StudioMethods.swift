@@ -106,18 +106,50 @@ extension StudioModel {
                 }
                 ratio = n
             }
+            var appearance: Appearance?
+            if let a = params["appearance"] {
+                guard let asked = a.string.flatMap(Appearance.init(rawValue:)) else {
+                    throw MethodError(code: Studio.RPCError.invalidParams, "appearance must be light or dark.")
+                }
+                appearance = asked
+            }
+            var at: Double?
+            if let t = params["at"] {
+                guard let n = t.double, n >= 0, n.isFinite else {
+                    throw MethodError(code: Studio.RPCError.invalidParams, "at must be a number of seconds from the step's start, 0 or more.")
+                }
+                at = n
+            }
             let shown = try show(name, step: step, problem: problem)
             var reply: WireObject = ["step": .string(shown.step), "index": .int(shown.index + 1), "count": .int(shown.count)]
+            // The moment pictured, or nil for the step's still: a moment at the step's end, as the
+            // timeline writes it to a tenth, is the still.
+            var moment: Double?
             if let e = shaped?.shown {
-                reply["timeline"] = .string(StepTimeline.make(e, step: shown.index).text)
+                let timeline = StepTimeline.make(e, step: shown.index)
+                reply["timeline"] = .string(timeline.text)
+                if let at {
+                    let length = Canonical.number((timeline.length * 10).rounded() / 10)
+                    guard at <= timeline.length + 0.05 else {
+                        throw MethodError(code: Studio.ErrorCode.failed,
+                                          "at \(Canonical.number(at)) is past the end of the step \(shown.step), which lasts \(length) s as played; "
+                                          + "at is in the seconds of the step's timeline, from 0 to \(length).")
+                    }
+                    if at < timeline.length - 1e-6 { moment = at }
+                }
             }
             // Without a ratio, the picture is at the shape the window is showing.
             let shape = ratio ?? shownRatio ?? Double(Scene.stage.width / Scene.stage.height)
-            if wantsImage, let e = shaped?.made, let picture = StepPicture.png(e, step: shown.index, ratio: shape) {
+            // Without an appearance, the picture is in the one the window is previewing.
+            if wantsImage, let e = shaped?.made,
+               let picture = StepPicture.png(e, step: shown.index, at: moment, ratio: shape, appearance: appearance ?? previewAppearance) {
                 reply["image"] = .object(["data": .string(picture.png.base64EncodedString()), "mimeType": .string("image/png")])
                 reply["ratio"] = .number(Canonical.number((picture.ratio * 100).rounded() / 100))
                 reply["layout"] = .string(picture.layout)
                 if let drawn = picture.drawn { reply["drawn"] = .number(Canonical.number((drawn * 100).rounded() / 100)) }
+                reply["appearance"] = .string(picture.appearance.used.rawValue)
+                if let at { reply["at"] = .number(Canonical.number(at)) }
+                if picture.appearance.differs { reply["notMadeFor"] = .string(picture.appearance.asked.rawValue) }
             }
             note("show \(name) \(shown.step)", client: client)
             return .object(reply)
