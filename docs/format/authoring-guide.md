@@ -368,18 +368,18 @@ line, not seconds guessed for it. The studio plays with a stand-in voice that sa
 
 | Verb | Kind | Does |
 |---|---|---|
-| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one, and else about its middle: a text's, of the text as drawn, so it needs no `rise`), `place` (`split(ten[k])`), `text`. |
+| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one (which needs `drawing.turn` in `requires`), and else about its middle: a text's, of the text as drawn, so it needs no `rise`), `place` (`split(ten[k])`), `text`. |
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
 | `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. A `width` thickens the stroke (topic `elements`); do not draw a thick line as a filled `shape`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
 | `tint` | draw | A pale `ink` role behind a run of an `equation` text; with `mark`, marks a digit. The studio refuses `tint` on an element, or on a run of a text in another style, as `capability`: to mark a numeral or a word, draw an `outline` round it. |
-| `move` | travel | To `to`, or back to its place; `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
+| `move` | travel | To `to`, or back to its place. `to` places the instance's reference point (a text's `at`, the `from` of a line or arrow, a shape's first point, else the top-left corner of its bounds) and the geometry goes with it, so elements moved to one point each go by their own point and do not keep their places relative to each other. `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
 | `gather` | travel | From the positions of `from` to their places. |
 | `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
 | `look` | instant | Sets a piece's `value` look. |
 | `set` | instant | Sets a text or run to the entry `text`. |
 | `tag` | appear | A small card with the entry `text` over each target, as wide as its text; its `dur` is how long it is shown, at full strength for the middle half (0.3 by default, so give `dur: 2` for a card to be read); its `ink` is `result` unless given. |
-| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one, and else its middle. |
+| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one (which needs `drawing.turn` in `requires`, as for `grow`), and else its middle. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
 
@@ -439,8 +439,11 @@ To change what a step says, edit its entry in the wording being played: for exam
 
 `parts` names selections (`"tens": "ten"`). A shot frames parts and an optional `region`, with a
 `margin`: `"trade": {"frame": ["tradedTen", "arrow", "ones"]}`. A step's `shot` is used only in a
-layout with `camera: true`; the camera moves before the step's timeline begins, and what lies
-outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
+layout with `camera: true`. A step with no `shot` keeps the shot of the step before it, the first
+the `opening` shot, and with neither frames the whole drawing. When a step's shot frames
+differently from the one before, the camera moves first (0.9 seconds in the standard style) and the
+step's actions start after the move, so an action at 0 starts at 0.9, as `show` lists it; the
+step's line still begins at 0. What lies outside the shot is dimmed, not hidden. Another layout has `suits` (an expression of `areaW` and
 `areaH`), `size`, `camera`, `band` (the height at the top of the drawing kept for `fixed`
 elements when the camera is on; 0 by default) and `let` replacements; the first that suits the
 window, by name, is used, and otherwise `stage`. The studio's window chooses the layout from the area the
