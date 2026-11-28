@@ -240,8 +240,14 @@ struct DocumentPlayerTests {
         #expect(abs(rect.midX - ringRect.midX) < 1e-9 && abs(rect.midY - ringRect.midY) < 1e-9, "the tag is centred on its group")
         #expect(e.still(after: 2).element("ring.1.tag") == nil, "a tag leaves nothing in the still")
         let pulseAt = 3 * 0.9 + 0.25
-        guard case let .total(_, _, grown)? = e.scene(step: 2, at: pulseAt + 0.25).element("total")?.kind else { return }
-        #expect(abs(grown - 1.15) < 1e-9)
+        // The total grows to 1.15 about the middle of the number as drawn: the box its line fills,
+        // whose bottom edge is at the total's point.
+        guard let pulsing = e.scene(step: 2, at: pulseAt + 0.25).element("total"), case let .total(shown, at, _) = pulsing.kind else { return }
+        let t = pulsing.transform
+        #expect(abs(t.a - 1.15) < 1e-9 && abs(t.d - 1.15) < 1e-9 && t.b == 0 && t.c == 0)
+        let fixed = CGPoint(x: t.tx / (1 - t.a), y: t.ty / (1 - t.d))
+        let height = TextExtent.measure(shown, size: Components.totalSize, display: true).height
+        #expect(abs(fixed.x - at.x) < 1e-6 && abs(fixed.y - (at.y - height / 2)) < 1e-6, "the pulse is about \(fixed), not the middle of the number")
         guard case let .equation(answering)? = e.scene(step: 2, at: pulseAt + 0.5 + 0.2).element("equation")?.kind,
             let ans = answering.runs.last
         else { return }

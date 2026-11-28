@@ -8,7 +8,7 @@ import Foundation
 
 extension Resolver {
     /// The bounds of `instance` at its place (section 9.1): its `rect`; the box round the points
-    /// of a line, arrow or shape; and, for a text element, the point `at` with no size.
+    /// of a line, arrow or shape; and, for a text element, the box its line of text fills as drawn.
     func bounds(_ instance: DocumentInstance) throws(EvalFailure) -> CGRect {
         let name = instance.element
         let p = DocumentPath.join("/elements", name)
@@ -52,7 +52,7 @@ extension Resolver {
         switch kind {
         case "text":
             let at = try point("at")
-            b = CGRect(origin: at, size: .zero)
+            b = try textBox(el, name, at: at, locals: l)
             reference = at
         case "line":
             let from = try point("from")
@@ -76,7 +76,7 @@ extension Resolver {
                 let s = try selection(p + "/around", locals: l)
                 var u: CGRect?
                 for inst in s.instances {
-                    let r = try extent(inst.whole)
+                    let r = try bounds(inst.whole)
                     u = u.map { $0.union(r) } ?? r
                 }
                 let pad = try number(p + "/pad", locals: l, default: el["style"]?.string == "hint" ? 12 : 0, what: "pad")
@@ -118,26 +118,18 @@ extension Resolver {
         return b.offsetBy(dx: place.x - reference.x, dy: place.y - reference.y)
     }
 
-    /// What `around` encloses of `instance`: its bounds, except that a text element is enclosed as
-    /// drawn, the box its line of text fills (section 9.3), at its place.
-    func extent(_ instance: DocumentInstance) throws(EvalFailure) -> CGRect {
-        let name = instance.element
+    /// The box text element `name` fills as drawn, at `at` before any verb has moved it: the line of
+    /// the entry it shows before the first step, set with its bottom edge at `at` and its left,
+    /// middle or right edge there by its anchor.
+    func textBox(_ el: JSONObject, _ name: String, at: CGPoint, locals l: [String: DocumentValue]) throws(EvalFailure) -> CGRect {
         let p = DocumentPath.join("/elements", name)
-        guard let el = root["elements"]?[name]?.object, el["kind"]?.string == "text" else { return try bounds(instance) }
-        let l = try instanceLocals(instance)
-        let at = CGPoint(x: try number(p + "/at/0", locals: l, what: "x"), y: try number(p + "/at/1", locals: l, what: "y"))
         let style = el["style"]?.string ?? "body"
         let (size0, anchor0, _) = DocumentFilm.textDefaults[style] ?? DocumentFilm.textDefaults["body"]!
         let size = style == "total" ? Components.totalSize : try number(p + "/size", locals: l, default: size0, what: "size")
         let anchor = el["anchor"]?.string ?? anchor0
         var text = ""
         if let entry = el["text"]?.string { text = try DocumentFilm.runs(of: name, entry: entry, el: el, locals: l, self).map(\.text).joined() }
-        let (width, height) = TextExtent.measure(text, size: size, display: style != "label")
-        // The line is set with its bottom edge at `at`, and its left, middle or right edge there.
-        let x = anchor == "start" ? at.x : anchor == "end" ? at.x - width : at.x - width / 2
-        var box = CGRect(x: x, y: at.y - height, width: width, height: height)
-        if let place = state[instance.whole]?.place { box = box.offsetBy(dx: place.x - at.x, dy: place.y - at.y) }
-        return box
+        return TextExtent.box(text, at: at, size: size, display: style != "label", anchor: anchor)
     }
 
     /// The region of part `name` (section 10.1): the box round the bounds of its instances at
@@ -293,6 +285,14 @@ enum Turning {
 /// the system's bold face for a display line and its regular face for a small one. A stage given
 /// other faces draws a line a little wider or narrower than this.
 enum TextExtent {
+    /// The box a line of `text` fills when set with its bottom edge at `at.y` and its left, middle or
+    /// right edge at `at.x`, for the anchor `start`, `middle` or `end`.
+    static func box(_ text: String, at: CGPoint, size: Double, display: Bool, anchor: String) -> CGRect {
+        let (width, height) = measure(text, size: size, display: display)
+        let x = anchor == "start" ? at.x : anchor == "end" ? at.x - width : at.x - width / 2
+        return CGRect(x: x, y: at.y - height, width: width, height: height)
+    }
+
     static func measure(_ text: String, size: Double, display: Bool) -> (width: CGFloat, height: CGFloat) {
         guard !text.isEmpty else { return (0, 0) }
         let face = CTFontCreateUIFontForLanguage(display ? .emphasizedSystem : .system, CGFloat(size), nil)

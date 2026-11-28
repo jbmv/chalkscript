@@ -45,6 +45,8 @@ public enum Components {
     public static let tagCorner: CGFloat = 9
     public static let tagWidth: CGFloat = 2.4
     public static let tagTextSize: Double = 24
+    /// The width a tag's card adds to its text, over both sides.
+    public static let tagPad: CGFloat = 12
     /// The number written across the top, and the slot a digit is written in.
     public static let numeralSize: Double = 88
     public static let slotSize = CGSize(width: 60, height: 100)
@@ -95,10 +97,12 @@ public enum Components {
     /// The circle drawn for a one standing in `rect`, just inside it so its stroke stays in.
     public static func circle(in rect: CGRect) -> CGRect { rect.insetBy(dx: 1, dy: 1) }
 
-    /// The number tag over `piece`, centred on it.
-    public static func numberTag(on piece: CGRect, ten: Bool) -> CGRect {
+    /// The number tag over `piece`, centred on it: as wide as a text `textWidth` wide with `tagPad`
+    /// across, and never narrower than the tag's size over a ten or a one.
+    public static func numberTag(on piece: CGRect, ten: Bool, textWidth: CGFloat = 0) -> CGRect {
         let size = ten ? tenTagSize : oneTagSize
-        return CGRect(x: piece.midX - size.width / 2, y: piece.midY - size.height / 2, width: size.width, height: size.height)
+        let width = max(size.width, textWidth + tagPad)
+        return CGRect(x: piece.midX - width / 2, y: piece.midY - size.height / 2, width: width, height: size.height)
     }
 
     /// A bundle's arrow from the top of the box round ten ones over to the top of the new ten, at
@@ -178,9 +182,16 @@ public enum Components {
         ]
     }
 
+    /// How much larger than the default an arrow's head is drawn for an arrow of stroke `width`: in
+    /// proportion to the width above `tradeWidth`, and never smaller than the default head.
+    public static func arrowHeadScale(forWidth width: CGFloat) -> CGFloat {
+        width.isFinite && width > tradeWidth ? width / tradeWidth : 1
+    }
+
     /// The arrow's head at `tip`, the end of its path, pointing along `direction`, a vector that
-    /// need not be a unit vector. A zero or non-finite direction points down.
-    public static func arrowHead(at tip: CGPoint, direction: CGVector = CGVector(dx: 0, dy: 1)) -> [CGPoint] {
+    /// need not be a unit vector. A zero or non-finite direction points down. `scale` multiplies
+    /// the head's width across and its length back from the tip, and leaves the tip where it is.
+    public static func arrowHead(at tip: CGPoint, direction: CGVector = CGVector(dx: 0, dy: 1), scale: CGFloat = 1) -> [CGPoint] {
         let norm = hypot(direction.dx, direction.dy)
         let u = norm > 0 && norm.isFinite ? CGVector(dx: direction.dx / norm, dy: direction.dy / norm) : CGVector(dx: 0, dy: 1)
         // `side` runs across the head and `along` runs the way the arrow travels; for a downward
@@ -188,17 +199,17 @@ public enum Components {
         func point(side: CGFloat, along: CGFloat) -> CGPoint {
             CGPoint(x: tip.x + u.dy * side + u.dx * along, y: tip.y - u.dx * side + u.dy * along)
         }
-        return [point(side: -8, along: -10), point(side: 0, along: 1), point(side: 8, along: -10)]
+        return [point(side: -8 * scale, along: -10 * scale), point(side: 0, along: 1), point(side: 8 * scale, along: -10 * scale)]
     }
 
     /// The head for an arrow along `path`, at its last point, pointing along its last segment
-    /// that has length, or down when none has.
-    public static func arrowHead(endingPath path: [CGPoint]) -> [CGPoint] {
+    /// that has length, or down when none has, scaled by `scale` (`arrowHeadScale(forWidth:)`).
+    public static func arrowHead(endingPath path: [CGPoint], scale: CGFloat = 1) -> [CGPoint] {
         guard let tip = path.last else { return [] }
         for (a, b) in zip(path, path.dropFirst()).reversed() where a != b {
-            return arrowHead(at: tip, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y))
+            return arrowHead(at: tip, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y), scale: scale)
         }
-        return arrowHead(at: tip)
+        return arrowHead(at: tip, scale: scale)
     }
 
     /// The length of a path through `points`.

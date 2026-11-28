@@ -234,11 +234,15 @@ camera, never dimmed) and `start` (`opacity`, and `progress` for a stroked kind)
 | Kind | Keys |
 |---|---|
 | `text` | `at` (baseline point), `text` (an entry), `runs`, `style` (`equation` 44, `total` 54, `label` 18, `note` 22, `body` 26), `ink`, `size`, `anchor` (`start`, `middle` or `end`: which point of the baseline `at` is). |
-| `line` | `from`, `to`; `style` `rule` or `divider`; `ink`. |
-| `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required). |
-| `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`. |
-| `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`. |
+| `line` | `from`, `to`; `style` `rule` or `divider`; `ink`; `width`. |
+| `arrow` | `from`, `to` (points, or a selection of one instance); `y` to run over the top; `ink` (required); `width`. |
+| `outline` | `rect` `[x, y, w, h]` or `around` (a selection); `pad`; `style` `box`, `ring`, `hint` or `target`; `ink` for `box` and `ring`; `width`. |
+| `shape` | `rect` (with `corner`), `ellipse` (the rectangle `[x, y, w, h]` it fills) or `points` (with `closed`); `fill` and/or `ink`; `width`. |
 | `ten`, `one`, `stick`, `circle` | Pieces of `components.arithmetic`: `rect`, and `look` `pencil`, `traded` or `counted`. Each has a cross-out, `.cross`. |
+
+An outline's `around` fits text as drawn, so a single digit gets a tall, narrow box, and `pad` is one number for every side. To make boxes round one- and two-digit numbers alike, give each outline a `rect` of one size, centred on the numeral.
+
+`width` is the stroke's width in drawing units, a number above 0 or an expression, and is scaled with the drawing; without it a stroke keeps the renderer's, 2.4 for most. A clock's hour hand is a `line` or `arrow` of `"width": 14` and its minute hand one of `"width": 5`, not a filled shape. An arrow's head grows with a width above 2.4.
 
 Roles. Without a capability: `paper`, `sheet`, `text`, `muted`, `line`, `pencil`, `onResult` and
 `result`. With `components.arithmetic` in `requires`, in any form (a bare `add` too): `subtract`,
@@ -333,16 +337,17 @@ An action has `do` (the verb), `target`, `at` (start, seconds or an expression s
 `"end(arrow) + 0.2"`), `dur` (per instance), `each` (stagger between instances), `reverse`,
 `ease` (a curve name), `when`, `wait: "voice"` and `mark: true` (undone when the next step
 begins, as a tinted digit). An action ends at `at + (n − 1) · each + dur`; the step's timeline
-is the latest end, plus `hold`. Default durations: appear 0.3, draw 0.4, fade 0.35, travel 1.2
+is the latest end, plus `hold`. An action with no `at` starts at 0, with the step's line: chain it
+with `"at": "end(name)"`. Default durations: appear 0.3, draw 0.4, fade 0.35, travel 1.2
 seconds. `wait: "voice"` holds the step's clock at that action's start until the lines said before
 it have been heard (on an `each`, at each instance): use it on an action that should follow the
 line, not seconds guessed for it. The studio plays with a stand-in voice that says nothing and takes the time a line would take to say: 0.3 seconds and a third of a second for each word of its spoken form, at the player's pace. `wait: "voice"` therefore holds in the studio for about as long as it would with a spoken line, which is an estimate and not the time of any particular voice.
 
 | Verb | Kind | Does |
 |---|---|---|
-| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one), `place` (`split(ten[k])`), `text`. |
+| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one, and else about its middle: a text's, of the text as drawn, so it needs no `rise`), `place` (`split(ten[k])`), `text`. |
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
-| `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. `line` and `arrow` have a fixed stroke width; for a thicker one use a filled `shape` with `points`. |
+| `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. A `width` thickens the stroke (topic `elements`); do not draw a thick line as a filled `shape`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
 | `tint` | draw | A pale `ink` role behind a run of an `equation` text; with `mark`, marks a digit. The studio refuses `tint` on an element, or on a run of a text in another style, as `capability`: to mark a numeral or a word, draw an `outline` round it. |
 | `move` | travel | To `to`, or back to its place; `via` keyframes `[offset, x, y]` with `x0`, `y0`. |
@@ -350,15 +355,16 @@ line, not seconds guessed for it. The studio plays with a stand-in voice that sa
 | `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
 | `look` | instant | Sets a piece's `value` look. |
 | `set` | instant | Sets a text or run to the entry `text`. |
-| `tag` | appear | A small card with the entry `text` over each target, which comes and goes; its `ink` is `result` unless given. |
-| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one. |
+| `tag` | appear | A small card with the entry `text` over each target, as wide as its text; its `dur` is how long it is shown, at full strength for the middle half (0.3 by default, so give `dur: 2` for a card to be read); its `ink` is `result` unless given. |
+| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one, and else its middle. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
 
 `each` counts instances, or sets a number that changes within the step. It names a `target`, a
 `gap` in seconds, optional `let` locals evaluated with `i`, the instance's position from 0, in
 scope, and `then`, the actions run for each instance; an action in `then` without a `target` acts
-on the current instance. Numerals that do not change are not set by a verb: number repeated text
+on the current instance. Count over `first(n, s)`, not over every instance with a `when` in `then`: an iteration it skips still takes
+its `gap`. Numerals that do not change are not set by a verb: number repeated text
 elements with the element's own `let` (topic `elements`) and bring them in with `appear` and
 `each: 0.24`, a stagger. A step whose `when` is false for the problem is not among that problem's
 steps, so `show` of it names the steps the problem has.
@@ -386,6 +392,15 @@ colour), `pronunciation`, `notes` and `maxLength`.
   "false": "Move the long hand to {minute} minutes."}}`.
 - `{name}` inserts a value; `{groups:a}` fills the entry `groups` with `n` set to `a`.
 - The text outside placeholders must contain no digit.
+- A caption that differs from the speech is a phrase entry, which is a text entry and may have `spoken`.
+  With the `let` values `"tens": "div(minute, 10)"` and `"ones": "mod(minute, 10)"`, `{tens}{ones}` pads a
+  number (05, 00), and is said "seven:zerofive" without `spoken`. These show "Make the clock say 7:05."
+  and say "seven oh five":
+
+  ```json
+  "clockOh": {"text": "{hour}:{tens}{ones}", "spoken": "{hour} oh {n}"},
+  "goal": "Make the clock say {clockOh:minute}."
+  ```
 - In an entry that is said, a number placeholder must not touch a letter: "Count by {b}s" is an
   error, since its spoken form cannot be derived.
 - An entry name is in `shared` or in a wording, never both. Each wording must provide every entry

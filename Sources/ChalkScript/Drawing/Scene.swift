@@ -99,13 +99,20 @@ public struct SceneElement: Equatable, Sendable, Identifiable {
     /// Drawn outside the camera, where it is in the scene's own units, and never dimmed: the
     /// problem's question, which stays still while the camera moves (EXP-18).
     public var fixed: Bool
+    /// The width, in the drawing's units, of the stroke of an arrow, box or hint that a document
+    /// gave a `width`; nil for the component's own. A shape keeps its width in its `Paint`.
+    public var strokeWidth: CGFloat?
 
-    public init(_ id: String, _ kind: Kind, opacity: Double = 1, transform: CGAffineTransform = .identity, fixed: Bool = false) {
+    public init(
+        _ id: String, _ kind: Kind, opacity: Double = 1, transform: CGAffineTransform = .identity, fixed: Bool = false,
+        strokeWidth: CGFloat? = nil
+    ) {
         self.id = id
         self.kind = kind
         self.opacity = opacity
         self.transform = transform
         self.fixed = fixed
+        self.strokeWidth = strokeWidth
     }
 
     public var isVisible: Bool {

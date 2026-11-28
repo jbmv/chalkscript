@@ -56,6 +56,9 @@ struct DrawnInstance: Sendable {
     /// An outline whose `around` selects nothing for this instance of a repeated element: it is
     /// not drawn.
     var hollow = false
+    /// The width of the stroke of a line, arrow, outline or shape that gives a `width` (section
+    /// 9.3), in the drawing's units; nil for the renderer's own.
+    var width: CGFloat?
 
     /// The scene element's id: the element's name, and the index of a repeated one.
     var id: String { instance.index.map { "\(instance.element).\($0)" } ?? instance.element }
@@ -208,7 +211,8 @@ struct DocumentPainter: Sendable {
             if let tag = l.tag {
                 let b = inst.bounds.offsetBy(dx: l.position.x - inst.reference.x, dy: l.position.y - inst.reference.y)
                 let ten: Bool = if case let .piece(kind, _) = inst.shape { kind == "ten" || kind == "stick" } else { false }
-                let card = Components.numberTag(on: b, ten: ten)
+                let card = Components.numberTag(
+                    on: b, ten: ten, textWidth: TextExtent.measure(tag.text, size: Components.tagTextSize, display: true).width)
                 tags.append(SceneElement(
                     inst.id + ".tag",
                     tag.hue == .result ? .numberTag(tag.text, in: card, scale: tag.scale) : .hueTag(tag.text, in: card, scale: tag.scale, hue: tag.hue),
@@ -243,7 +247,15 @@ struct DocumentPainter: Sendable {
         if let geometry = inst.shape.turning, l.turn != inst.start.turn || inst.pivoted {
             box = Turning.box(of: geometry, turned: l.turn, about: inst.pivot).offsetBy(dx: d.dx, dy: d.dy)
         }
-        let centre = inst.pivoted ? pivot : CGPoint(x: box.midX, y: box.midY)
+        var centre = inst.pivoted ? pivot : CGPoint(x: box.midX, y: box.midY)
+        // A text element grows and pulses about the middle of the text it shows now, which a verb may
+        // have set, and not of the text it showed before the first step.
+        if scale != 1, case let .text(at, style, size, _, anchor) = inst.shape {
+            let shown = TextExtent.box(
+                l.text.map(\.text).joined(), at: moved(at), size: style == "total" ? Components.totalSize : size, display: style != "label",
+                anchor: anchor)
+            centre = CGPoint(x: shown.midX, y: shown.midY)
+        }
         let around = Self.scale(scale, about: centre)
         let turned = spin.concatenating(around)
         switch inst.shape {
@@ -287,7 +299,7 @@ struct DocumentPainter: Sendable {
                 return [SceneElement(inst.id, .equation(EquationLine(runs: eqRuns, mark: mark, center: a, size: size)), opacity: l.opacity,
                     transform: around)]
             case "total":
-                return [SceneElement(inst.id, .total(text, at: a, scale: scale), opacity: text.isEmpty ? 0 : l.opacity)]
+                return [SceneElement(inst.id, .total(text, at: a, scale: 1), opacity: text.isEmpty ? 0 : l.opacity, transform: around)]
             default:
                 if style == "label" && ink == "muted" && anchor == "start" && size == Components.labelSize {
                     return [SceneElement(inst.id, .label(text, at: a), opacity: l.opacity, transform: around)]
@@ -300,15 +312,16 @@ struct DocumentPainter: Sendable {
         case let .line(from, to, divider, ink):
             let f = moved(from)
             let t = moved(to)
-            if divider && ink == .line && l.progress >= 1 {
+            if divider && ink == .line && l.progress >= 1 && inst.width == nil {
                 return [SceneElement(inst.id, .divider(from: f, to: t), opacity: l.opacity, transform: turned)]
             }
             let paint = Paint(
-                stroke: ink, width: divider ? Components.dividerWidth : Components.pencilWidth, dash: divider ? Components.dividerDash : [],
-                progress: l.progress)
+                stroke: ink, width: inst.width ?? (divider ? Components.dividerWidth : Components.pencilWidth),
+                dash: divider ? Components.dividerDash : [], progress: l.progress)
             return [SceneElement(inst.id, .shape(.lines([f, t]), paint), opacity: l.opacity, transform: turned)]
         case let .arrow(points, op):
-            return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: turned)]
+            return [SceneElement(inst.id, .arrow(points: points.map(moved), progress: l.progress, op: op), opacity: l.opacity, transform: turned,
+                strokeWidth: inst.width)]
         case let .outline(rect, style, op):
             if inst.hollow { return [] }
             let r = rect.offsetBy(dx: d.dx, dy: d.dy)
@@ -317,13 +330,13 @@ struct DocumentPainter: Sendable {
                 case "hint": .hint(r, progress: l.progress)
                 case "target":
                     .shape(.rect(r, corner: Components.targetCorner),
-                        Paint(stroke: .fill(.result), width: Components.targetWidth, dash: Components.targetDash, progress: l.progress))
+                        Paint(stroke: .fill(.result), width: inst.width ?? Components.targetWidth, dash: Components.targetDash, progress: l.progress))
                 default: .box(r, progress: l.progress, op: op ?? .result)
                 }
-            return [SceneElement(inst.id, k, opacity: l.opacity, transform: around)]
+            return [SceneElement(inst.id, k, opacity: l.opacity, transform: around, strokeWidth: inst.width)]
         case let .shape(outline, fill, stroke):
             let shift = CGAffineTransform(translationX: d.dx, y: d.dy)
-            return [SceneElement(inst.id, .shape(outline, Paint(fill: fill, stroke: stroke, progress: l.progress)), opacity: l.opacity,
+            return [SceneElement(inst.id, .shape(outline, Paint(fill: fill, stroke: stroke, width: inst.width ?? Components.pencilWidth, progress: l.progress)), opacity: l.opacity,
                 transform: shift.concatenating(turned))]
         }
     }

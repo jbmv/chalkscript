@@ -649,7 +649,9 @@ struct ResolutionTests {
             #expect(abs(ring.minX - want.minX) < 1 && abs(ring.minY - want.minY) < 1 && abs(ring.width - want.width) < 1,
                 "ring \(k) is \(ring), not \(want)")
             guard case let .arrow(points, _, _)? = scene.element("spokes.\(k)")?.kind else { Issue.record("no spoke \(k)"); continue }
-            #expect(points.last == CGPoint(x: at.x, y: at.y - 8), "spoke \(k) ends at \(String(describing: points.last))")
+            // An arrow to a text ends 8 units above the box of the text as drawn.
+            let end = try #require(points.last)
+            #expect(abs(end.x - at.x) < 1e-9 && abs(end.y - (at.y - set.height - 8)) < 1, "spoke \(k) ends at \(end)")
         }
         // An instance whose selection is empty is not drawn, and one that selects two is round both.
         #expect(scene.element("tail.0") == nil || Self.box(scene, "tail.0") == nil)

@@ -307,6 +307,16 @@ final class DocumentChecker {
         }
     }
 
+    /// A stroke's `width` (section 9.3): a number above 0, or an expression. An expression that
+    /// gives another number is an error when the document is evaluated.
+    func width(_ value: JSONValue?, _ path: String, _ scope: SlotScope) {
+        guard let value else { return }
+        slot(value, path, .number, scope)
+        if case let .number(n) = value, !(n > 0 && n.isFinite) {
+            error(.schema, path, "width is \(Canonical.number(n)), not a number above 0")
+        }
+    }
+
     func point(_ value: JSONValue?, _ path: String, _ scope: SlotScope) {
         guard let value else { return }
         guard case let .array(a) = value, a.count == 2 else {
@@ -750,10 +760,10 @@ final class DocumentChecker {
             let common = ["kind", "repeat", "when", "z", "fixed", "start", "let"]
             let byKind: [String: (known: [String], required: [String])] = [
                 "text": (["at", "text", "runs", "style", "ink", "size", "anchor"], ["at"]),
-                "line": (["from", "to", "style", "ink", "turn", "pivot"], ["from", "to"]),
-                "arrow": (["from", "to", "y", "ink", "turn", "pivot"], ["from", "to", "ink"]),
-                "outline": (["rect", "around", "pad", "style", "ink"], ["style"]),
-                "shape": (["rect", "corner", "ellipse", "points", "closed", "fill", "ink", "turn", "pivot"], []),
+                "line": (["from", "to", "style", "ink", "width", "turn", "pivot"], ["from", "to"]),
+                "arrow": (["from", "to", "y", "ink", "width", "turn", "pivot"], ["from", "to", "ink"]),
+                "outline": (["rect", "around", "pad", "style", "ink", "width"], ["style"]),
+                "shape": (["rect", "corner", "ellipse", "points", "closed", "fill", "ink", "width", "turn", "pivot"], []),
                 "ten": (["rect", "look"], ["rect"]), "one": (["rect", "look"], ["rect"]),
                 "stick": (["rect", "look"], ["rect"]), "circle": (["rect", "look"], ["rect"]),
             ]
@@ -786,6 +796,7 @@ final class DocumentChecker {
                 for key in ["turn", "pivot"] where el[key] != nil { used.append(("drawing.turn", p + "/" + key)) }
             }
             bool(el, "fixed", p)
+            if Self.strokedKinds.contains(kind) { width(el["width"], p + "/width", scope) }
             if let start = object(el["start"], p + "/start", known: ["opacity", "progress"]) {
                 slot(start["opacity"], p + "/start/opacity", .number, scope)
                 slot(start["progress"], p + "/start/progress", .number, scope)

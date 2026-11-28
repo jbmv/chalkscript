@@ -1051,3 +1051,130 @@ struct StepMomentTests {
         #expect(show(model, #"{"doc":"clock-hour-minute","step":"circle","at":99}"#).errorCode == Studio.ErrorCode.failed)
     }
 }
+
+/// The recipes and sentences the guide gives for wording, timing and an outline round text, copied
+/// from the guide into documents and checked against the reader and the player.
+struct GuideRecipeTests {
+    private let guide: String = {
+        (try? String(contentsOf: repository.appendingPathComponent("docs/format/authoring-guide.md"), encoding: .utf8)) ?? ""
+    }()
+
+    /// The members of the fenced block that holds `key`, as the guide prints them.
+    private func block(holding key: String) throws -> String {
+        let at = try #require(guide.range(of: key)).lowerBound
+        let start = try #require(guide.range(of: "```json\n", options: .backwards, range: guide.startIndex..<at)).upperBound
+        let end = try #require(guide.range(of: "```", range: at..<guide.endIndex)).lowerBound
+        return String(guide[start..<end]).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+    }
+
+    /// A `"name": "expression"` member of the guide's text.
+    private func member(_ name: String) throws -> String {
+        let range = try #require(guide.range(of: "\"\(name)\": \"[^\"]+\"", options: .regularExpression))
+        return String(guide[range])
+    }
+
+    private func read(_ json: String) throws -> ExplainerDocument {
+        let reading = ExplainerDocument.read(Data(json.utf8))
+        #expect(reading.findings.isEmpty, "\(reading.findings)")
+        return try #require(reading.document)
+    }
+
+    private func clock(entries: String, hour: Int = 7, minute: Int = 5) throws -> DocumentExplainer {
+        let json = """
+            {"format": "chalkscript-explainer", "version": "1.0", "id": "clock", "title": "Clock", "sourceLocale": "en-US",
+             "params": {"hour": {"type": "int", "min": 1, "max": 12}, "minute": {"type": "int", "min": 0, "max": 59}},
+             "let": {\(try member("tens")), \(try member("ones"))},
+             "samples": [{"hour": 7, "minute": 5}],
+             "elements": {"e": {"kind": "text", "at": [100, 100], "text": "hi"}},
+             "sequence": ["s"], "steps": {"s": {"say": "goal", "actions": {"show": {"do": "appear", "target": "e"}}}},
+             "wording": {"en-US": {"shared": {"hi": {"text": "{hour}", "visual": true}}, "everyday": {\(entries)}}}}
+            """
+        return try DocumentExplainer(document: try read(json), problem: ["hour": .number(Double(hour)), "minute": .number(Double(minute))])
+    }
+
+    @Test func theCaptionRecipeShowsSevenOhFiveAndSaysIt() throws {
+        let recipe = try block(holding: "\"clockOh\"")
+        let line = try clock(entries: recipe).resolved.steps[0].line
+        #expect(line.shown == "Make the clock say 7:05.")
+        #expect(line.spoken == "Make the clock say seven oh five.")
+        // A minute of ten or more has no padding to say.
+        let late = try clock(entries: recipe, minute: 25).resolved.steps[0].line
+        #expect(late.shown == "Make the clock say 7:25.")
+    }
+
+    @Test func aPaddedNumberWithoutSpokenIsSaidRunTogether() throws {
+        let recipe = try block(holding: "\"clockOh\"").replacingOccurrences(of: #", "spoken": "{hour} oh {n}""#, with: "")
+        #expect(!recipe.contains("spoken"))
+        let line = try clock(entries: recipe).resolved.steps[0].line
+        #expect(line.shown == "Make the clock say 7:05.")
+        #expect(line.spoken == "Make the clock say seven:zerofive.")
+    }
+
+    private func steps(_ actions: String, count: Int = 5) throws -> ResolvedStep {
+        let json = """
+            {"format": "chalkscript-explainer", "version": "1.0", "id": "t", "title": "T", "sourceLocale": "en-US",
+             "params": {"k": {"type": "int", "min": 1, "max": 9}}, "samples": [{"k": 3}],
+             "elements": {"e": {"kind": "text", "at": [100, 100], "text": "hi"}, "f": {"kind": "text", "at": [100, 200], "text": "hi"},
+                          "dots": {"kind": "shape", "repeat": \(count), "ellipse": ["20 * i", 0, 10, 10], "fill": "muted"}},
+             "sequence": ["s"], "steps": {"s": {"say": "s", "actions": \(actions)}},
+             "wording": {"en-US": {"shared": {"hi": {"text": "{k}", "visual": true}}, "everyday": {"s": "A line."}}}}
+            """
+        return try DocumentExplainer(document: try read(json), problem: ["k": .number(3)]).resolved.steps[0]
+    }
+
+    @Test func anActionWithoutAtStartsAtZeroAndEndChainsTheNext() throws {
+        let step = try steps(#"""
+            {"first": {"do": "appear", "target": "e", "dur": 1}, "second": {"do": "appear", "target": "f", "dur": 1},
+             "chained": {"do": "fade", "target": "e", "to": 0.5, "at": "end(first)"}}
+            """#)
+        func action(_ name: String) throws -> ResolvedAction { try #require(step.actions.first { $0.name == name }) }
+        #expect(try action("first").start == 0 && action("second").start == 0)
+        #expect(try action("chained").start == action("first").end)
+    }
+
+    @Test func anEachOverFirstNTakesNGapsAndAWhenInThenStillTakesThemAll() throws {
+        let skipping = try steps(#"""
+            {"count": {"do": "each", "target": "dots", "gap": 1, "then": {"in": {"do": "appear", "when": "i < 2", "dur": 0.2}}}}
+            """#)
+        let counted = try steps(#"""
+            {"count": {"do": "each", "target": "first(2, dots)", "gap": 1, "then": {"in": {"do": "appear", "dur": 0.2}}}}
+            """#)
+        #expect(skipping.timeline >= 5 && counted.timeline < 3, "\(skipping.timeline) against \(counted.timeline)")
+    }
+
+    private func outlines(_ element: String, entries: [String] = ["1", "24"]) throws -> [CGRect] {
+        var boxes: [CGRect] = []
+        for text in entries {
+            let json = """
+                {"format": "chalkscript-explainer", "version": "1.0", "id": "t", "title": "T", "sourceLocale": "en-US",
+                 "params": {"k": {"type": "int", "min": 1, "max": 99}}, "samples": [{"k": 3}],
+                 "elements": {"digits": {"kind": "text", "at": [300, 300], "size": 40, "text": "num"}, \(element)},
+                 "sequence": ["s"], "steps": {"s": {"say": "s", "actions": {"show": {"do": "appear", "target": "digits"}}}},
+                 "wording": {"en-US": {"shared": {"num": {"text": "{k}", "visual": true}}, "everyday": {"s": "A line."}}}}
+                """
+            let d = try DocumentExplainer(document: try read(json), problem: ["k": .number(Double(text)!)])
+            guard case let .box(r, _, _)? = d.still(after: -1).element("ring")?.kind else { Issue.record("no ring"); continue }
+            boxes.append(r)
+        }
+        return boxes
+    }
+
+    @Test func padIsOneNumberAndARectGivesBoxesOfOneSizeRoundNumerals() throws {
+        // Round the text as drawn, a single digit has a tall, narrow box and two digits a wider one.
+        let fitted = try outlines(#""ring": {"kind": "outline", "style": "ring", "ink": "result", "around": "digits", "pad": 8}"#)
+        #expect(fitted[0].height > fitted[0].width && fitted[1].width > fitted[0].width)
+        // `pad` is a single number: a pair for across and down is refused.
+        let pair = #"""
+            {"format": "chalkscript-explainer", "version": "1.0", "id": "t", "title": "T", "sourceLocale": "en-US",
+             "params": {"k": {"type": "int", "min": 1, "max": 9}}, "samples": [{"k": 3}],
+             "elements": {"digits": {"kind": "text", "at": [300, 300], "text": "num"},
+                          "ring": {"kind": "outline", "style": "ring", "ink": "result", "around": "digits", "pad": [4, 8]}},
+             "sequence": ["s"], "steps": {"s": {"say": "s", "actions": {"show": {"do": "appear", "target": "digits"}}}},
+             "wording": {"en-US": {"shared": {"num": {"text": "{k}", "visual": true}}, "everyday": {"s": "A line."}}}}
+            """#
+        #expect(ExplainerDocument.read(Data(pair.utf8)).findings.contains { $0.path == "/elements/ring/pad" && $0.severity == .error })
+        // A `rect` of one size, centred on the numeral, boxes both alike.
+        let alike = try outlines(#""ring": {"kind": "outline", "style": "ring", "ink": "result", "rect": [270, 250, 60, 70]}"#)
+        #expect(alike[0] == alike[1] && alike[0].size == CGSize(width: 60, height: 70))
+    }
+}
