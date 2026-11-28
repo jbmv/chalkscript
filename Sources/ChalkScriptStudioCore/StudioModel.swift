@@ -173,6 +173,11 @@ public final class StudioModel {
         return doc.samples.first ?? [:]
     }
 
+    /// The problem the shown document is played with; empty when no document is shown. It is
+    /// read from the model's own selection, so it is the played problem as soon as
+    /// `playerSerial` changes, whatever document a view was last given.
+    public var shownProblem: [String: DocumentValue] { selectedName.map { problem(for: $0) } ?? [:] }
+
     /// Plays the document with `values`, if they are within its parameters; otherwise returns
     /// why not and changes nothing.
     @discardableResult
@@ -731,7 +736,7 @@ public final class StudioModel {
     public var videoExportSource: VideoExportSource? {
         guard player != nil, let shown = selected, let doc = shown.document else { return nil }
         return VideoExportSource(
-            title: shown.title ?? shown.name, document: doc, problem: problem(for: shown.name), wording: effectiveWording,
+            title: shown.title ?? shown.name, document: doc, problem: shownProblem, wording: effectiveWording,
             locale: effectiveLocale, appearance: previewAppearance)
     }
 

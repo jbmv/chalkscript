@@ -277,8 +277,11 @@ struct OptionsBar: View {
         (doc?.parameterOrder ?? values.keys.sorted()).compactMap { k in values[k].map { "\(k) = \($0)" } }.joined(separator: ", ")
     }
 
+    /// Writes the played problem into the fields. The problem is read from the model, not found
+    /// by this view's `document`: when the player changes because another document is shown, this
+    /// runs while the view still has the document shown before.
     private func resetDrafts() {
-        drafts = problem.mapValues { "\($0)" }
+        drafts = model.shownProblem.mapValues { "\($0)" }
     }
 
     private func step(_ name: String, by delta: Double) {

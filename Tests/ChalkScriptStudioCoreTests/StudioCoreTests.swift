@@ -314,6 +314,46 @@ struct StudioProjectTests {
         #expect(e.problem == ["a": .number(54), "b": .number(26)])
     }
 
+    /// The options bar fills its fields from `shownProblem` each time `playerSerial` changes.
+    @Test func theShownProblemIsThePlayedOneEachTimeThePlayerChanges() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        func played() -> [String: DocumentValue]? { model.shaped?.shown.problem }
+        #expect(model.selectedName == "equal-groups")
+        #expect(model.shownProblem == ["a": .number(2), "b": .number(2)])
+
+        // The helper shows another document with a problem: the player changes, and the problem
+        // read then is the new document's, where the one found by the name shown before is not.
+        var serial = model.playerSerial
+        _ = try #require(model.respond(to: Studio.Method.show, params: try params(
+            #"{"doc":"subtraction","problem":{"a":54,"b":26}}"#), client: nil).result)
+        #expect(model.playerSerial != serial)
+        #expect(model.shownProblem == ["a": .number(54), "b": .number(26)])
+        #expect(model.shownProblem == played())
+        #expect(model.problem(for: "equal-groups") == ["a": .number(2), "b": .number(2)])
+
+        // A sample or the fields set the problem of the document shown.
+        serial = model.playerSerial
+        #expect(model.setProblem(["a": .number(83), "b": .number(12)], for: "subtraction").isEmpty)
+        #expect(model.playerSerial != serial)
+        #expect(model.shownProblem == ["a": .number(83), "b": .number(12)])
+        #expect(model.shownProblem == played())
+
+        // Another document chosen in the list, and a new document.
+        serial = model.playerSerial
+        model.select("equal-groups")
+        #expect(model.playerSerial != serial)
+        #expect(model.shownProblem == ["a": .number(2), "b": .number(2)])
+        serial = model.playerSerial
+        try model.createDocument(title: "Starter")
+        #expect(model.playerSerial != serial)
+        #expect(model.selectedName == "starter")
+        #expect(model.shownProblem == played())
+
+        model.close()
+        #expect(model.shownProblem.isEmpty)
+    }
+
     @Test func wordingAndPlaybackAreChosen() throws {
         let project = try TemporaryProject()
         let model = try openModel(project)
