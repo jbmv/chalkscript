@@ -92,6 +92,15 @@ A player that does not implement every capability in `requires` must refuse the 
 each missing capability. It must not draw an approximation. A document that uses a kind, verb, key
 or function of a capability it does not list is in error.
 
+What a player does not draw of a capability it does implement is refused in the same way, with a
+`capability` finding, and a document that conforms may still ask for it. The player in this
+repository reports such a refusal as a finding of the reader when the document alone shows it,
+such as a role it has no ink for, so that one reading lists every one of them with the other
+findings. A refusal that needs a problem's values, such as a tint of an element that repeats, is
+made when the document is resolved for that problem, and lists each place that fails, not the
+first only. A fault in the instances an element draws is listed before faults in the camera and
+the actions, which depend on the instances.
+
 This version defines two capabilities: `components.arithmetic` (section 9.4) and `drawing.turn`
 (section 9.5). Later versions are expected to add capabilities for other kinds of drawing, such as
 parts placed in a projected space for exploded views, and imported vector artwork with named parts.
