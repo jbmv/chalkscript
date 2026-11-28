@@ -126,10 +126,12 @@ struct Track: Sendable {
     var mark: Bool
     var effect: Effect
 
-    /// Applies the track at `t` seconds on the step's clock; before `begins` it does nothing.
-    func apply(at t: Double, to looks: inout [InstanceLook]) {
+    /// Applies the track at `t` seconds on the step's clock; before `begins` it does nothing. With
+    /// `wait`, `t` is the moment shown while the clock holds at a wait for the voice at that time,
+    /// and a track that ends there is whole while it holds, whatever it does (EXP-10).
+    func apply(at t: Double, holdingAt wait: Double? = nil, to looks: inout [InstanceLook]) {
         guard t >= begins else { return }
-        let p = progress(t, start: start, duration: duration, easing)
+        let p = progress(duration > 0 ? Motion.settled(t, toEnd: start + duration, heldAt: wait) : t, start: start, duration: duration, easing)
         var l = looks[target]
         switch effect {
         case let .appear(rise, grow, place, text):
@@ -155,7 +157,7 @@ struct Track: Sendable {
         case let .cross(fade, fadeEasing, from, crossFrom):
             l.crossProgress = p
             if fade > 0 {
-                let q = progress(t, start: start + duration, duration: fade, fadeEasing)
+                let q = progress(Motion.settled(t, toEnd: start + duration + fade, heldAt: wait), start: start + duration, duration: fade, fadeEasing)
                 l.opacity = mix(from, Components.ghostOpacity, q)
                 l.crossOpacity = mix(crossFrom, Components.ghostOpacity, q)
             }

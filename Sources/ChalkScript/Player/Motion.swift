@@ -36,6 +36,21 @@ public struct Motion: Sendable {
 
     /// The picture it ends on.
     public var end: Scene { picture(script.duration) }
+
+    /// How far before a wait for the voice the picture holds while the clock waits there.
+    static let beforeWait = 0.001
+
+    /// The wait in `waits` that `t` is the held picture's moment for, if any (`shownTime`).
+    static func wait(heldAt t: Double, in waits: [Double]) -> Double? {
+        waits.first { abs($0 - beforeWait - t) < 1e-9 }
+    }
+
+    /// `end`, when `t` is the moment held just before a wait for the voice at `wait` and a motion
+    /// ends there; else `t`. The picture held at a wait is not short of what ends at the wait, though
+    /// the two times are computed apart.
+    static func settled(_ t: Double, toEnd end: Double, heldAt wait: Double?) -> Double {
+        if let wait, abs(end - wait) < 1e-9 { end } else { t }
+    }
 }
 
 /// Plays one `Motion` at a time on its own clock and speaks lines through the voice one at a
@@ -88,15 +103,12 @@ final class MotionRunner {
         self.drivesItself = drivesItself
     }
 
-    /// How far before a wait for the voice the picture holds while the clock waits there.
-    static let beforeWait = 0.001
-
     /// The moment of the motion the picture shows: the clock's, except while it is held at a wait
     /// for the voice, when it is the moment just before. Whatever begins at the wait (a piece
     /// counted, a total, an answer) is shown with the line said after it, not while the line
     /// before is still heard, so a count's number and its piece go together however long the
     /// voice takes (EXP-10).
-    var shownTime: Double { heldForVoice ? max(0, time - Self.beforeWait) : time }
+    var shownTime: Double { heldForVoice ? max(0, time - Motion.beforeWait) : time }
 
     /// The picture now, or nil before any motion.
     var picture: Scene? { motion.map { $0.picture(min(shownTime, $0.script.duration)) } }

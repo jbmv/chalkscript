@@ -80,9 +80,10 @@ public struct DocumentExplainer: Explainer {
     public func scene(step: Int, at t: Double) -> Scene {
         let s = resolved.steps[step]
         if t >= s.duration { return still(after: step) }
+        let wait = Motion.wait(heldAt: t, in: s.waits)
         var looks = film.carried[step]
-        for track in film.tracks[step] { track.apply(at: t, to: &looks) }
-        return film.scene(looks, camera: camera(step, at: t))
+        for track in film.tracks[step] { track.apply(at: t, holdingAt: wait, to: &looks) }
+        return film.scene(looks, camera: camera(step, at: t, holdingAt: wait))
     }
 
     public func still(after step: Int) -> Scene {
@@ -102,11 +103,11 @@ public struct DocumentExplainer: Explainer {
 
     /// The camera `t` seconds into step `step`: moving from the shot it held to the step's own
     /// during the lead, then holding (sections 10.4 and 12.5).
-    func camera(_ step: Int, at t: Double) -> Camera? {
+    func camera(_ step: Int, at t: Double, holdingAt wait: Double? = nil) -> Camera? {
         guard film.cameraOn else { return nil }
         let s = resolved.steps[step]
         let to = film.camera(s.shot)
         guard s.lead > 0, let a = film.camera(shot(before: step)), let b = to else { return to }
-        return Camera.between(a, b, film.cameraMove.fraction(at: t))
+        return Camera.between(a, b, film.cameraMove.fraction(at: Motion.settled(t, toEnd: film.cameraMove.end, heldAt: wait)))
     }
 }
