@@ -146,9 +146,9 @@ struct DocumentReaderTests {
         has(ExplainerDocument.read(DocumentFixture.data("subtraction.explainer"), capabilities: []), .error, .capability, "/requires/0")
     }
 
-    // A document that conforms but asks for what the player does not draw is refused by the
-    // player, not found by the reader (section 2.3), so one refusal names one fault at a time.
-    @Test func aDocumentWithThreeColourFaultsIsRefusedOneStageAtATime() {
+    // What the player does not draw, and which the document alone shows, is a finding of the
+    // reader, so a refused patch names every such fault at once (section 2.3, EXP-19).
+    @Test func aDocumentWithThreeColourFaultsIsRefusedWithAllThree() {
         let faults = tiny
             .setting("/elements/sum", try! JSONValue.parse(#"{"kind": "text", "at": [10, 60], "text": "label", "style": "total", "ink": "text"}"#))
             .setting("/elements/go", try! JSONValue.parse(#"{"kind": "arrow", "from": [0, 0], "to": [0, 50], "ink": "add.ink"}"#))
@@ -157,24 +157,83 @@ struct DocumentReaderTests {
             let doc = ExplainerDocument.read(json.data).document!
             do { _ = try DocumentExplainer(document: doc, problem: problem); return [] } catch { return error.findings.map(\.description) }
         }
-        // The reader checks every element in one pass and finds the one fault that is its own.
+        let three = [
+            "error capability /elements/go/ink: this player draws a arrow only in an operation role or a colour of the document's named alone, not 'add.ink'",
+            "error capability /elements/sum: this player draws a total centred and in the result role only",
+            "error capability /elements/go/ink: this uses the capability 'components.arithmetic', which requires does not list",
+        ]
         let r = read(faults)
-        #expect(r.findings.map(\.description) == [
-            "error capability /elements/go/ink: this uses the capability 'components.arithmetic', which requires does not list"
-        ])
-        #expect(refusal(faults) == r.findings.map(\.description))
-        // With the capability required, the document reads without a finding. The player's
-        // refusals are then its own, and the film stops at the first it meets.
+        #expect(r.findings.map(\.description) == three)
+        // The one refusal the player gives is the reader's, in full.
+        #expect(refusal(faults) == three)
+        // With the capability required, the two the player would have refused are still named together.
         let required = faults.setting("/requires", .array([.string("components.arithmetic")]))
-        #expect(read(required).findings.isEmpty)
-        #expect(refusal(required) == [
-            "error capability /elements/go/ink {a: 1}: this player draws a arrow only in an operation role or a colour of the document's named alone, not 'add.ink'"
-        ])
+        #expect(read(required).findings.map(\.description) == Array(three.prefix(2)))
+        #expect(refusal(required) == Array(three.prefix(2)))
         let arrowMended = required.setting("/elements/go/ink", .string("add"))
-        #expect(refusal(arrowMended) == [
-            "error capability /elements/sum {a: 1}: this player draws a total centred and in the result role only"
-        ])
+        #expect(refusal(arrowMended) == [three[1]])
         #expect(refusal(arrowMended.setting("/elements/sum/ink", .string("result"))).isEmpty)
+    }
+
+    /// Each refusal of the player that the document alone shows, as the finding the reader makes
+    /// of it, and the same document mended so that it reads with none.
+    @Test func whatThePlayerWouldNotDrawIsFoundByTheReader() throws {
+        let colours = try JSONValue.parse(##"{"mine": {"light": "#1F6FEB", "dark": "#8CB4FF"}}"##)
+        let base = tiny.setting("/colours", colours).setting("/requires", .array([.string("components.arithmetic")]))
+        func element(_ json: String) throws -> JSONValue { try JSONValue.parse(json) }
+        let cases: [(JSONValue, mended: JSONValue, path: String, message: String)] = [
+            // A neutral role the stage has no ink for, as a text, a line and a shape's ink and fill.
+            (base.setting("/elements/label/ink", .string("paper")), base.setting("/elements/label/ink", .string("text")),
+                "/elements/label/ink", "this player does not draw the role 'paper' yet"),
+            (base.setting("/elements/rule", try element(#"{"kind": "line", "from": [0, 0], "to": [9, 0], "ink": "onResult"}"#)),
+                base.setting("/elements/rule", try element(#"{"kind": "line", "from": [0, 0], "to": [9, 0], "ink": "mine"}"#)),
+                "/elements/rule/ink", "this player does not draw the role 'onResult' yet"),
+            (base.setting("/elements/blob", try element(#"{"kind": "shape", "rect": [0, 0, 9, 9], "fill": "paper"}"#)),
+                base.setting("/elements/blob", try element(#"{"kind": "shape", "rect": [0, 0, 9, 9], "fill": "mine.soft"}"#)),
+                "/elements/blob/fill", "this player does not draw the role 'paper' yet"),
+            // A role that is not an operation or a colour named alone, where only those are drawn.
+            (base.setting("/elements/go", try element(#"{"kind": "arrow", "from": [0, 0], "to": [0, 50], "ink": "muted"}"#)),
+                base.setting("/elements/go", try element(#"{"kind": "arrow", "from": [0, 0], "to": [0, 50], "ink": "mine"}"#)),
+                "/elements/go/ink", "this player draws a arrow only in an operation role or a colour of the document's named alone, not 'muted'"),
+            (base.setting("/elements/ring", try element(#"{"kind": "outline", "style": "ring", "rect": [0, 0, 9, 9], "ink": "mine.fill"}"#)),
+                base.setting("/elements/ring", try element(#"{"kind": "outline", "style": "ring", "rect": [0, 0, 9, 9], "ink": "mine"}"#)),
+                "/elements/ring/ink", "this player draws a outline only in an operation role or a colour of the document's named alone, not 'mine.fill'"),
+            (base.setting("/elements/hint", try element(#"{"kind": "outline", "style": "hint", "rect": [0, 0, 9, 9], "ink": "mine"}"#)),
+                base.setting("/elements/hint", try element(#"{"kind": "outline", "style": "hint", "rect": [0, 0, 9, 9]}"#)),
+                "/elements/hint/ink", "this player draws a hint outline only in its own role"),
+            // A style that is drawn in its own anchor and role.
+            (base.setting("/elements/label/style", .string("equation")).setting("/elements/label/anchor", .string("start")),
+                base.setting("/elements/label/style", .string("equation")),
+                "/elements/label", "this player draws an equation centred and in the text role only"),
+            (base.setting("/elements/label/style", .string("total")).setting("/elements/label/ink", .string("text")),
+                base.setting("/elements/label/style", .string("total"))
+                .setting("/elements/label/ink", .string("result")),
+                "/elements/label", "this player draws a total centred and in the result role only"),
+            // A run's own role, outside an equation and in one.
+            (base.setting("/elements/label/runs", try element(#"{"a": {"ink": "mine"}}"#)),
+                base.setting("/elements/label/style", .string("equation")).setting("/elements/label/ink", .string("text"))
+                    .setting("/elements/label/anchor", .string("middle")).setting("/elements/label/runs", try element(#"{"a": {"ink": "mine"}}"#)),
+                "/elements/label/runs/a/ink", "this player draws a run's own role only in an equation"),
+        ]
+        for (broken, mended, path, message) in cases {
+            let found = read(broken)
+            #expect(found.findings.contains { $0.severity == .error && $0.code == .capability && $0.path == path && $0.message.hasPrefix(message) },
+                "\(path): \(found.findings)")
+            #expect(read(mended).findings.errors.isEmpty, "\(path): \(read(mended).findings)")
+        }
+    }
+
+    /// The tint and the tag name their role, and a tint its target, as the player draws them.
+    @Test func aTintAndATagAreCheckedAsThePlayerDrawsThem() throws {
+        let doc = tiny.setting("/requires", .array([.string("components.arithmetic")]))
+            .setting("/elements/eq", try JSONValue.parse(#"{"kind": "text", "at": [10, 20], "text": "label", "style": "equation"}"#))
+            .setting("/steps/show/actions/tint", try JSONValue.parse(#"{"do": "tint", "target": "eq", "ink": "text"}"#))
+        // A bare element is no run; its refusal is the player's own, with the element named.
+        has(read(doc), .error, .capability, "/steps/show/actions/tint", "tints only a run of a text element, not eq")
+        has(read(tiny.setting("/steps/show/actions/in/do", .string("tint")).setting("/steps/show/actions/in/ink", .string("muted"))),
+            .error, .capability, "/steps/show/actions/in", "tints only in an operation role")
+        has(read(tiny.setting("/steps/show/actions/in/do", .string("tag")).setting("/steps/show/actions/in/text", .string("label"))
+            .setting("/steps/show/actions/in/ink", .string("muted"))), .error, .capability, "/steps/show/actions/in", "draws a tag only in an operation role")
     }
 
     @Test func expressionsAreParsedAndTheirNamesChecked() {

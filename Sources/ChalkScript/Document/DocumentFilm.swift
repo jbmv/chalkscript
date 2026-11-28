@@ -114,12 +114,12 @@ extension DocumentFilm {
         func refuse(_ key: String, _ message: String) -> EvalFailure { EvalFailure(path: key.isEmpty ? p : p + "/" + key, message: message, code: .capability) }
         func role(_ key: String, fill: Bool = false) throws(EvalFailure) -> Ink? {
             guard let s = el[key]?.string else { return nil }
-            guard let ink = roles.ink(s, fill: fill) else { throw refuse(key, "this player does not draw the role '\(s)' yet") }
+            guard let ink = roles.ink(s, fill: fill) else { throw refuse(key, PlayerRefusal.inkRole(s)) }
             return ink
         }
         func hue(_ key: String) throws(EvalFailure) -> Hue? {
             guard let s = el[key]?.string else { return nil }
-            guard let hue = roles.hue(s) else { throw refuse(key, "this player draws a \(kind) only in an operation role or a colour of the document's named alone, not '\(s)'") }
+            guard let hue = roles.hue(s) else { throw refuse(key, PlayerRefusal.hue(kind, s)) }
             return hue
         }
         let bounds = try r.bounds(inst)
@@ -134,16 +134,16 @@ extension DocumentFilm {
             let size = try number("size", size0)
             let anchor = el["anchor"]?.string ?? anchor0
             let ink = el["ink"]?.string ?? ink0
-            if roles.ink(ink, fill: false) == nil { throw refuse("ink", "this player does not draw the role '\(ink)' yet") }
+            if roles.ink(ink, fill: false) == nil { throw refuse("ink", PlayerRefusal.inkRole(ink)) }
             if style == "equation" && (anchor != "middle" || ink != "text") {
-                throw refuse("", "this player draws an equation centred and in the text role only")
+                throw refuse("", PlayerRefusal.equation)
             }
             if style == "total" && (anchor != "middle" || ink != "result") {
-                throw refuse("", "this player draws a total centred and in the result role only")
+                throw refuse("", PlayerRefusal.total)
             }
             for (run, v) in el["runs"]?.object?.entries ?? [] {
                 if let ri = v["ink"]?.string, style != "equation" || (ri != "result" && ri != "text" && roles.colours[ri] == nil) {
-                    throw refuse("runs/\(run)/ink", "this player draws a run's own role only in an equation, and only the result role or a colour of the document's")
+                    throw refuse("runs/\(run)/ink", PlayerRefusal.runInk)
                 }
             }
             if let entry = el["text"]?.string { text = try runs(of: name, entry: entry, el: el, locals: l, r) }
@@ -182,7 +182,7 @@ extension DocumentFilm {
             switch style {
             case "box", "ring": op = try hue("ink")
             default:
-                if el["ink"] != nil { throw refuse("ink", "this player draws a \(style) outline only in its own role") }
+                if el["ink"] != nil { throw refuse("ink", PlayerRefusal.outlineInk(style)) }
             }
             shape = .outline(bounds, style: style, op: op)
             reference = bounds.origin
@@ -349,12 +349,12 @@ extension DocumentFilm {
                     let now = state(at: start)[at]
                     effect = .cross(fade: a.fade, easing: style.easing(style.kindEasing("fade")), from: now.opacity, crossFrom: now.crossOpacity)
                 case "tint":
-                    guard case .run? = target.part else { throw refuse("this player tints only a run of a text element, not \(target)") }
+                    guard case .run? = target.part else { throw refuse(PlayerRefusal.tintNeedsRun + "\(target)") }
                     guard let role = o["ink"]?.string, let op = roles.hue(role) else {
-                        throw refuse("this player tints only in an operation role or a colour of the document's named alone")
+                        throw refuse(PlayerRefusal.tintHue)
                     }
                     if case let .text(_, style, _, _, _) = instances[at].shape, style != "equation" {
-                        throw refuse("this player tints a run only in an equation")
+                        throw refuse(PlayerRefusal.tintEquation)
                     }
                     effect = .tint(op)
                 case "move":
@@ -394,7 +394,7 @@ extension DocumentFilm {
                     effect = .set(a.text?.shown ?? "")
                 case "tag":
                     guard let hue = o["ink"]?.string.map({ roles.hue($0) }) ?? .some(.result) else {
-                        throw refuse("this player draws a tag only in an operation role or a colour of the document's named alone")
+                        throw refuse(PlayerRefusal.tagHue)
                     }
                     effect = .tag(a.text?.shown ?? "", hue)
                 case "pulse":

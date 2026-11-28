@@ -63,6 +63,24 @@ extension ExplainerDocument {
     }
 }
 
+/// What the player says when it refuses a document for what it does not draw (section 2.3). The
+/// reader finds these from the document alone, and the film's construction says them again for what
+/// only a problem's values show, so both use these words.
+enum PlayerRefusal {
+    static func inkRole(_ role: String) -> String { "this player does not draw the role '\(role)' yet" }
+    static func hue(_ kind: String, _ role: String) -> String {
+        "this player draws a \(kind) only in an operation role or a colour of the document's named alone, not '\(role)'"
+    }
+    static let equation = "this player draws an equation centred and in the text role only"
+    static let total = "this player draws a total centred and in the result role only"
+    static let runInk = "this player draws a run's own role only in an equation, and only the result role or a colour of the document's"
+    static func outlineInk(_ style: String) -> String { "this player draws a \(style) outline only in its own role" }
+    static let tintNeedsRun = "this player tints only a run of a text element, not "
+    static let tintHue = "this player tints only in an operation role or a colour of the document's named alone"
+    static let tintEquation = "this player tints a run only in an equation"
+    static let tagHue = "this player draws a tag only in an operation role or a colour of the document's named alone"
+}
+
 /// What a slot of the document holds where an expression may stand (section 6.1).
 enum SlotType {
     case number, truth, value, selection
@@ -249,21 +267,50 @@ final class DocumentChecker {
         entryUses.append(EntryUse(name: s, path: p, locals: locals, part: part, element: element))
     }
 
-    func role(_ o: JSONObject, _ key: String, _ path: String) {
-        guard let s = string(o, key, path) else { return }
+    /// A role named at `key`; the name when it is a role the document can use, else nil, with the
+    /// finding that says why.
+    @discardableResult
+    func role(_ o: JSONObject, _ key: String, _ path: String) -> String? {
+        guard let s = string(o, key, path) else { return nil }
         let p = DocumentPath.join(path, key)
         let parts = s.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
         let base = parts[0]
         guard DocumentNames.isName(base), parts.count == 1 || (parts.count == 2 && ["fill", "ink", "soft"].contains(parts[1])) else {
             error(.schema, p, "'\(s)' is not a role")
-            return
+            return nil
         }
         if parts.count == 2 && Self.neutralRoles.contains(base) {
             error(.schema, p, "'\(base)' is a neutral role, which has no \(parts[1])")
-            return
+            return nil
         }
         if Self.arithmeticRoles.contains(base) { used.append(("components.arithmetic", p)) }
-        if !roles.contains(base) && !Self.arithmeticRoles.contains(base) { error(.ref, p, "there is no role '\(base)'") }
+        if !roles.contains(base) && !Self.arithmeticRoles.contains(base) {
+            error(.ref, p, "there is no role '\(base)'")
+            return nil
+        }
+        return s
+    }
+
+    /// The roles the player draws, as the stage's inks, for the colours the document has read.
+    var playerRoles: DocumentRoles { DocumentRoles(colours: ownColours) }
+
+    /// Whether the player draws a colour as a role, for a role the document can use. A colour of
+    /// the document's that could not be read is not judged here: it has a finding of its own.
+    private func judged(_ role: String) -> Bool {
+        let base = role.split(separator: ".").first.map(String.init) ?? role
+        return Self.styleRoles.contains(base) || ownColours[base] != nil
+    }
+
+    /// Refuses, as the player would (section 2.3), a role it draws no ink for (EXP-19).
+    func refuseInk(_ role: String?, fill: Bool = false, _ path: String) {
+        guard let role, judged(role), playerRoles.ink(role, fill: fill) == nil else { return }
+        error(.capability, path, PlayerRefusal.inkRole(role))
+    }
+
+    /// Refuses, as the player would, a role it draws as an operation role or a colour named alone only.
+    func refuseHue(_ role: String?, _ path: String, _ message: (String) -> String) {
+        guard let role, judged(role), playerRoles.hue(role) == nil else { return }
+        error(.capability, path, message(role))
     }
 
     func ease(_ o: JSONObject, _ key: String, _ path: String) {
@@ -805,27 +852,38 @@ final class DocumentChecker {
             case "text":
                 point(el["at"], p + "/at", scope)
                 entry(el, "text", p, part: .watch, locals: scope.locals, element: name)
+                let style = oneOf(el, "style", p, ["equation", "total", "label", "note", "body"])
+                let styleName = el["style"] == nil ? "body" : style
                 for (run, v, rp) in map(el["runs"], p + "/runs") {
                     guard let r = object(v, rp, known: ["ink", "text"]) else { continue }
-                    role(r, "ink", rp)
+                    if let ri = role(r, "ink", rp), judged(ri), styleName != "equation" || (ri != "result" && ri != "text" && ownColours[ri] == nil) {
+                        error(.capability, DocumentPath.join(rp, "ink"), PlayerRefusal.runInk)
+                    }
                     entry(r, "text", rp, part: .watch, locals: scope.locals)
                     if !runs(of: name).contains(run) { error(.ref, rp, "\(name)'s entry has no placeholder {\(run)}") }
                 }
-                _ = oneOf(el, "style", p, ["equation", "total", "label", "note", "body"])
-                role(el, "ink", p)
                 slot(el["size"], p + "/size", .number, scope)
-                _ = oneOf(el, "anchor", p, ["start", "middle", "end"])
+                let anchor = oneOf(el, "anchor", p, ["start", "middle", "end"])
+                let ink = role(el, "ink", p)
+                refuseInk(ink, p + "/ink")
+                // What the player draws of a style, by the style's own anchor and ink where the element gives none.
+                if let styleName, let (_, anchor0, ink0) = DocumentFilm.textDefaults[styleName],
+                    let anchorNow = el["anchor"] == nil ? anchor0 : anchor, let inkNow = el["ink"] == nil ? ink0 : ink
+                {
+                    if styleName == "equation" && (anchorNow != "middle" || inkNow != "text") { error(.capability, p, PlayerRefusal.equation) }
+                    if styleName == "total" && (anchorNow != "middle" || inkNow != "result") { error(.capability, p, PlayerRefusal.total) }
+                }
             case "line":
                 point(el["from"], p + "/from", scope)
                 point(el["to"], p + "/to", scope)
                 _ = oneOf(el, "style", p, ["rule", "divider"])
-                role(el, "ink", p)
+                refuseInk(role(el, "ink", p), p + "/ink")
             case "arrow":
                 for key in ["from", "to"] {
                     if case .string = el[key] { slot(el[key], p + "/" + key, .selection, scope) } else { point(el[key], p + "/" + key, scope) }
                 }
                 slot(el["y"], p + "/y", .number, scope)
-                role(el, "ink", p)
+                refuseHue(role(el, "ink", p), p + "/ink") { PlayerRefusal.hue("arrow", $0) }
             case "outline":
                 if el["rect"] == nil && el["around"] == nil { error(.schema, p, "an outline has rect or around") }
                 if el["rect"] != nil && el["around"] != nil { error(.schema, p, "an outline has rect or around, not both") }
@@ -833,7 +891,12 @@ final class DocumentChecker {
                 slot(el["around"], p + "/around", .selection, scope)
                 slot(el["pad"], p + "/pad", .number, scope)
                 let style = oneOf(el, "style", p, ["box", "ring", "hint", "target"])
-                role(el, "ink", p)
+                let ink = role(el, "ink", p)
+                switch style {
+                case "box", "ring": refuseHue(ink, p + "/ink") { PlayerRefusal.hue("outline", $0) }
+                case let other?: if el["ink"] != nil { error(.capability, p + "/ink", PlayerRefusal.outlineInk(other)) }
+                case nil: break
+                }
                 if (style == "box" || style == "ring") && el["ink"] == nil { error(.schema, p, "a \(style!) outline has no 'ink', which it requires") }
             case "shape":
                 let geometry = ["rect", "ellipse", "points"].filter { el[$0] != nil }
@@ -849,8 +912,8 @@ final class DocumentChecker {
                     }
                 }
                 bool(el, "closed", p)
-                role(el, "fill", p)
-                role(el, "ink", p)
+                refuseInk(role(el, "fill", p), fill: true, p + "/fill")
+                refuseInk(role(el, "ink", p), p + "/ink")
                 if el["fill"] == nil && el["ink"] == nil { error(.schema, p, "a shape has at least one of fill and ink") }
             default:
                 rect(el["rect"], p + "/rect", scope)
@@ -1033,7 +1096,8 @@ final class DocumentChecker {
         case "cross":
             slot(o["fade"], p + "/fade", .number, plain)
         case "tint":
-            role(o, "ink", p)
+            refuseHue(role(o, "ink", p), p) { _ in PlayerRefusal.tintHue }
+            checkTintTarget(o["target"], p, scope: plain)
         case "move":
             point(o["to"], p + "/to", perInstance)
             if let via = o["via"] {
@@ -1065,7 +1129,7 @@ final class DocumentChecker {
             _ = oneOf(o, "value", p, ["pencil", "traded", "counted"])
         case "set", "tag":
             entry(o, "text", p, part: part, locals: plain.locals)
-            if verb == "tag" { role(o, "ink", p) }
+            if verb == "tag" { refuseHue(role(o, "ink", p), p) { _ in PlayerRefusal.tagHue } }
         case "say":
             entry(o, "line", p, part: part, locals: plain.locals)
             bool(o, "count", p)
@@ -1093,6 +1157,31 @@ final class DocumentChecker {
             }
         default:
             break
+        }
+    }
+
+    /// What a `tint` can be told of its target before any problem: a bare element that does not
+    /// repeat is no run, and a run of a text element that is not an equation is not tinted. Any
+    /// other target is judged when it is evaluated.
+    func checkTintTarget(_ target: JSONValue?, _ path: String, scope: SlotScope) {
+        guard let e = expressions[path + "/target"] else { return }
+        func element(_ n: ExpressionNode) -> String? {
+            if case let .index(base, _) = n.kind { return element(base) }
+            guard case let .name(name) = n.kind, !scope.locals.contains(name), elements[name] != nil else { return nil }
+            return name
+        }
+        switch e.root.kind {
+        case let .name(name) where !scope.locals.contains(name):
+            if let el = elements[name], el["repeat"] == nil, el["kind"]?.string != nil {
+                error(.capability, path, PlayerRefusal.tintNeedsRun + name)
+            }
+        case let .member(base, run):
+            if let name = element(base), let el = elements[name], el["kind"] == .string("text"), run != "cross",
+                (el["style"] == nil ? "body" : el["style"]?.string).map({ $0 != "equation" }) == true
+            {
+                error(.capability, path, PlayerRefusal.tintEquation)
+            }
+        default: break
         }
     }
 

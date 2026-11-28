@@ -258,20 +258,22 @@ struct DocumentPlayerTests {
     // MARK: refusal
 
     /// A document is refused, naming what is not drawn, when it asks for what this player does
-    /// not draw yet: never drawn approximately (section 2.3).
+    /// not draw yet: never drawn approximately (section 2.3). The reader finds what the document
+    /// alone shows (the second and third), so that document does not conform; the player finds
+    /// the rest, once the problem's values give the instances (the first, a target that repeats).
     @Test func whatIsNotDrawnIsRefusedByName() throws {
         let source = try String(contentsOf: Self.examples.appendingPathComponent("equal-groups.explainer"), encoding: .utf8)
-        let cases: [(String, String, String)] = [
-            ("\"target\": \"equation.b\"", "\"target\": \"ring\"", "tints only a run"),
+        let cases: [(String, String, String, readerFinds: Bool)] = [
+            ("\"target\": \"equation.b\"", "\"target\": \"ring\"", "tints only a run", false),
             ("\"style\": \"total\", \"at\": [\"cx\", \"totalY\"]", "\"style\": \"total\", \"at\": [\"cx\", \"totalY\"], \"ink\": \"text\"",
-             "a total centred and in the result role"),
-            ("\"ink\": \"multiply\",\n", "\"ink\": \"pencil\",\n", "operation role"),
+             "a total centred and in the result role", true),
+            ("\"ink\": \"multiply\",\n", "\"ink\": \"pencil\",\n", "operation role", true),
         ]
-        for (old, new, says) in cases {
+        for (old, new, says, readerFinds) in cases {
             #expect(source.contains(old), "\(old)")
             let reading = ExplainerDocument.read(Data(source.replacingOccurrences(of: old, with: new).utf8))
             let doc = try #require(reading.document)
-            #expect(doc.conforms, "\(doc.findings)")
+            #expect(doc.conforms != readerFinds, "\(doc.findings)")
             do {
                 _ = try DocumentExplainer(document: doc, problem: ["a": .number(3), "b": .number(4)])
                 Issue.record("played a document with \(new)")
