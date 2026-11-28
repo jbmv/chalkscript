@@ -176,13 +176,13 @@ One change happens at a time. A piece moves only where the motion carries meanin
 status: draft
 governs: Sources/ChalkScript/Drawing/Camera.swift, Sources/ChalkScriptExplainers/Subtraction/SubtractionMotion.swift
 
-An explainer may show its drawing through a camera. Each step names a shot, and the view eases to it. What is out of shot is dimmed, not cropped. The statement of the problem stays fixed outside the camera. Only the explainer moves the camera.
+An explainer may show its drawing through a camera. Each step names a shot, and the view eases to it. What is out of shot is dimmed, not cropped. A document's shot may turn the view with `up`, the direction in the drawing shown at the top of the picture, in degrees clockwise from twelve; text stays level, and the shot is framed and dimmed as the turned picture shows it. The statement of the problem stays fixed outside the camera. Only the explainer moves the camera.
 
 **Why:** on a small screen, the pieces of a whole drawing are too small to mark. Narration given with the picture it describes is better understood than narration before or after it (Mayer and Anderson 1991; Ginns 2006), so the camera moves while the line that introduces a shot is said.
 
 **Acceptance:**
 - A step's shot and the camera's move to it come from the motion file (EXP-19). A step that names no shot keeps the current one.
-- The centre of the view moves in a straight line, and its size changes geometrically.
+- The centre of the view moves in a straight line, its size changes geometrically, and its angle turns the shorter way round, clockwise when the two shots face opposite ways.
 - A shot of the whole drawing dims nothing. The problem is never dimmed.
 - Touches are read through the camera, in the drawing's units.
 - Where the learner marks a piece, the piece and its margin are a target at least 44 points across at the moment of asking.
