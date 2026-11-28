@@ -137,17 +137,139 @@ struct DocumentCommandTests {
         #expect(try onDisk(project, "subtraction").title == "Two-digit subtraction by trading a ten")
     }
 
-    @Test func renameForgetsUndosSteps() throws {
-        let project = try TemporaryProject()
-        let model = try openModel(project)
+    /// A model with an undo manager of the test's own, in which each patch is one step.
+    private func undoing(_ model: StudioModel) -> UndoManager {
         let undo = UndoManager()
         undo.groupsByEvent = false
         model.undoManager = undo
+        return undo
+    }
+
+    /// Sets a step's `hold` by a patch, as an agent does, which is one step of Undo.
+    private func setHold(_ model: StudioModel, _ name: String, step: String, _ value: Int) throws {
+        let hash = try #require(model.document(named: name)?.hash)
+        let reply = model.respond(to: Studio.Method.patch, params: try params(
+            #"{"doc":"\#(name)","base":"\#(hash)","ops":[{"op":"replace","path":"/steps/\#(step)/hold","value":\#(value)}]}"#), client: nil)
+        #expect(reply.result?["applied"]?.bool == true)
+    }
+
+    private func hold(_ model: StudioModel, _ name: String, step: String) -> Double? {
+        guard case let .number(n)? = model.document(named: name)?.document?.json["steps"]?[step]?["hold"] else { return nil }
+        return n
+    }
+
+    @Test func undoAfterARenameTakesBackEarlierEditsAndKeepsTheNewName() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let undo = undoing(model)
+        let original = hold(model, "equal-groups", step: "same")
+        try setHold(model, "equal-groups", step: "same", 2)
+        try setHold(model, "equal-groups", step: "same", 3)
+
+        try model.renameDocument("equal-groups", title: "Sharing out")
+        #expect(hold(model, "sharing-out", step: "same") == 3)
+
+        // One step at a time, on the renamed document; the rename is not a step.
+        undo.undo()
+        #expect(hold(model, "sharing-out", step: "same") == 2)
+        undo.undo()
+        #expect(hold(model, "sharing-out", step: "same") == original)
+        #expect(!undo.canUndo)
+        #expect(try files(project) == ["sharing-out.explainer", "subtraction.explainer"])
+        let file = try onDisk(project, "sharing-out")
+        #expect(file.id == "sharing-out")
+        #expect(file.title == "Sharing out")
+        #expect(model.selectedName == "sharing-out")
+
+        // Redo puts the edits back, and still leaves the name.
+        undo.redo()
+        #expect(hold(model, "sharing-out", step: "same") == 2)
+        #expect(try onDisk(project, "sharing-out").title == "Sharing out")
+    }
+
+    @Test func undoWithoutARenameRestoresTheTitleAnEditChanged() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let undo = undoing(model)
         let hash = try #require(model.document(named: "equal-groups")?.hash)
         _ = model.respond(to: Studio.Method.patch, params: try params(
-            #"{"doc":"equal-groups","base":"\#(hash)","ops":[{"op":"replace","path":"/steps/same/hold","value":2}]}"#), client: nil)
+            #"{"doc":"equal-groups","base":"\#(hash)","ops":[{"op":"replace","path":"/title","value":"Another title"}]}"#), client: nil)
+        #expect(try onDisk(project, "equal-groups").title == "Another title")
+        undo.undo()
+        #expect(try onDisk(project, "equal-groups").title == "Multiplying as equal groups")
+    }
+
+    @Test func undoNeverWritesToADocumentThatTookTheOldName() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let undo = undoing(model)
+        try model.createDocument(title: "Reading the clock")
+        let original = try Data(contentsOf: project.url("reading-the-clock"))
+        let hash = try #require(model.document(named: "reading-the-clock")?.hash)
+        _ = model.respond(to: Studio.Method.patch, params: try params(
+            #"{"doc":"reading-the-clock","base":"\#(hash)","ops":[{"op":"add","path":"/about","value":{"licence":"CC-BY-4.0"}}]}"#), client: nil)
         #expect(undo.canUndo)
-        try model.renameDocument("equal-groups", title: "Sharing out")
+
+        try model.renameDocument("reading-the-clock", title: "Telling the time")
+        try model.createDocument(title: "Reading the clock")
+        let taker = try Data(contentsOf: project.url("reading-the-clock"))
+
+        undo.undo()
+        #expect(try Data(contentsOf: project.url("reading-the-clock")) == taker)
+        let renamed = try #require(ExplainerDocument.read(contentsOf: project.url("telling-the-time")).document?.json)
+        #expect(renamed["about"] == nil)
+        #expect(renamed["id"]?.string == "telling-the-time")
+        #expect(renamed["title"]?.string == "Telling the time")
+        // Apart from the name the rename gave, the document is as it was before the edit.
+        let before = try #require(ExplainerDocument.read(original).document?.json)
+        #expect(DocumentStarter.copy(of: before, id: "telling-the-time", title: "Telling the time") == renamed)
+    }
+
+    @Test func trashForgetsTheTrashedDocumentsStepsAndKeepsTheOthers() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let trash = try standInTrash(model)
+        defer { try? FileManager.default.removeItem(at: trash) }
+        let undo = undoing(model)
+        let kept = hold(model, "equal-groups", step: "same")
+        try setHold(model, "equal-groups", step: "same", 2)
+        try model.createDocument(title: "Zebra")
+        let hash = try #require(model.document(named: "zebra")?.hash)
+        _ = model.respond(to: Studio.Method.patch, params: try params(
+            #"{"doc":"zebra","base":"\#(hash)","ops":[{"op":"add","path":"/about","value":{"licence":"CC-BY-4.0"}}]}"#), client: nil)
+
+        try model.trashDocument("zebra")
+        // A document made later under the trashed one's name is not written by its steps.
+        try model.createDocument(title: "Zebra")
+        let later = try Data(contentsOf: project.url("zebra"))
+
+        // The one step left is the other document's.
+        #expect(undo.canUndo)
+        undo.undo()
+        #expect(hold(model, "equal-groups", step: "same") == kept)
+        #expect(!undo.canUndo)
+        #expect(try Data(contentsOf: project.url("zebra")) == later)
+    }
+
+    @Test func trashingTheOnlyEditedDocumentLeavesNothingToUndo() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let trash = try standInTrash(model)
+        defer { try? FileManager.default.removeItem(at: trash) }
+        let undo = undoing(model)
+        try setHold(model, "equal-groups", step: "same", 2)
+        #expect(undo.canUndo)
+        try model.trashDocument("equal-groups")
+        #expect(!undo.canUndo)
+    }
+
+    @Test func openingAnotherProjectForgetsUndosSteps() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let undo = undoing(model)
+        try setHold(model, "equal-groups", step: "same", 2)
+        let other = try TemporaryProject()
+        model.open(folder: other.folder, watch: false)
         #expect(!undo.canUndo)
     }
 

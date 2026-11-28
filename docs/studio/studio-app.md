@@ -71,8 +71,11 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   returns it to the project, where the studio lists it again. If the document was selected, the
   one after it in the sidebar is selected, or the one before it when it was the last. Rename
   and Duplicate are unavailable for a file that cannot be read as a document. None of the three
-  is a step of Edit > Undo, and Rename and Move to Trash clear its steps, since an earlier step
-  would otherwise write a document under a name that is not its own. The code is
+  is a step of Edit > Undo. After a rename, Edit > Undo still takes back the edits made before
+  it, on the renamed document, which keeps the title, name and `id` the rename gave it. Move to
+  Trash forgets the steps made on the document it removes and keeps those made on the others. A
+  step is never done to a document other than the one it was made on, whatever has since taken
+  its name, and opening another project folder forgets every step. The code is
   `StudioModel.renameDocument(_:title:)`, `duplicateDocument(_:)` and `trashDocument(_:)`. An
   agent has no tool for renaming or removing a document.
 - **Playing.** The window plays the selected document's watched steps with the engine's player and

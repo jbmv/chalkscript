@@ -46,6 +46,9 @@ public final class StudioModel {
     public var undoManager: UndoManager?
 
     @ObservationIgnored private var problems: [String: [String: DocumentValue]] = [:]
+    /// What Undo's steps know each document by, under the document's present name. A document
+    /// has one from its first step.
+    @ObservationIgnored private var identities: [String: DocumentIdentity] = [:]
     @ObservationIgnored private var watcher: FolderWatcher?
     @ObservationIgnored private var listener: StudioListener?
     @ObservationIgnored private let drivesPlayer: Bool
@@ -84,6 +87,7 @@ public final class StudioModel {
     public func open(folder url: URL, watch: Bool = true) {
         watcher?.stop()
         watcher = nil
+        forgetAllSteps()
         folder = url
         documents = []
         selectedName = nil
@@ -96,6 +100,7 @@ public final class StudioModel {
     public func close() {
         watcher?.stop()
         watcher = nil
+        forgetAllSteps()
         player?.stop()
         folder = nil
         documents = []
@@ -422,9 +427,12 @@ public final class StudioModel {
             documents[i] = StudioDocument(name: name, url: shown.url, data: data)
         }
         if let before, let undoManager {
+            let identity = identities[name] ?? DocumentIdentity()
+            identities[name] = identity
+            let renames = identity.renames
             undoManager.beginUndoGrouping()
-            undoManager.registerUndo(withTarget: self) { model in
-                MainActor.assumeIsolated { try? model.replace(name, with: before, actionName: actionName) }
+            undoManager.registerUndo(withTarget: identity) { [weak self] identity in
+                MainActor.assumeIsolated { self?.restore(identity, to: before, renames: renames, actionName: actionName) }
             }
             undoManager.setActionName(actionName)
             undoManager.endUndoGrouping()
@@ -434,6 +442,35 @@ public final class StudioModel {
         } else {
             select(name)
         }
+    }
+
+    /// Does one of Undo's steps: writes `json`, a document's earlier content, to the document the
+    /// step was made on, under whatever name it has now. If the document has been renamed since
+    /// (`renames` is its count when the step was made), it keeps its present `id` and `title`.
+    /// A step whose document is gone does nothing.
+    private func restore(_ identity: DocumentIdentity, to json: DocJSON, renames: Int, actionName: String) {
+        guard let name = identities.first(where: { $0.value === identity })?.key, let present = document(named: name) else { return }
+        var json = json
+        if identity.renames != renames {
+            let now = present.document?.json
+            let leaf = String(name.split(separator: "/").last ?? Substring(name))
+            json = DocumentStarter.copy(
+                of: json, id: now?["id"]?.string ?? leaf, title: now?["title"]?.string ?? json["title"]?.string ?? leaf)
+        }
+        try? replace(name, with: json, actionName: actionName)
+    }
+
+    /// Forgets Undo's steps on the document of that name, and leaves those on the others.
+    private func forgetSteps(of name: String) {
+        guard let identity = identities.removeValue(forKey: name) else { return }
+        undoManager?.removeAllActions(withTarget: identity)
+    }
+
+    /// Forgets every step, as when another project is opened, whose documents may have the
+    /// same names.
+    private func forgetAllSteps() {
+        for identity in identities.values { undoManager?.removeAllActions(withTarget: identity) }
+        identities = [:]
     }
 
     func existing(_ name: String) throws(MethodError) -> StudioDocument {
@@ -500,6 +537,8 @@ public final class StudioModel {
         } catch {
             throw MethodError(code: Studio.ErrorCode.failed, "The studio could not save \(name): \(error.localizedDescription)")
         }
+        // A step made on an earlier document of this name is not this document's.
+        forgetSteps(of: name)
         reload()
         guard let made = document(named: name) else {
             throw MethodError(code: Studio.ErrorCode.failed, "The studio saved \(name) but could not find it in the project folder.")
@@ -526,8 +565,8 @@ public final class StudioModel {
     /// Gives a document another title, and with it the name and `id` made from that title: the
     /// file is written and renamed in its folder before the folder is read again, so the project
     /// never lists it half renamed. A name another document has gets a number added. The
-    /// document stays shown if it was, with its problem, and Undo's steps are forgotten, since
-    /// each would write a document under a name and `id` that are not its own.
+    /// document stays shown if it was, with its problem. The rename is not one of Undo's steps,
+    /// and the steps made on the document before it follow the document to its new name.
     ///
     /// - Returns: The document under its new name, as read back from its file.
     /// - Throws: An error whose description says why nothing was changed.
@@ -574,7 +613,11 @@ public final class StudioModel {
             throw MethodError(code: Studio.ErrorCode.failed, "The studio could not rename \(name): \(error.localizedDescription)")
         }
         if let problem = problems.removeValue(forKey: name) { problems[newName] = problem }
-        undoManager?.removeAllActions(withTarget: self)
+        if newName != name { forgetSteps(of: newName) }
+        if let identity = identities.removeValue(forKey: name) {
+            identity.renames += 1
+            identities[newName] = identity
+        }
         if selectedName == name { selectedName = newName }
         reload()
         guard let renamed = document(named: newName) else {
@@ -602,8 +645,8 @@ public final class StudioModel {
     }
 
     /// Moves a document's file to the Trash and, if it was the one shown, shows the document
-    /// that follows it in the list, or the last when it was the last. Undo's steps are forgotten,
-    /// since one of them could write over a later document of the same name.
+    /// that follows it in the list, or the last when it was the last. Undo's steps on it are
+    /// forgotten, and those on other documents are kept.
     ///
     /// - Throws: An error whose description says why the file was not moved.
     public func trashDocument(_ name: String) throws {
@@ -614,7 +657,7 @@ public final class StudioModel {
             throw MethodError(code: Studio.ErrorCode.failed, "The studio could not move \(name) to the Trash: \(error.localizedDescription)")
         }
         problems[name] = nil
-        undoManager?.removeAllActions(withTarget: self)
+        forgetSteps(of: name)
         guard selectedName == name else { return reload() }
         let rest = documents.filter { $0.name != name }
         let place = documents.firstIndex { $0.name == name } ?? 0
@@ -705,6 +748,15 @@ public final class StudioModel {
     func note(_ text: String, client: Implementation?) {
         activity = (client.map { $0.name + ": " } ?? "") + text
     }
+}
+
+/// What Undo's steps know a document by. A step is registered on it, not on the document's name,
+/// so the step follows the document through a rename and is never done to another document
+/// that takes the name.
+@MainActor
+final class DocumentIdentity {
+    /// How many times the document has been renamed since its first step.
+    var renames = 0
 }
 
 /// A request the studio cannot carry out, as an error code of the helper protocol and one
