@@ -73,7 +73,7 @@ extension DocumentFilm {
         if resolved.camera {
             let framing = CameraFraming(r, size: resolved.size)
             func camera(_ f: CameraFraming.Frame, _ name: String?) -> Camera {
-                Camera(viewport: framing.viewport, view: f.view, focus: f.region, dim: style.camera.dim, shot: name)
+                Camera(viewport: framing.viewport, view: f.view, focus: f.region, dim: style.camera.dim, shot: name, up: f.up)
             }
             for name in r.root["shots"]?.object?.keys ?? [] {
                 do { cams[name] = camera(try framing.frame(name), name) } catch { failures.append(error) }

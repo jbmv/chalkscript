@@ -10,6 +10,11 @@ import SwiftUI
 /// a touch on it is read through the same mapping (`Scene.scenePoint`).
 ///
 /// A scene without a camera is drawn as it is, scaled to fit (EXP-17).
+///
+/// A document's shot may turn the camera (`up`): the picture then shows the direction `up` of the
+/// drawing at its top. The view and the focus are then boxes in the turned picture's frame: each
+/// rectangle's middle is a point of the drawing, and its width and height are measured along the
+/// turned picture's axes. Unturned, they are plain rectangles of the drawing.
 public struct Camera: Equatable, Sendable {
     /// Where the camera's picture is shown, in the scene's units.
     public var viewport: CGRect
@@ -21,13 +26,17 @@ public struct Camera: Equatable, Sendable {
     public var dim: Double
     /// The shot's name, or the shot being moved to, for tests and UI tests to read.
     public var shot: String?
+    /// The direction in the drawing shown at the top of the picture, in degrees clockwise from
+    /// twelve; 0 shows the drawing unturned.
+    public var up: Double
 
-    public init(viewport: CGRect, view: CGRect, focus: CGRect? = nil, dim: Double = 0, shot: String? = nil) {
+    public init(viewport: CGRect, view: CGRect, focus: CGRect? = nil, dim: Double = 0, shot: String? = nil, up: Double = 0) {
         self.viewport = viewport
         self.view = view
         self.focus = focus
         self.dim = dim
         self.shot = shot
+        self.up = up
     }
 
     /// How far the dimming fades in past the edge of the focus, in the drawing's units: an
@@ -36,17 +45,72 @@ public struct Camera: Equatable, Sendable {
     public static let feather: CGFloat = 24
 
     /// Drawing units to scene units: the view fitted into the viewport, keeping its shape, and
-    /// centred.
+    /// centred; turned about the view's middle so that the direction `up` points to the top.
     public var transform: CGAffineTransform {
         guard view.width > 0, view.height > 0 else { return .identity }
         let k = min(viewport.width / view.width, viewport.height / view.height)
-        let tx = viewport.midX - view.midX * k
-        let ty = viewport.midY - view.midY * k
-        return CGAffineTransform(a: k, b: 0, c: 0, d: k, tx: tx, ty: ty)
+        if up == 0 {
+            let tx = viewport.midX - view.midX * k
+            let ty = viewport.midY - view.midY * k
+            return CGAffineTransform(a: k, b: 0, c: 0, d: k, tx: tx, ty: ty)
+        }
+        // The drawing turned by -up (counter-clockwise by up), so that the direction up, which is
+        // (sin up, -cos up) on a drawing whose y grows downward, is drawn pointing up.
+        let s = Evaluator.trigonometric(true, degrees: up)
+        let c = Evaluator.trigonometric(false, degrees: up)
+        let (a, b, cc, d) = (k * c, -k * s, k * s, k * c)
+        return CGAffineTransform(
+            a: a, b: b, c: cc, d: d,
+            tx: viewport.midX - (a * view.midX + cc * view.midY), ty: viewport.midY - (b * view.midX + d * view.midY))
     }
 
     /// Scene units per drawing unit.
-    public var scale: CGFloat { transform.a }
+    public var scale: CGFloat { up == 0 ? transform.a : hypot(transform.a, transform.b) }
+
+    /// `p` in the frame of a picture turned to show `up` at its top: turned by -up about the
+    /// drawing's origin, so that a box in that frame is a box as the turned picture shows it.
+    public static func intoFrame(_ p: CGPoint, up: Double) -> CGPoint {
+        if up == 0 { return p }
+        let s = Evaluator.trigonometric(true, degrees: up)
+        let c = Evaluator.trigonometric(false, degrees: up)
+        return CGPoint(x: c * p.x + s * p.y, y: -s * p.x + c * p.y)
+    }
+
+    /// The point of the drawing at `q` in the frame of a picture turned to show `up` at its top.
+    public static func outOfFrame(_ q: CGPoint, up: Double) -> CGPoint {
+        if up == 0 { return q }
+        let s = Evaluator.trigonometric(true, degrees: up)
+        let c = Evaluator.trigonometric(false, degrees: up)
+        return CGPoint(x: c * q.x - s * q.y, y: s * q.x + c * q.y)
+    }
+
+    /// The box round `rect`, a rectangle of the drawing, in the frame of a picture turned to show
+    /// `up` at its top: round its turned corners.
+    public static func box(_ rect: CGRect, up: Double) -> CGRect {
+        if up == 0 { return rect }
+        let corners = [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+                       CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)].map { intoFrame($0, up: up) }
+        let xs = corners.map(\.x)
+        let ys = corners.map(\.y)
+        return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+    }
+
+    /// A box in the frame of a picture turned to show `up` at its top, as the camera holds it: the
+    /// same size, with its middle the point of the drawing there (see `Camera`).
+    public static func held(_ box: CGRect, up: Double) -> CGRect {
+        if up == 0 { return box }
+        let m = outOfFrame(CGPoint(x: box.midX, y: box.midY), up: up)
+        return CGRect(x: m.x - box.width / 2, y: m.y - box.height / 2, width: box.width, height: box.height)
+    }
+
+    /// How far the camera turns from showing `a` at the top to showing `b`, in degrees, positive
+    /// clockwise: the shorter way round, and clockwise at exactly half a turn. The direction of a
+    /// camera's turn carries no meaning, so the numbers do not choose it.
+    public static func turn(from a: Double, to b: Double) -> Double {
+        var d = (b - a).truncatingRemainder(dividingBy: 360)
+        if d < 0 { d += 360 }
+        return d > 180 ? d - 360 : d
+    }
 
     /// The camera framing `shot` in `viewport`: the shot grown to the viewport's shape about its
     /// middle and, where it fits, slid inside `world` (the whole drawing), so no more empty sheet
@@ -74,8 +138,8 @@ public struct Camera: Equatable, Sendable {
     }
 
     /// The camera `p` of the way from `a` to `b`: the middle of the view moves in a straight line
-    /// and its size changes geometrically, so a zoom feels even all the way; the focus does the
-    /// same, and the dimming fades between them.
+    /// and its size changes geometrically, so a zoom feels even all the way; its angle turns the
+    /// shorter way at an even rate; the focus does the same, and the dimming fades between them.
     public static func between(_ a: Camera, _ b: Camera, _ p: Double) -> Camera {
         if p <= 0 { return a }
         if p >= 1 { return b }
@@ -93,15 +157,25 @@ public struct Camera: Equatable, Sendable {
         let dimA = a.focus == nil ? 0 : a.dim
         let dimB = b.focus == nil ? 0 : b.dim
         let dim = mix(dimA, dimB, p)
+        let up = a.up == b.up ? b.up : a.up + turn(from: a.up, to: b.up) * p
         return Camera(
-            viewport: b.viewport, view: view, focus: dim > 0 ? rect(fa, fb) : nil, dim: dim, shot: b.shot)
+            viewport: b.viewport, view: view, focus: dim > 0 ? rect(fa, fb) : nil, dim: dim, shot: b.shot, up: up)
     }
 
-    /// How strongly `element` is dimmed, 0 to `dim`: by how far its middle lies out of focus.
+    /// How strongly `element` is dimmed, 0 to `dim`: by how far its middle lies out of focus, as
+    /// measured in the frame of the picture, turned or not.
     public func dimming(of element: SceneElement) -> Double {
         guard dim > 0, let focus, !element.fixed, let c = element.centre else { return 0 }
-        let dx = max(focus.minX - c.x, 0, c.x - focus.maxX)
-        let dy = max(focus.minY - c.y, 0, c.y - focus.maxY)
+        let dx: CGFloat
+        let dy: CGFloat
+        if up == 0 {
+            dx = max(focus.minX - c.x, 0, c.x - focus.maxX)
+            dy = max(focus.minY - c.y, 0, c.y - focus.maxY)
+        } else {
+            let q = Self.intoFrame(CGPoint(x: c.x - focus.midX, y: c.y - focus.midY), up: up)
+            dx = max(abs(q.x) - focus.width / 2, 0)
+            dy = max(abs(q.y) - focus.height / 2, 0)
+        }
         let out = hypot(dx, dy)
         return dim * Double(min(1, out / Self.feather))
     }
