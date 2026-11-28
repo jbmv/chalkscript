@@ -56,8 +56,8 @@ struct SubtractionDocumentSceneTests {
         /// move; the reference moves every time but the step's line later by the camera's lead.
         case markDuringLead
         /// The template's shots frame boxes round text (the total, the labels) and the trade
-        /// arrow's stroke; the reference gives a text element's bounds as its anchor point, so
-        /// the camera's view differs by up to `cameraTolerance` units.
+        /// arrow's stroke; the reference frames a text element by the box its line of text fills
+        /// as drawn, so the camera's view differs by up to `cameraTolerance` units.
         case cameraView
     }
 
