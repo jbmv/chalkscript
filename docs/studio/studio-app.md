@@ -72,7 +72,7 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   one after it in the sidebar is selected, or the one before it when it was the last. Rename
   and Duplicate are unavailable for a file that cannot be read as a document. None of the three
   is a step of Edit > Undo, and Rename and Move to Trash clear its steps, since an earlier step
-  would otherwise write a document under a name it no longer has. The code is
+  would otherwise write a document under a name that is not its own. The code is
   `StudioModel.renameDocument(_:title:)`, `duplicateDocument(_:)` and `trashDocument(_:)`. An
   agent has no tool for renaming or removing a document.
 - **Playing.** The window plays the selected document's watched steps with the engine's player and

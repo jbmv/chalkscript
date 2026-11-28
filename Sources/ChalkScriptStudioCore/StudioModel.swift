@@ -480,7 +480,7 @@ public final class StudioModel {
     /// file is written and renamed in its folder before the folder is read again, so the project
     /// never lists it half renamed. A name another document has gets a number added. The
     /// document stays shown if it was, with its problem, and Undo's steps are forgotten, since
-    /// each would write a document under a name and `id` it no longer has.
+    /// each would write a document under a name and `id` that are not its own.
     ///
     /// - Returns: The document under its new name, as read back from its file.
     /// - Throws: An error whose description says why nothing was changed.
