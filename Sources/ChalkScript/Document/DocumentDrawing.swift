@@ -211,7 +211,8 @@ struct DocumentPainter: Sendable {
             if let tag = l.tag {
                 let b = inst.bounds.offsetBy(dx: l.position.x - inst.reference.x, dy: l.position.y - inst.reference.y)
                 let ten: Bool = if case let .piece(kind, _) = inst.shape { kind == "ten" || kind == "stick" } else { false }
-                let card = Components.numberTag(on: b, ten: ten)
+                let card = Components.numberTag(
+                    on: b, ten: ten, textWidth: TextExtent.measure(tag.text, size: Components.tagTextSize, display: true).width)
                 tags.append(SceneElement(
                     inst.id + ".tag",
                     tag.hue == .result ? .numberTag(tag.text, in: card, scale: tag.scale) : .hueTag(tag.text, in: card, scale: tag.scale, hue: tag.hue),
@@ -246,7 +247,15 @@ struct DocumentPainter: Sendable {
         if let geometry = inst.shape.turning, l.turn != inst.start.turn || inst.pivoted {
             box = Turning.box(of: geometry, turned: l.turn, about: inst.pivot).offsetBy(dx: d.dx, dy: d.dy)
         }
-        let centre = inst.pivoted ? pivot : CGPoint(x: box.midX, y: box.midY)
+        var centre = inst.pivoted ? pivot : CGPoint(x: box.midX, y: box.midY)
+        // A text element grows and pulses about the middle of the text it shows now, which a verb may
+        // have set, and not of the text it showed before the first step.
+        if scale != 1, case let .text(at, style, size, _, anchor) = inst.shape {
+            let shown = TextExtent.box(
+                l.text.map(\.text).joined(), at: moved(at), size: style == "total" ? Components.totalSize : size, display: style != "label",
+                anchor: anchor)
+            centre = CGPoint(x: shown.midX, y: shown.midY)
+        }
         let around = Self.scale(scale, about: centre)
         let turned = spin.concatenating(around)
         switch inst.shape {
@@ -290,7 +299,7 @@ struct DocumentPainter: Sendable {
                 return [SceneElement(inst.id, .equation(EquationLine(runs: eqRuns, mark: mark, center: a, size: size)), opacity: l.opacity,
                     transform: around)]
             case "total":
-                return [SceneElement(inst.id, .total(text, at: a, scale: scale), opacity: text.isEmpty ? 0 : l.opacity)]
+                return [SceneElement(inst.id, .total(text, at: a, scale: 1), opacity: text.isEmpty ? 0 : l.opacity, transform: around)]
             default:
                 if style == "label" && ink == "muted" && anchor == "start" && size == Components.labelSize {
                     return [SceneElement(inst.id, .label(text, at: a), opacity: l.opacity, transform: around)]

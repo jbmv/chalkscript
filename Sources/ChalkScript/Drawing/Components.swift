@@ -45,6 +45,8 @@ public enum Components {
     public static let tagCorner: CGFloat = 9
     public static let tagWidth: CGFloat = 2.4
     public static let tagTextSize: Double = 24
+    /// The width a tag's card adds to its text, over both sides.
+    public static let tagPad: CGFloat = 12
     /// The number written across the top, and the slot a digit is written in.
     public static let numeralSize: Double = 88
     public static let slotSize = CGSize(width: 60, height: 100)
@@ -95,10 +97,12 @@ public enum Components {
     /// The circle drawn for a one standing in `rect`, just inside it so its stroke stays in.
     public static func circle(in rect: CGRect) -> CGRect { rect.insetBy(dx: 1, dy: 1) }
 
-    /// The number tag over `piece`, centred on it.
-    public static func numberTag(on piece: CGRect, ten: Bool) -> CGRect {
+    /// The number tag over `piece`, centred on it: as wide as a text `textWidth` wide with `tagPad`
+    /// across, and never narrower than the tag's size over a ten or a one.
+    public static func numberTag(on piece: CGRect, ten: Bool, textWidth: CGFloat = 0) -> CGRect {
         let size = ten ? tenTagSize : oneTagSize
-        return CGRect(x: piece.midX - size.width / 2, y: piece.midY - size.height / 2, width: size.width, height: size.height)
+        let width = max(size.width, textWidth + tagPad)
+        return CGRect(x: piece.midX - width / 2, y: piece.midY - size.height / 2, width: width, height: size.height)
     }
 
     /// A bundle's arrow from the top of the box round ten ones over to the top of the new ten, at

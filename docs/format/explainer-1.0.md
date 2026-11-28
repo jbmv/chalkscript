@@ -464,9 +464,13 @@ Each instance has a *place* (where its geometry puts it) and a *position*, which
 verb has moved it. Its position is a reference point: the top-left corner of its `rect`, its `at`,
 or the `from` of a line or arrow; moving an instance moves its whole geometry with that point.
 
-The *bounds* of an instance, used by `around`, parts, tags and the reading of marks, are: its
-`rect`; the box round the points of a line, arrow or shape; and for a text element, the point `at`
-with no size. The bounds of a line, arrow or shape that is turned (section 9.5) are the box round
+The *bounds* of an instance, used by `around`, parts, shots, the camera, tags, an arrow to it and
+the reading of marks, are: its `rect`; the box round the points of a line, arrow or shape; and for
+a text element, the box its line of text fills as drawn: the line of the text it shows before the
+first step, with its lower edge at `at` and its left edge, middle or right edge there for the
+`anchor` `start`, `middle` or `end`. A text element that shows nothing before the first step has
+bounds of no size at `at`. The box is measured in the player's faces, so two players may differ in
+it by a little. The bounds of a line, arrow or shape that is turned (section 9.5) are the box round
 its turned geometry.
 
 ### 9.2 Text
@@ -514,10 +518,8 @@ above the middle of the top edge of the instance's bounds. With `y`, the arrow r
 height `y`, across, and vertically down to its end, as an arrow over the top of a drawing does.
 
 An outline's `around` is the box round the bounds of the selected instances at their places, grown
-by `pad` on every side; `pad` is by default 12 for `hint` and 0 otherwise. A text element, whose
-bounds are a point, is enclosed as it is drawn: the box of its line of text, with the line's lower
-edge at `at` and its left edge, middle or right edge there for the `anchor` `start`, `middle` or
-`end`. The box is of the text the element shows before the first step. An outline with `around`
+by `pad` on every side; `pad` is by default 12 for `hint` and 0 otherwise. A text element is
+enclosed as it is drawn, since its bounds are the box of its text (section 9.1). An outline with `around`
 selecting nothing has no instance. A repeated outline's `around` is evaluated for each instance with
 its `i`, as `"around": "nums[i]"` rings each of `nums` in turn; one of its instances that selects
 nothing is not drawn, and the element has no instance when none of them selects anything. The
@@ -767,7 +769,7 @@ Kind `appear`. Targets: elements and runs.
 | Parameter | Holds |
 |---|---|
 | `rise` | A distance: the instance starts this far below its position and rises to it. A negative distance starts it above its position, so that it drops in. |
-| `grow` | A scale from 0 to 1: the instance starts at this size about its middle, or about its `pivot` when it has one (section 9.5), and grows to its own. |
+| `grow` | A scale from 0 to 1: the instance starts at this size about its middle (for a text element, the middle of the box of the text it shows then), or about its `pivot` when it has one (section 9.5), and grows to its own. |
 | `place` | A placement (such as `split(...)`, section 9.4): the instance's position becomes the placement's for it as the action starts. |
 | `text` | An entry: the instance (a text element or a run) takes this text as the action starts. |
 
@@ -846,15 +848,17 @@ instance shows that entry, filled at that moment with the names then in scope (s
 Kind `appear`. Targets: elements and pieces. Parameters: `text`, an entry (required); `ink`, a role
 named alone (an operation role or one of the document's own colours), by default `result`.
 
-A small card in the `ink` role, showing the entry, appears over each target and goes: 48 by 34
-units over a ten or stick and 30 by 34 otherwise, centred on the target's bounds. Over eased progress *p* its opacity goes from 0 to 1 by *p* = 0.2, holds,
+A small card in the `ink` role, showing the entry, appears over each target and goes. It is 34
+units high and centred on the target's bounds. It is as wide as its text plus 12 units, and no
+narrower than 48 units over a ten or stick and 30 otherwise, so that a number of one or two digits
+keeps the width a card has had and a longer text is enclosed. Its `dur` is how long it is shown. Over eased progress *p* its opacity goes from 0 to 1 by *p* = 0.2, holds,
 and returns to 0 from *p* = 0.75 to 1, and its scale goes from 0.6 to 1 by *p* = 0.2. Start and
 end: no tag.
 
 ### 13.11 `pulse`
 
 Kind `appear`. Targets: elements. The instance grows to 1.15 times its size by *p* = 0.5 and
-returns to its size by *p* = 1, about its middle, or about its `pivot` when it has one (section 9.5).
+returns to its size by *p* = 1, about its middle (for a text element, the middle of the box of the text it shows then), or about its `pivot` when it has one (section 9.5).
 Start and end: unchanged.
 
 ### 13.12 `say`

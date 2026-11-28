@@ -333,7 +333,7 @@ line, not seconds guessed for it. The studio plays with a stand-in voice that sa
 
 | Verb | Kind | Does |
 |---|---|---|
-| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one), `place` (`split(ten[k])`), `text`. |
+| `appear` | appear | From opacity 0; `rise` (a distance: it starts this far below its place, so a negative number drops in), `grow` (a scale from 0 to 1 that it grows from, about its `pivot` if it has one, and else about its middle: a text's, of the text as drawn, so it needs no `rise`), `place` (`split(ten[k])`), `text`. |
 | `fade` | fade | To `to`, 0 to 1 or `"ghost"`. |
 | `draw` | draw | Draws the stroke of a `line`, `arrow`, `outline` or `shape` with `ink` from progress 0 to 1. A `shape` with only `fill` is whole from the start: use `appear`, `fade` or `move`. A `width` thickens the stroke (topic `elements`); do not draw a thick line as a filled `shape`. |
 | `cross` | draw | Draws a piece's cross-out; `fade` seconds then ghost it. |
@@ -343,8 +343,8 @@ line, not seconds guessed for it. The studio plays with a stand-in voice that sa
 | `turn` | travel | Needs `drawing.turn`. Turns a `line`, `arrow` or `shape` about its `pivot` to `to`, an angle in degrees, by the difference from its angle now; from 150, `to: 360` carries on round to twelve. Without `to`, back to its place's angle. |
 | `look` | instant | Sets a piece's `value` look. |
 | `set` | instant | Sets a text or run to the entry `text`. |
-| `tag` | appear | A small card with the entry `text` over each target, which comes and goes; its `ink` is `result` unless given. |
-| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one. |
+| `tag` | appear | A small card with the entry `text` over each target, as wide as its text; its `dur` is how long it is shown, at full strength for the middle half (0.3 by default, so give `dur: 2` for a card to be read); its `ink` is `result` unless given. |
+| `pulse` | appear | Grows to 1.15 and back, about its `pivot` if it has one, and else its middle. |
 | `say` | instant | Queues the entry `line`; `count: true` for a count; `caption`. |
 | `each` | none | For each instance of `target`, runs `then` every `gap` seconds, with `i` and its `let`. |
 
