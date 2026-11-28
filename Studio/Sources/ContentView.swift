@@ -31,7 +31,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showsConnect) { ConnectView(model: model) }
         .sheet(isPresented: Bindable(delegate.newDocument).isShown) { NewDocumentSheet(model: model) }
-        .frame(minWidth: 560, minHeight: 600)
+        // The least in which the document's pane is whole beside the sidebar at its ideal width,
+        // and in which the player has its least height above the first of the notes.
+        .frame(minWidth: 660, minHeight: 720)
         .onAppear {
             model.undoManager = undoManager
             model.speakingVoice = { SystemVoice(locale: $0) }
@@ -229,22 +231,27 @@ struct DocumentPane: View {
         #endif
     }
 
+    static let playerMargin: CGFloat = 16
+    /// The least height the player is given. In less than 400 points the player's screen scrolls
+    /// rather than show its drawing, line and controls together.
+    static let playerLeast: CGFloat = 400 + 2 * playerMargin
+
     var body: some View {
         VStack(spacing: 0) {
             if let shown = model.selected {
                 OptionsBar(model: model, document: shown, arrangement: $arrangement, appearance: appearance)
                 Divider()
-                if let player = model.player {
-                    ExplainerView(player: player, labels: .studio, arrangement: arrangement)
-                        .id(model.playerSerial)
-                        .environment(\.colorScheme, appearance.wrappedValue)
-                        .padding(16)
-                } else {
-                    RefusalView(document: shown, findings: model.refusal)
+                PlayerFirstLayout(playerLeast: Self.playerLeast, notesLeast: 72) {
+                    if let player = model.player {
+                        ExplainerView(player: player, labels: .studio, arrangement: arrangement)
+                            .id(model.playerSerial)
+                            .environment(\.colorScheme, appearance.wrappedValue)
+                            .padding(Self.playerMargin)
+                    } else {
+                        RefusalView(document: shown, findings: model.refusal)
+                    }
+                    DocumentNotes(model: model, document: shown)
                 }
-                Divider()
-                OverrideNotices(model: model)
-                FindingsPanel(model: model, document: shown)
             } else {
                 ContentUnavailableView("No document", systemImage: "rectangle.on.rectangle",
                                        description: Text("Choose a document in the sidebar."))
@@ -255,6 +262,51 @@ struct DocumentPane: View {
         // status line when the document is not made for it.
         .onChange(of: appearance.wrappedValue, initial: true) { _, now in
             model.previewAppearance = now == .dark ? .dark : .light
+        }
+    }
+}
+
+/// Places the player above the document's notes and gives the notes what the player can spare:
+/// their own height where there is room for it, and less before the player would be shorter than
+/// `playerLeast` or than half the height the two share. The notes keep `notesLeast`, or their own
+/// height if that is less, so that what scrolls can be seen to be there.
+struct PlayerFirstLayout: Layout {
+    let playerLeast: CGFloat
+    let notesLeast: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions(by: CGSize(width: 400, height: playerLeast))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let notes = subviews[1]
+        let wanted = notes.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil)).height
+        let spare = bounds.height - max(playerLeast, bounds.height / 2)
+        let height = min(max(min(wanted, spare), min(wanted, notesLeast)), bounds.height)
+        subviews[0].place(
+            at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: bounds.height - height))
+        notes.place(
+            at: CGPoint(x: bounds.minX, y: bounds.maxY - height),
+            proposal: ProposedViewSize(width: bounds.width, height: height))
+    }
+}
+
+/// Below the player, the notices of changed colours and the findings, which scroll together in
+/// the height the player leaves them. The findings' heading stays in view while they scroll.
+struct DocumentNotes: View {
+    let model: StudioModel
+    let document: StudioDocument
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+                    OverrideNotices(model: model)
+                    FindingsPanel(model: model, document: document)
+                }
+            }
         }
     }
 }

@@ -3,14 +3,22 @@ import ChalkScriptStudioCore
 import SwiftUI
 
 /// The document's findings, each with its place: the line of the file and the JSON Pointer.
-/// Clicking one on a step plays that step.
+/// Clicking one on a step plays that step. It is a section for a lazy stack in a scroll view,
+/// which sets the height: the heading, which opens and closes the list, and a row for each finding.
 struct FindingsPanel: View {
     let model: StudioModel
     let document: StudioDocument
     @State private var expanded = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        Section {
+            if expanded {
+                ForEach(Array(document.findings.enumerated()), id: \.offset) { _, f in
+                    row(f)
+                    Divider()
+                }
+            }
+        } header: {
             Button { expanded.toggle() } label: {
                 HStack(spacing: 6) {
                     Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption2)
@@ -22,17 +30,8 @@ struct FindingsPanel: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            if expanded && !document.findings.isEmpty {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(document.findings.enumerated()), id: \.offset) { _, f in
-                            row(f)
-                            Divider()
-                        }
-                    }
-                }
-                .frame(maxHeight: 170)
-            }
+            // Opaque, since the rows pass under the heading while it is held at the top.
+            .background(.background)
         }
     }
 

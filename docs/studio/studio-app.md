@@ -192,7 +192,10 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   same override as a warning, which the agent's tools also report.
 - **Findings.** Below the player are the document's findings: the reader's, and what refuses any
   sample in any wording when the document is played. Each shows its line in the file and its JSON
-  Pointer; clicking one on a step plays that step.
+  Pointer; clicking one on a step plays that step. The player keeps the height in which its
+  drawing, line and controls are all shown, and the notices and findings scroll together in what
+  is left below it, up to half the height the two share. The window's least size is the one in
+  which that leaves room for the first of them.
 - **The agent's edits.** An accepted patch is saved to the file at once, the window plays the step
   it was on again, and the edit is one step of Edit > Undo. A file changed by another program is
   read again within a moment. The status line under the window says what the agent last asked.
