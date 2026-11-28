@@ -38,15 +38,25 @@ extension DocumentFilm {
         // Every instance, in draw order (section 9.1): by z, then by element name in code point
         // order, then by index.
         var drawn: [(z: Double, name: [UInt32], index: Int, inst: DrawnInstance)] = []
+        // What fails for one instance does not stop the others being built, so a refusal names
+        // every fault the problem shows, one for each place (EXP-19).
+        var failures: [EvalFailure] = []
         for name in r.root["elements"]?.object?.keys ?? [] {
-            let n = try r.instanceCount(name)
+            let n: Int
+            do { n = try r.instanceCount(name) } catch {
+                failures.append(error)
+                continue
+            }
             let repeated = r.root["elements"]?[name]?["repeat"] != nil
             for k in 0..<n {
-                let instance = DocumentInstance(name, repeated ? k : nil)
-                let z = try r.number(DocumentPath.join("/elements", name, "z"), locals: try r.instanceLocals(instance), default: 0, what: "z")
-                drawn.append((z, Array(name.unicodeScalars.map(\.value)), k, try Self.instance(instance, r, roles)))
+                do {
+                    let instance = DocumentInstance(name, repeated ? k : nil)
+                    let z = try r.number(DocumentPath.join("/elements", name, "z"), locals: try r.instanceLocals(instance), default: 0, what: "z")
+                    drawn.append((z, Array(name.unicodeScalars.map(\.value)), k, try Self.instance(instance, r, roles)))
+                } catch { failures.append(error) }
             }
         }
+        if let all = EvalFailure(collecting: failures) { throw all }
         drawn.sort { a, b in
             if a.z != b.z { return a.z < b.z }
             if a.name != b.name { return a.name.lexicographicallyPrecedes(b.name) }
@@ -65,8 +75,12 @@ extension DocumentFilm {
             func camera(_ f: CameraFraming.Frame, _ name: String?) -> Camera {
                 Camera(viewport: framing.viewport, view: f.view, focus: f.region, dim: style.camera.dim, shot: name)
             }
-            for name in r.root["shots"]?.object?.keys ?? [] { cams[name] = camera(try framing.frame(name), name) }
-            wholeCamera = camera(try framing.frame(nil), nil)
+            for name in r.root["shots"]?.object?.keys ?? [] {
+                do { cams[name] = camera(try framing.frame(name), name) } catch { failures.append(error) }
+            }
+            var whole: Camera?
+            do { whole = camera(try framing.frame(nil), nil) } catch { failures.append(error) }
+            wholeCamera = whole
         } else {
             wholeCamera = nil
         }
@@ -80,7 +94,7 @@ extension DocumentFilm {
         var tracks: [[Track]] = []
         for step in resolved.steps {
             let before = carried.last!
-            let built = try Self.tracks(step, from: before, instances: instances, index: index, style: style, roles: roles, r)
+            let built = Self.tracks(step, from: before, instances: instances, index: index, style: style, roles: roles, r, failures: &failures)
             var still = before
             var next = before
             for t in built { t.apply(at: .infinity, to: &still) }
@@ -91,6 +105,7 @@ extension DocumentFilm {
             // What the step leaves for the next step's selections (section 7).
             r.applyEffects(step.actions)
         }
+        if let all = EvalFailure(collecting: failures) { throw all }
         self.tracks = tracks
         self.carried = carried
         self.stills = stills
@@ -295,8 +310,8 @@ extension DocumentFilm {
     /// from (the position a `move` sets out from, the opacity a `fade` starts at).
     static func tracks(
         _ step: ResolvedStep, from before: [InstanceLook], instances: [DrawnInstance], index: [DocumentInstance: Int], style: DocumentStyle,
-        roles: DocumentRoles, _ r: Resolver
-    ) throws(EvalFailure) -> [Track] {
+        roles: DocumentRoles, _ r: Resolver, failures: inout [EvalFailure]
+    ) -> [Track] {
         var flat: [(action: ResolvedAction, locals: [String: DocumentValue], inEach: Bool)] = []
         for a in step.actions {
             flat.append((a, [:], false))
@@ -309,11 +324,12 @@ extension DocumentFilm {
             for track in out { track.apply(at: t, to: &s) }
             return s
         }
-        for k in order {
+        // An action that fails leaves no track, and the others are still built.
+        func build(_ k: Int) throws(EvalFailure) {
             let (a, locals, inEach) = flat[k]
             let p = a.path
             func refuse(_ message: String) -> EvalFailure { EvalFailure(path: p, message: message, code: .capability) }
-            if a.verb == "say" || a.verb == "each" { continue }
+            if a.verb == "say" || a.verb == "each" { return }
             let easing = style.easing(a.ease ?? "linear")
             let o = r.doc.json.value(at: p)?.object ?? JSONObject()
             var placement: [CGPoint]?
@@ -415,6 +431,9 @@ extension DocumentFilm {
                 out.append(Track(
                     target: at, part: target.part, begins: a.start, start: start, duration: a.duration, easing: easing, mark: a.mark, effect: effect))
             }
+        }
+        for k in order {
+            do { try build(k) } catch { failures.append(error) }
         }
         return out
     }

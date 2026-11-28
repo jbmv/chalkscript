@@ -40,7 +40,7 @@ public struct DocumentExplainer: Explainer {
         do {
             film = try DocumentFilm(resolved, resolver: r)
         } catch {
-            throw DocumentRefusal(findings: [DocumentFinding(.error, error.code, error.path, at: error.at, values: problem, error.message)])
+            throw DocumentRefusal(findings: error.findings(values: problem))
         }
         self.document = document
         self.problem = problem

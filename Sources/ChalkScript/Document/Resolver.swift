@@ -65,6 +65,35 @@ struct EvalFailure: Error {
     var message: String
     var code: DocumentFinding.Code = .eval
     var time: Double?
+    /// Faults at other places found with this one, when what was being built could go on past it:
+    /// the film's instances, camera frames and actions each fail alone.
+    var also: [EvalFailure] = []
+
+    /// Every failure in `failures`, the first as this one: one per place, in the order found.
+    init?(collecting failures: [EvalFailure]) {
+        guard var first = failures.first else { return nil }
+        var seen: Set<String> = [first.path]
+        first.also = []
+        for f in failures.dropFirst() where seen.insert(f.path).inserted { first.also.append(f) }
+        self = first
+    }
+
+    init(path: String, at: Int? = nil, message: String, code: DocumentFinding.Code = .eval, time: Double? = nil) {
+        self.path = path
+        self.at = at
+        self.message = message
+        self.code = code
+        self.time = time
+    }
+
+    /// This failure and the others found with it, as findings for a problem's values.
+    func findings(values: [String: DocumentValue]) -> [DocumentFinding] {
+        ([self] + also).map {
+            var f = DocumentFinding(.error, $0.code, $0.path, at: $0.at, values: values, $0.message)
+            f.time = $0.time
+            return f
+        }
+    }
 }
 
 /// What a step has done to an instance, as far as later selections and regions need to know.
