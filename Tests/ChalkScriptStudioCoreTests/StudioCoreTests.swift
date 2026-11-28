@@ -353,6 +353,24 @@ struct StudioProjectTests {
         #expect(model.document(named: "equal-groups")?.hash != hash)
     }
 
+    /// FSEvents is slow when the machine is busy, so the watcher also compares what the folder
+    /// holds. Each change another program makes shows in that comparison.
+    @Test func theWatcherSeesAChangeInWhatTheFolderHolds() throws {
+        let project = try TemporaryProject()
+        let before = FolderWatcher.signature(of: project.folder)
+        #expect(before.keys.sorted() == ["equal-groups", "subtraction"])
+        #expect(FolderWatcher.signature(of: project.folder) == before)
+        let text = try String(contentsOf: project.url("equal-groups"), encoding: .utf8)
+        // A change of the same length is seen by the time of the write.
+        try text.replacingOccurrences(of: #""hold": 0.4"#, with: #""hold": 0.8"#).write(to: project.url("equal-groups"), atomically: true, encoding: .utf8)
+        let changed = FolderWatcher.signature(of: project.folder)
+        #expect(changed != before)
+        try "{}".write(to: project.url("added"), atomically: true, encoding: .utf8)
+        #expect(FolderWatcher.signature(of: project.folder).keys.sorted() == ["added", "equal-groups", "subtraction"])
+        try FileManager.default.removeItem(at: project.url("added"))
+        #expect(FolderWatcher.signature(of: project.folder) == changed)
+    }
+
     @Test func aFileThatIsNotJSONIsListedWithItsError() throws {
         let project = try TemporaryProject(examples: [])
         try "{ not json".write(to: project.url("broken"), atomically: true, encoding: .utf8)
