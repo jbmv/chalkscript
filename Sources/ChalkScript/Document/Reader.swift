@@ -69,7 +69,8 @@ extension ExplainerDocument {
 enum PlayerRefusal {
     static func inkRole(_ role: String) -> String { "this player does not draw the role '\(role)' yet" }
     static func hue(_ kind: String, _ role: String) -> String {
-        "this player draws a \(kind) only in an operation role or a colour of the document's named alone, not '\(role)'"
+        let article = "aeiou".contains(kind.first ?? "x") ? "an" : "a"
+        return "this player draws \(article) \(kind) only in an operation role or a colour of the document's named alone, not '\(role)'"
     }
     static let equation = "this player draws an equation centred and in the text role only"
     static let total = "this player draws a total centred and in the result role only"
@@ -1383,7 +1384,7 @@ final class DocumentChecker {
         var reported = Set<String>()
         for (cap, path) in used where !declared.contains(cap) && !reported.contains(cap) {
             reported.insert(cap)
-            error(.capability, path, "this uses the capability '\(cap)', which requires does not list")
+            error(.capability, path, "this uses the capability '\(cap)', and the document's requires does not list it")
         }
     }
 
@@ -1528,30 +1529,32 @@ extension DocumentChecker {
         }
     }
 
-    /// The operations whose colour the document changes (section 16.7): only in a profile that
-    /// fixes them and lets a document change one, each with a value for each appearance the
-    /// document is made for and the request of the person who asked. Each is reported as a
-    /// warning, so that whoever checks the document is told of it.
+    /// The operations whose colour the document changes (section 16.7), each with a value for
+    /// each appearance the document is made for. A profile that fixes the operations has the
+    /// request of the person who asked, and each change is reported as a warning, so that whoever
+    /// checks the document is told of it; a profile that fixes no colour takes the change as it is.
     func checkOverrides(_ value: JSONValue?) {
         guard let value else { return }
         let base = "/style/overrides"
         // A profile the reader does not have is already an error, and says nothing of what it fixes.
         guard let fixes = profile?.profile else { return }
-        guard fixes.overrides == .explained else {
-            error(.schema, base, "the \(fixes.id) profile fixes no colour, so it needs no override; give the colour a name under colours and use that name")
-            return
-        }
-        let fixed = ExplainerOperation.allCases.map(\.rawValue).filter { fixes.fixed[$0] != nil }
+        let explained = fixes.overrides == .explained
+        let changeable = ExplainerOperation.allCases.map(\.rawValue).filter { !explained || fixes.fixed[$0] != nil }
         for (name, v, p) in map(value, base, keys: { _ in true }) {
-            guard fixed.contains(name) else {
-                error(.schema, p, "'\(name)' is not a colour the \(fixes.id) profile fixes; an override changes one of \(fixed.joined(separator: ", "))")
+            guard changeable.contains(name) else {
+                let what = explained ? "a colour the \(fixes.id) profile fixes" : "an operation"
+                error(.schema, p, "'\(name)' is not \(what); an override changes one of \(changeable.joined(separator: ", "))")
                 continue
             }
             guard let o = object(v, p, known: ["light", "dark", "asked"]) else { continue }
-            if o["asked"] == nil {
-                error(.schema, p, "the override of \(name) has no 'asked', which it requires: the request of the person who asked for the change")
-            } else if let asked = string(o, "asked", p), asked.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                error(.schema, DocumentPath.join(p, "asked"), "asked is empty; it holds the request of the person who asked for the change")
+            if explained {
+                if o["asked"] == nil {
+                    error(.schema, p, "the override of \(name) has no 'asked', which it requires: the request of the person who asked for the change")
+                } else if let asked = string(o, "asked", p), asked.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    error(.schema, DocumentPath.join(p, "asked"), "asked is empty; it holds the request of the person who asked for the change")
+                }
+            } else if o["asked"] != nil {
+                _ = string(o, "asked", p)
             }
             var read: [String: RGB] = [:]
             for k in ["light", "dark"] {
@@ -1566,6 +1569,7 @@ extension DocumentChecker {
                 }
             }
             if read["light"] != nil || read["dark"] != nil { overridden[name] = DocumentColour(name: name, light: read["light"], dark: read["dark"]) }
+            guard explained else { continue }
             let meaning = fixes.fixed[name] ?? name
             warning(.override, p, "This explainer changes the colour for \(meaning) (\(name)). \(OperationOverride.reason) An app that plays the explainer may show the standard colour instead.")
         }

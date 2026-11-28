@@ -3354,7 +3354,7 @@
       "type": "object",
       "properties": {
         "overrides": {
-          "description": "An operation's colour changed in this document, in a profile that lets a document change one: a value for each appearance the document is made for, and the request of the person who asked. That the profile allows it, and that the values match the appearances, are findings of the reader.",
+          "description": "An operation's colour changed in this document: a value for each appearance the document is made for and, in the maths profile, the request of the person who asked. That the profile needs the request, and that the values match the appearances, are findings of the reader.",
           "type": "object",
           "propertyNames": {
             "enum": [
@@ -3380,9 +3380,6 @@
                 "minLength": 1
               }
             },
-            "required": [
-              "asked"
-            ],
             "anyOf": [
               {
                 "required": [

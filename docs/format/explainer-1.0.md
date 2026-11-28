@@ -1259,7 +1259,7 @@ format does not change.
 | `profile.id` | The name a document declares: two or more lowercase letters, such as `maths`. |
 | `profile.title` | A short name for people. |
 | `profile.fixed` | The roles whose meaning the profile fixes, each with a sentence saying what it means. |
-| `profile.overrides` | `explained` or `none`: whether a fixed role may be changed in one document (section 16.7). |
+| `profile.overrides` | `explained` or `free`: whether a change of an operation's colour in one document is explained to the person who asks and recorded with the request, or made with neither (section 16.7). |
 | `palette.light.suggested`, `palette.dark.suggested` | Named colours, each one `#RRGGBB` value, offered as the first choice when a person asks for colours without naming them. As for an operation role, the ink is also the fill, and the soft form is the ink at 16% over the light sheet and 18% over the dark sheet. |
 
 Two profiles are bundled. `maths` fixes the six operation roles (`subtract` taking away, `trade`
@@ -1348,7 +1348,7 @@ each role changed:
 | Key | Holds |
 |---|---|
 | `light`, `dark` | The colour, written `#RRGGBB`, for each appearance the document is made for (section 16.6). As for a colour of the document's own, the one value is the fill and the ink, and the soft form is derived. |
-| `asked` | Required. The request of the person who asked for the change, in that person's words where possible. |
+| `asked` | Required in a profile whose `overrides` is `explained`. The request of the person who asked for the change, in that person's words where possible. |
 
 The change is for a person to ask for, after being told why the colour is fixed: the operation
 colours are the same in every explainer of the profile, so that a learner who knows what one means
@@ -1367,8 +1367,14 @@ cross-out, a tally, a box).
 
 An entry without `asked`, or with an empty one, an entry without a value for an appearance the
 document is made for, a value that is not `#RRGGBB` and an entry for a name the profile does not fix
-are `schema` errors. In a profile whose `overrides` is `none`, such as `open`, `style.overrides` is
-a `schema` error that says the profile fixes no colour and so needs no override.
+are `schema` errors.
+
+In a profile whose `overrides` is `free`, which of the bundled profiles is `open`, a document may
+change the colour of any of the six operations in the same way, with no explanation to give. The
+entry has `light` and `dark`; `asked` is optional and, when given, is a string. The reader reports
+no `override` warning, and a player draws the colour as for `maths`. The `colour` checks of section
+16.5 apply to its values as to any colour of the document's own, except the comparison with the
+colours that `maths` fixes, which `open` does not have.
 
 The override is part of the document, and so of its hash and its revision (section 19). A player
 may draw an overridden role in the document's colour or in the standard colour; both conform. A
@@ -1477,7 +1483,7 @@ A reader and a validator report *findings*. Each has:
 | `range` | A problem outside the parameters' ranges. |
 | `areas` | A declared shape at which another layout is chosen, a layout no entry names, or a `suits` that depends on the area's size (warnings). |
 | `colour` | A colour of the document's that may not be seen or told from another in an appearance the document is made for, or that has no `cue` (warnings; section 16.5). |
-| `override` | An operation's colour that the document changes, in a profile that lets a document change one (a warning; section 16.7). |
+| `override` | An operation's colour that the document changes, in a profile whose `overrides` is `explained` (a warning; section 16.7). |
 | `patch` | A patch refused: a stale base, a protected path, or an operation that failed. |
 
 A validator adds its own codes for the checks it computes. One finding is written on one line as

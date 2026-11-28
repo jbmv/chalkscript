@@ -109,7 +109,7 @@ struct SuggestedColourTests {
         #expect(Set(maths.fixed.keys) == ["subtract", "trade", "result", "add", "multiply", "divide"])
         #expect(try #require(ExplainerStyle.profiles["maths"]).light.suggested.isEmpty)
         let open = try #require(ExplainerStyle.profiles["open"]?.profile)
-        #expect(open.overrides == .none && open.fixed.isEmpty)
+        #expect(open.overrides == .free && open.fixed.isEmpty)
         #expect(ExplainerStyle.profiles.values.allSatisfy { $0.issues.filter(\.isProblem).isEmpty })
     }
 }

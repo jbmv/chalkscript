@@ -158,9 +158,9 @@ struct DocumentReaderTests {
             do { _ = try DocumentExplainer(document: doc, problem: problem); return [] } catch { return error.findings.map(\.description) }
         }
         let three = [
-            "error capability /elements/go/ink: this player draws a arrow only in an operation role or a colour of the document's named alone, not 'add.ink'",
+            "error capability /elements/go/ink: this player draws an arrow only in an operation role or a colour of the document's named alone, not 'add.ink'",
             "error capability /elements/sum: this player draws a total centred and in the result role only",
-            "error capability /elements/go/ink: this uses the capability 'components.arithmetic', which requires does not list",
+            "error capability /elements/go/ink: this uses the capability 'components.arithmetic', and the document's requires does not list it",
         ]
         let r = read(faults)
         #expect(r.findings.map(\.description) == three)
@@ -194,10 +194,10 @@ struct DocumentReaderTests {
             // A role that is not an operation or a colour named alone, where only those are drawn.
             (base.setting("/elements/go", try element(#"{"kind": "arrow", "from": [0, 0], "to": [0, 50], "ink": "muted"}"#)),
                 base.setting("/elements/go", try element(#"{"kind": "arrow", "from": [0, 0], "to": [0, 50], "ink": "mine"}"#)),
-                "/elements/go/ink", "this player draws a arrow only in an operation role or a colour of the document's named alone, not 'muted'"),
+                "/elements/go/ink", "this player draws an arrow only in an operation role or a colour of the document's named alone, not 'muted'"),
             (base.setting("/elements/ring", try element(#"{"kind": "outline", "style": "ring", "rect": [0, 0, 9, 9], "ink": "mine.fill"}"#)),
                 base.setting("/elements/ring", try element(#"{"kind": "outline", "style": "ring", "rect": [0, 0, 9, 9], "ink": "mine"}"#)),
-                "/elements/ring/ink", "this player draws a outline only in an operation role or a colour of the document's named alone, not 'mine.fill'"),
+                "/elements/ring/ink", "this player draws an outline only in an operation role or a colour of the document's named alone, not 'mine.fill'"),
             (base.setting("/elements/hint", try element(#"{"kind": "outline", "style": "hint", "rect": [0, 0, 9, 9], "ink": "mine"}"#)),
                 base.setting("/elements/hint", try element(#"{"kind": "outline", "style": "hint", "rect": [0, 0, 9, 9]}"#)),
                 "/elements/hint/ink", "this player draws a hint outline only in its own role"),

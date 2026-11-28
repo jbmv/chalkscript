@@ -111,13 +111,13 @@ public struct ExplainerDocument: Sendable {
     }
 
     /// The operations whose colour the document changes (EXP-6), by operation: those under
-    /// `style.overrides` that give a value, in a document whose profile fixes the operation and
-    /// lets a document change it. None in any other profile.
+    /// `style.overrides` that give a value. In a profile that fixes the operations, only those it
+    /// fixes; in a profile that fixes none, any operation.
     public var overrides: [ExplainerOperation: OperationOverride] {
-        guard let profile = ExplainerStyle.profiles[profileID]?.profile, profile.overrides == .explained else { return [:] }
+        guard let profile = ExplainerStyle.profiles[profileID]?.profile else { return [:] }
         var out: [ExplainerOperation: OperationOverride] = [:]
         for (name, o) in root["style"]?["overrides"]?.object?.entries ?? [] {
-            guard profile.fixed[name] != nil, let op = ExplainerOperation(rawValue: name) else { continue }
+            guard profile.overrides == .free || profile.fixed[name] != nil, let op = ExplainerOperation(rawValue: name) else { continue }
             let l = o["light"]?.string.flatMap(RGB.init(hexString:)), d = o["dark"]?.string.flatMap(RGB.init(hexString:))
             guard l != nil || d != nil else { continue }
             out[op] = OperationOverride(
@@ -126,6 +126,10 @@ public struct ExplainerDocument: Sendable {
         }
         return out
     }
+
+    /// Whether the document's profile has a change of an operation's colour explained to the
+    /// person who asks (EXP-6), so that a player may tell the viewer of one.
+    public var explainsOverrides: Bool { ExplainerStyle.profiles[profileID]?.profile?.overrides == .explained }
 
     /// The colour each overridden operation is drawn in, which a film gives its scenes.
     var overridingColours: [ExplainerOperation: DocumentColour] { overrides.mapValues(\.colour) }
@@ -159,14 +163,14 @@ public struct ExplainerDocument: Sendable {
     }
 }
 
-/// One operation's colour as a document of the maths profile changes it (EXP-6): the colour, with
-/// a value for each appearance the document is made for, and the request of the person who asked
-/// for the change.
+/// One operation's colour as a document changes it (EXP-6): the colour, with a value for each
+/// appearance the document is made for, and the request of the person who asked for the change,
+/// which a document of the open profile need not record.
 public struct OperationOverride: Hashable, Sendable {
     public let operation: ExplainerOperation
     /// The colour drawn for the operation: one value for fill and ink, with the soft form derived.
     public let colour: DocumentColour
-    /// The person's request, in the person's words where possible.
+    /// The person's request, in the person's words where possible; empty when the document records none.
     public let asked: String
     /// What the operation's colour means in the profile, such as "taking away".
     public let meaning: String

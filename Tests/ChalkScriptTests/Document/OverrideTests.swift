@@ -45,15 +45,49 @@ struct OverrideReadingTests {
         has(number, .error, .schema, "/style/overrides/subtract/asked", "not a string")
     }
 
-    @Test func anOverrideInTheOpenProfileIsAnErrorThatSaysItNeedsNone() throws {
+    @Test func anOverrideInTheOpenProfileNeedsNoRequestAndRaisesNoWarning() throws {
+        let colours = ##"{"light": "#8A4FD0", "dark": "#A569E6"}"##
         for profile in ["open", nil] {
-            let r = read(try Self.document(profile: profile))
-            has(r, .error, .schema, "/style/overrides", "the open profile fixes no colour, so it needs no override")
-            has(r, .error, .schema, "/style/overrides", "under colours")
-            #expect(!r.conforms)
-            #expect(!r.findings.contains { $0.code == .override })
-            #expect(r.document?.overrides.isEmpty == true)
+            let r = read(try Self.document(profile: profile, colours))
+            #expect(r.conforms && r.findings.isEmpty, "\(r.findings)")
+            let o = try #require(r.document?.overrides[.subtract])
+            #expect(o.colour == DocumentColour(name: "subtract", light: RGB(hex: 0x8A4FD0), dark: RGB(hex: 0xA569E6)))
+            #expect(o.asked.isEmpty && r.document?.overrides.count == 1)
+            #expect(r.document?.explainsOverrides == false)
+            // A request recorded anyway is kept, and an empty one is no fault.
+            let asked = read(try Self.document(profile: profile, ##"{"light": "#8A4FD0", "dark": "#A569E6", "asked": "Make taking away purple."}"##))
+            #expect(asked.findings.isEmpty && asked.document?.overrides[.subtract]?.asked == "Make taking away purple.")
         }
+        // The override is part of the document, and so of its hash.
+        #expect(read(try Self.document(profile: nil, colours)).document?.hash != read(try Self.document(profile: nil, colours).setting("/style", nil)).document?.hash)
+    }
+
+    @Test func anOverrideInTheOpenProfileGivesAValueForEachAppearanceAndNamesAnOperation() throws {
+        let lightOnly = ##"{"light": "#8A4FD0"}"##
+        has(read(try Self.document(profile: nil, lightOnly)), .error, .schema, "/style/overrides/subtract", "no dark value")
+        has(read(try Self.document(profile: nil, ##"{"light": "purple", "dark": "#A569E6"}"##)), .error, .schema, "/style/overrides/subtract/light", "#RRGGBB")
+        has(read(try Self.document(profile: nil, ##"{"light": "#8A4FD0", "dark": "#A569E6", "asked": 3}"##)), .error, .schema, "/style/overrides/subtract/asked", "not a string")
+        for role in ["text", "hour", "Subtract"] {
+            let r = read(try Self.document(profile: nil, role: role, ##"{"light": "#8A4FD0", "dark": "#A569E6"}"##))
+            has(r, .error, .schema, "/style/overrides/\(role)", "not an operation")
+            has(r, .error, .schema, "/style/overrides/\(role)", "subtract, trade, result, add, multiply, divide")
+        }
+        // Every operation may be changed, whether or not a profile gives it a meaning.
+        for role in ["subtract", "trade", "result", "add", "multiply", "divide"] {
+            let r = read(try Self.document(profile: nil, role: role, ##"{"light": "#8A4FD0", "dark": "#A569E6"}"##))
+            #expect(r.conforms && r.document?.overrides.keys.map(\.rawValue) == [role], "\(role): \(r.findings)")
+        }
+    }
+
+    @Test func anOverrideInTheOpenProfileIsHeldToTheUsualColourChecks() throws {
+        let pale = read(try Self.document(profile: nil, ##"{"light": "#F3E9FF", "dark": "#A569E6"}"##))
+        #expect(pale.conforms)
+        has(pale, .warning, .colour, "/style/overrides/subtract", "very pale on the light sheet")
+        #expect(!pale.findings.contains { $0.code == .override })
+        // The colours the maths profile compares with its operations' are not compared in open.
+        let result = ExplainerStyle.standard.light.colors(.result).ink.hex
+        let near = read(try Self.document(profile: nil, ##"{"light": "\##(result)", "dark": "#A569E6"}"##))
+        #expect(!near.findings.contains { $0.message.contains("every maths explainer") }, "\(near.findings)")
     }
 
     @Test func anOverrideOfWhatTheProfileDoesNotFixIsAnError() throws {
@@ -128,13 +162,16 @@ struct OverrideDrawingTests {
         #expect(AppearancePlayerTests.drawn(AppearancePlayerTests.palette(false).colors(.subtract).fill, in: image))
     }
 
-    @Test func aCrossOutDrawnByDefaultInSubtractTakesTheOverride() throws {
+    @Test(arguments: [nil, "open", "maths"] as [String?])
+    func aCrossOutDrawnByDefaultInSubtractTakesTheOverride(profile: String?) throws {
         // The subtraction example draws its cross-outs in `subtract` without naming the role.
-        let json = try JSONValue.parse(String(decoding: DocumentFixture.data("subtraction.explainer"), as: UTF8.self))
-            .setting("/style/overrides", try JSONValue.parse(#"{"subtract": \#(OverrideReadingTests.purple)}"#))
+        var json = try JSONValue.parse(String(decoding: DocumentFixture.data("subtraction.explainer"), as: UTF8.self))
+        let given = profile == "maths" ? OverrideReadingTests.purple : ##"{"light": "#8A4FD0", "dark": "#A569E6"}"##
+        json = json.setting("/style/overrides", try JSONValue.parse(#"{"subtract": \#(given)}"#))
+        json = json.setting("/profile", profile.map { .string($0) })
         let r = read(json)
         #expect(r.conforms, "\(r.findings.filter { $0.severity == .error })")
-        has(r, .warning, .override, "/style/overrides/subtract", "taking away")
+        #expect(r.findings.contains { $0.code == .override } == (profile == "maths"), "\(r.findings)")
         let doc = try #require(r.document)
         let e = try DocumentExplainer(document: doc, problem: ["a": .number(52), "b": .number(17)])
         let scenes = (0..<e.stepCount).map { e.still(after: $0) }

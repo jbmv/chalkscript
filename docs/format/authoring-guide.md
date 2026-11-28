@@ -71,7 +71,8 @@ Practice:
    old name must be changed in the same patch.
 6. In a `maths` document the colour of an operation (`subtract`, `trade`, `result`, `add`,
    `multiply`, `divide`) is fixed. When the person asks to change one, read topic `colour` first:
-   say why it is fixed and ask before the edit.
+   say why it is fixed and ask before the edit. In an `open` document, change it under
+   `style.overrides` as asked, with no explanation.
 
 Editing outside the studio is picked up too: the person may change a file in an editor, and the
 hash changes. A stale base means someone else edited; read again before retrying.
@@ -161,7 +162,7 @@ the others are optional, and a document without them is complete.
 | `format`, `version` | Required. `"chalkscript-explainer"`, `"1.0"`. Never edited. |
 | `requires` | Capabilities used: `components.arithmetic` for tens, ones and counters, and `drawing.turn` to turn a line, arrow, shape or group (topic `elements`). |
 | `profile` | `open` when absent, or `maths`. Colours of the document's own go under `colours` (topic `colour`). |
-| `id`, `title` | Required. Identity. `id` is the document's name as the studio made it, the same as its file's name; leave it alone in a patch. |
+| `id`, `title` | Required. Identity. `id` is the document's name as the studio made it, the same as its file's name; leave it alone in a patch. The `title` is the document's name for people choosing it and is not drawn; to put a heading in the picture, add a `text` element. |
 | `about` | Information that changes nothing seen or heard. |
 | `sourceLocale` | Required. The locale written in, such as `en-US`. |
 | `params`, `samples` | Required. The problem (topic `problem`). |
@@ -357,7 +358,7 @@ Name the operation by what it means: taking away (`subtract`), trading or regrou
 }
 ```
 
-`asked` is required and holds the person's request, in their words. Give a value for each appearance the document is made for: the table's row for a colour named in words, or the person's own values. Every `check` and `edit` then returns an `override` warning for the operation, which is expected and stays; do not try to clear it. Report any `colour` warning on the new colour in plain words, as for a colour of the document's own, and offer the nearest colour that shows or a colour that stays apart; the person's choice stands. The studio's window shows a notice with a button, "Use the Standard Colour", which removes the override. To restore the colour yourself, remove the operation's entry, and `overrides` when it is left empty. In `open` nothing is fixed and an override is an error: use `colours`.
+`asked` is required in `maths` and holds the person's request, in their words. Give a value for each appearance the document is made for: the table's row for a colour named in words, or the person's own values. Every `check` and `edit` then returns an `override` warning for the operation, which is expected and stays; do not try to clear it. Report any `colour` warning on the new colour in plain words, as for a colour of the document's own, and offer the nearest colour that shows or a colour that stays apart; the person's choice stands. The studio's window shows a notice with a button, "Use the Standard Colour", which removes the override. To restore the colour yourself, remove the operation's entry, and `overrides` when it is left empty. In `open` nothing is fixed: when the person asks for an operation's colour to change, write the same `style.overrides` entry with `light` and `dark` and no `asked`, make the edit without explaining or asking, and expect no `override` warning and no notice. It changes that operation's colour wherever it is drawn, the components' crosses, tallies and boxes included, and `colour` warnings apply as usual. A colour for anything else is still under `colours`.
 
 ### Appearances
 
@@ -566,5 +567,5 @@ the problem's values, a time, then the message.
 | `areas` | A warning that a declared range and a layout's `suits` disagree, that no entry names a layout, or that `suits` depends on the area's size; change the range or the layout's `suits`, or add the missing entry. |
 | `patch` | A refused patch: stale base, protected path, or an operation that failed. |
 | `colour` | A warning, made in each appearance the document is made for: a colour that is hard to see (on the light or dark background, or on its own tint), two colours drawn together that may look alike to some colour-blind viewers, in `maths` a colour near an operation's, or a colour with no `cue`. The message gives the measurement and, for contrast, the nearest colour that shows. |
-| `override` | A warning that the document changes an operation's colour in `maths` (topic `colour`). It stays while the override does; it is the person's choice, made after the explanation. |
+| `override` | A warning that the document changes an operation's colour in `maths` (topic `colour`). It stays while the override does; it is the person's choice, made after the explanation. `open` has none. |
 | `capability` | A kind, verb or key used without its capability in `requires` (`components.arithmetic` or `drawing.turn`), or one this studio does not draw. |

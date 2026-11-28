@@ -321,7 +321,9 @@ public final class StudioModel {
     /// A notice for each operation whose colour the shown document changes, in the operations'
     /// order. The notices inform: nothing waits on them.
     public var overrideNotices: [OverrideNotice] {
-        guard let overrides = selected?.document?.overrides, !overrides.isEmpty else { return [] }
+        // A document of the open profile changes a colour with no ceremony, so it has no notice (EXP-6).
+        guard let document = selected?.document, document.explainsOverrides, !document.overrides.isEmpty else { return [] }
+        let overrides = document.overrides
         return ExplainerOperation.allCases.compactMap { op in
             overrides[op].map {
                 let asked = $0.asked.trimmingCharacters(in: .whitespacesAndNewlines)

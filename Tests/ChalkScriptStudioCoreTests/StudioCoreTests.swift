@@ -1203,10 +1203,12 @@ struct GuideRecipeTests {
 struct OverrideNoticeTests {
     static let purple = ##"{"light": "#995DE1", "dark": "#C67EFF", "asked": "Make taking away purple."}"##
 
-    /// A model showing the subtraction example with `style` as given, and an undo manager.
-    private func model(_ project: TemporaryProject, style: String) throws -> (StudioModel, UndoManager) {
+    /// A model showing the subtraction example, made for `profile`, with `style` as given, and an
+    /// undo manager.
+    private func model(_ project: TemporaryProject, style: String, profile: String? = "maths") throws -> (StudioModel, UndoManager) {
         var json = try DocJSON.parse(String(contentsOf: project.url("subtraction"), encoding: .utf8))
         var root = try #require(json.object)
+        root["profile"] = profile.map { .string($0) }
         root["style"] = try DocJSON.parse(style)
         json = .object(root)
         try Data(DocumentText.format(json).utf8).write(to: project.url("subtraction"))
@@ -1229,6 +1231,17 @@ struct OverrideNoticeTests {
         #expect(model.overrideNotices.isEmpty)
         #expect(model.useStandardColour(for: .subtract).isEmpty)
         #expect(try saved(model).json["style"] == nil)
+    }
+
+    @Test func aDocumentOfTheOpenProfileChangesAColourWithNoNotice() throws {
+        let project = try TemporaryProject()
+        let style = ##"{"overrides": {"subtract": {"light": "#995DE1", "dark": "#C67EFF"}}}"##
+        for profile in [nil, "open"] as [String?] {
+            let (model, _) = try model(project, style: style, profile: profile)
+            #expect(model.player?.scene.operationColours[.subtract] != nil, "\(model.refusal)")
+            #expect(model.overrideNotices.isEmpty)
+            #expect(model.selected?.findings.contains { $0.code == .override } == false)
+        }
     }
 
     @Test func theNoticeNamesTheOperationAndWhyItsColourIsFixedAndTheRequest() throws {

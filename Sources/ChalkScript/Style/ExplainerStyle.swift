@@ -32,9 +32,10 @@ public struct CameraDefaults: Equatable, Sendable {
 }
 
 /// What a style profile fixes (EXP-20): the roles whose meaning it fixes, each with a sentence
-/// saying what it means, and whether a document may change one of them.
+/// saying what it means, and how a document may change an operation's colour: with an explanation
+/// (`explained`) or without one (`free`).
 public struct StyleProfile: Equatable, Sendable {
-    public enum Overrides: String, Sendable { case explained, none }
+    public enum Overrides: String, Sendable { case explained, free }
 
     /// The name a document declares.
     public var id: String
@@ -215,7 +216,7 @@ public struct ExplainerStyle: Equatable, Sendable {
 
     private static func readProfile(_ r: FormatReader, over base: StyleProfile?, log: FormatLog) -> StyleProfile? {
         guard r.keys.isEmpty == false else { return base }
-        var profile = base ?? StyleProfile(id: "", title: "", fixed: [:], overrides: .none)
+        var profile = base ?? StyleProfile(id: "", title: "", fixed: [:], overrides: .explained)
         if let id = r.string("id", reportDefault: false) {
             if id.count >= 2, id.allSatisfy({ $0.isASCII && $0.isLowercase && $0.isLetter }) { profile.id = id } else {
                 log.add(.invalid, r.key("id"), "\"\(id)\" is not two or more lowercase letters")
@@ -224,7 +225,7 @@ public struct ExplainerStyle: Equatable, Sendable {
         if let t = r.string("title", reportDefault: false) { profile.title = t }
         if let o = r.string("overrides", reportDefault: false) {
             if let v = StyleProfile.Overrides(rawValue: o) { profile.overrides = v } else {
-                log.add(.invalid, r.key("overrides"), "\"\(o)\" is not explained or none")
+                log.add(.invalid, r.key("overrides"), "\"\(o)\" is not explained or free")
             }
         }
         let fixed = r.object("fixed")
