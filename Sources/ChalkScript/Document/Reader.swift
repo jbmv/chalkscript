@@ -147,6 +147,8 @@ final class DocumentChecker {
     var madeFor: Set<Appearance> = Appearance.both
     /// The document's own colours that could be read, by name.
     var ownColours: [String: DocumentColour] = [:]
+    /// The operations whose colour the document changes (EXP-6) that could be read, by role.
+    var overridden: [String: DocumentColour] = [:]
 
     static let neutralRoles: Set<String> = ["paper", "sheet", "text", "muted", "line", "pencil", "onResult"]
     static let coreOperationRoles: Set<String> = ["result"]
@@ -1306,10 +1308,11 @@ final class DocumentChecker {
     }
 
     func checkStyle() {
-        guard let style = object(root["style"], "/style", known: ["palette", "easings", "motion"]) else { return }
+        guard let style = object(root["style"], "/style", known: ["palette", "overrides", "easings", "motion"]) else { return }
         if style["palette"] != nil {
             error(.schema, "/style/palette", "a document does not give a palette; name its own colours under colours")
         }
+        checkOverrides(style["overrides"])
         for (name, v, p) in map(style["easings"], "/style/easings") {
             if name == "linear" { error(.schema, p, "linear cannot be redefined") }
             guard case let .array(a) = v, a.count == 4, a.allSatisfy({ if case .number = $0 { true } else { false } }) else {
@@ -1489,6 +1492,49 @@ extension DocumentChecker {
         }
     }
 
+    /// The operations whose colour the document changes (section 16.7): only in a profile that
+    /// fixes them and lets a document change one, each with a value for each appearance the
+    /// document is made for and the request of the person who asked. Each is reported as a
+    /// warning, so that whoever checks the document is told of it.
+    func checkOverrides(_ value: JSONValue?) {
+        guard let value else { return }
+        let base = "/style/overrides"
+        // A profile the reader does not have is already an error, and says nothing of what it fixes.
+        guard let fixes = profile?.profile else { return }
+        guard fixes.overrides == .explained else {
+            error(.schema, base, "the \(fixes.id) profile fixes no colour, so it needs no override; give the colour a name under colours and use that name")
+            return
+        }
+        let fixed = ExplainerOperation.allCases.map(\.rawValue).filter { fixes.fixed[$0] != nil }
+        for (name, v, p) in map(value, base, keys: { _ in true }) {
+            guard fixed.contains(name) else {
+                error(.schema, p, "'\(name)' is not a colour the \(fixes.id) profile fixes; an override changes one of \(fixed.joined(separator: ", "))")
+                continue
+            }
+            guard let o = object(v, p, known: ["light", "dark", "asked"]) else { continue }
+            if o["asked"] == nil {
+                error(.schema, p, "the override of \(name) has no 'asked', which it requires: the request of the person who asked for the change")
+            } else if let asked = string(o, "asked", p), asked.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                error(.schema, DocumentPath.join(p, "asked"), "asked is empty; it holds the request of the person who asked for the change")
+            }
+            var read: [String: RGB] = [:]
+            for k in ["light", "dark"] {
+                guard let s = string(o, k, p) else {
+                    if o[k] == nil, madeFor.contains(Appearance(rawValue: k)!) {
+                        error(.schema, p, "the override of \(name) has no \(k) value, and the document is made for \(k)")
+                    }
+                    continue
+                }
+                if Self.isColour(s), let c = RGB(hexString: s) { read[k] = c } else {
+                    error(.schema, DocumentPath.join(p, k), "'\(s)' is not a colour #RRGGBB")
+                }
+            }
+            if read["light"] != nil || read["dark"] != nil { overridden[name] = DocumentColour(name: name, light: read["light"], dark: read["dark"]) }
+            let meaning = fixes.fixed[name] ?? name
+            warning(.override, p, "This explainer changes the colour for \(meaning) (\(name)). \(OperationOverride.reason) An app that plays the explainer may show the standard colour instead.")
+        }
+    }
+
     // MARK: what is drawn
 
     /// The role `s` as drawn in a key that gives `defaultForm`.
@@ -1553,7 +1599,7 @@ extension DocumentChecker {
     /// on the sheet.
     private func value(_ role: DrawnRole, dark: Bool) -> RGB? {
         let palette = ExplainerStyle.standard.palette(dark: dark)
-        if let own = ownColours[role.base] { return own.value(dark: dark) }
+        if let own = ownColours[role.base] ?? overridden[role.base] { return own.value(dark: dark) }
         switch role.base {
         case "text": return palette.ink
         case "muted": return palette.muted
@@ -1570,19 +1616,23 @@ extension DocumentChecker {
     /// Reports, as warnings, a colour a person may not see or tell from another: an ink under 3:1
     /// with the sheet or on its own soft form, two colours drawn together under 20 apart with
     /// normal vision or a simulated deficiency, and, in the maths profile, a colour close to an
-    /// operation's. None stops the document playing.
+    /// operation's. The colours judged are the document's own and those it gives an operation in
+    /// place of the style's (section 16.7). None stops the document playing.
     func checkColourSeen() {
-        guard !ownColours.isEmpty else { return }
+        // An operation role is not a name a colour of the document's own may have, so the two do not meet.
+        let given = ownColours.merging(overridden) { own, _ in own }
+        guard !given.isEmpty else { return }
+        func pathOf(_ name: String) -> String { DocumentPath.join(overridden[name] != nil ? "/style/overrides" : "/colours", name) }
         let used = drawnRoles()
-        let names = ownColours.keys.sorted()
+        let names = given.keys.sorted()
         func appearance(_ dark: Bool) -> String { dark ? "dark" : "light" }
         // The checks are made in each appearance the document is made for, and in no other.
         let checked = [false, true].filter { madeFor.contains($0 ? .dark : .light) }
         // The appearances in which a colour is too faint to see, which its other checks leave out.
         var faint: Set<String> = []
         for name in names {
-            let c = ownColours[name]!
-            let path = DocumentPath.join("/colours", name)
+            let c = given[name]!
+            let path = pathOf(name)
             for dark in checked {
                 guard let ink = c.value(dark: dark) else { continue }
                 let sheet = ExplainerStyle.standard.palette(dark: dark).sheet
@@ -1606,12 +1656,12 @@ extension DocumentChecker {
         // A colour is compared once however many forms of it are drawn (text as ink and as fill is
         // one colour), taking the closest of its forms in each appearance.
         var others: [(label: String, roles: [DrawnRole])] = []
-        for r in used.sorted(by: { ($0.base, $0.form) < ($1.base, $1.form) }) where r.form != "soft" && ownColours[r.base] == nil {
+        for r in used.sorted(by: { ($0.base, $0.form) < ($1.base, $1.form) }) where r.form != "soft" && given[r.base] == nil {
             guard value(r, dark: false) != nil else { continue }
             if let i = others.firstIndex(where: { $0.label == r.base }) { others[i].roles.append(r) } else { others.append((r.base, [r])) }
         }
         for (k, name) in drawnNames.enumerated() {
-            let path = DocumentPath.join("/colours", name)
+            let path = pathOf(name)
             var candidates: [(label: String, roles: [DrawnRole])] = others
             for later in drawnNames[(k + 1)...] { candidates.append((later, [DrawnRole(base: later, form: "ink")])) }
             for other in candidates {
@@ -1638,8 +1688,10 @@ extension DocumentChecker {
         // In the maths profile, a colour near an operation's may be read as that operation.
         guard profileID == "maths" else { return }
         for name in drawnNames {
-            let path = DocumentPath.join("/colours", name)
-            for op in ExplainerOperation.allCases {
+            let path = pathOf(name)
+            // An operation whose colour the document changes no longer has the colour every
+            // explainer uses, and an operation is not compared with itself.
+            for op in ExplainerOperation.allCases where overridden[op.rawValue] == nil {
                 var worst: (distance: Double, dark: Bool, a: RGB, b: RGB)?
                 for dark in checked {
                     let palette = ExplainerStyle.standard.palette(dark: dark)

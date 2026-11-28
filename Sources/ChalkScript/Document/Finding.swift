@@ -39,6 +39,9 @@ public struct DocumentFinding: Equatable, Hashable, Sendable, CustomStringConver
         /// A colour a person may not see, or tell from another colour drawn with it, or no
         /// statement of what tells its marks apart without colour. Always a warning (EXP-20).
         case colour
+        /// An operation's colour changed in a document of the maths profile. Always a warning
+        /// (EXP-6).
+        case override
     }
 
     public var severity: Severity

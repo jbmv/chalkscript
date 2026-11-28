@@ -3215,6 +3215,51 @@
     "style": {
       "type": "object",
       "properties": {
+        "overrides": {
+          "description": "An operation's colour changed in this document, in a profile that lets a document change one: a value for each appearance the document is made for, and the request of the person who asked. That the profile allows it, and that the values match the appearances, are findings of the reader.",
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "subtract",
+              "trade",
+              "result",
+              "add",
+              "multiply",
+              "divide"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "light": {
+                "$ref": "#/$defs/colour"
+              },
+              "dark": {
+                "$ref": "#/$defs/colour"
+              },
+              "asked": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "asked"
+            ],
+            "anyOf": [
+              {
+                "required": [
+                  "light"
+                ]
+              },
+              {
+                "required": [
+                  "dark"
+                ]
+              }
+            ],
+            "additionalProperties": false
+          }
+        },
         "easings": {
           "type": "object",
           "propertyNames": {

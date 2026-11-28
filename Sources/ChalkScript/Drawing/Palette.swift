@@ -199,6 +199,19 @@ public struct ExplainerPalette: Equatable, Sendable {
 
     public func colors(_ op: ExplainerOperation) -> OperationColors { operations[op]! }
 
+    /// The palette with each operation in `colours` drawn in the colour a document gives it
+    /// (EXP-6): one value for fill and ink, and the soft form derived over the sheet, as for a
+    /// colour of the document's own.
+    public func overriding(_ colours: [ExplainerOperation: DocumentColour]) -> ExplainerPalette {
+        guard !colours.isEmpty else { return self }
+        var p = self
+        for (op, c) in colours {
+            let ink = c.drawn(dark: isDark)
+            p.operations[op] = OperationColors(fill: ink, ink: ink, soft: DocumentColour.soft(ink, over: sheet, dark: isDark))
+        }
+        return p
+    }
+
     /// The palette for a dark or light appearance, from the bundled style (EXP-19).
     public static func `for`(dark: Bool) -> ExplainerPalette { ExplainerStyle.standard.palette(dark: dark) }
 

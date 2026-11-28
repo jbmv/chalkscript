@@ -66,7 +66,7 @@ public struct ExplainerStage: View {
     }
 
     public var body: some View {
-        let palette = style.palette(dark: colorScheme == .dark)
+        let palette = style.palette(dark: colorScheme == .dark).overriding(scene.operationColours)
         let canvas = Canvas { context, size in
             Self.draw(scene, in: &context, size: size, with: StageDrawing(palette: palette, fonts: fonts))
         }
@@ -87,12 +87,13 @@ public struct ExplainerStage: View {
     static func colours(drawing scenes: [Scene], palette: ExplainerPalette, size: CGSize) -> [Ink: RGB] {
         final class Record { var used: [Ink: RGB] = [:] }
         let record = Record()
-        let drawing = StageDrawing(colour: { ink in
-            let c = palette.rgb(ink)
-            record.used[ink] = c
-            return c
-        }, fonts: .system)
         for scene in scenes {
+            let drawn = palette.overriding(scene.operationColours)
+            let drawing = StageDrawing(colour: { ink in
+                let c = drawn.rgb(ink)
+                record.used[ink] = c
+                return c
+            }, fonts: .system)
             let view = Canvas { context, area in
                 var c = context
                 draw(scene, in: &c, size: area, with: drawing)

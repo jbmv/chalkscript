@@ -219,7 +219,7 @@ struct DocumentPainter: Sendable {
                     opacity: tag.opacity, fixed: isFixed))
             }
         }
-        return Scene(elements: out + tags + fixed, size: size, camera: camera ? cam : nil)
+        return Scene(elements: out + tags + fixed, size: size, camera: camera ? cam : nil, operationColours: roles.overrides)
     }
 
     /// `rect` scaled by `s` about its middle.
@@ -346,6 +346,9 @@ struct DocumentPainter: Sendable {
 /// colours the document names for itself (EXP-20).
 struct DocumentRoles: Sendable {
     var colours: [String: DocumentColour] = [:]
+    /// The operations the document draws in a colour of its choosing (EXP-6), which every scene
+    /// of its film carries to the stage.
+    var overrides: [ExplainerOperation: DocumentColour] = [:]
 
     /// The ink of role `name`: a hue named alone is its `ink` for a stroke or text and its `fill`
     /// for a fill. Nil for a role the stage has no ink for (`paper`, `onResult`).

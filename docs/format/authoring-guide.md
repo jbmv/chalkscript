@@ -171,7 +171,7 @@ the others are optional, and a document without them is complete.
 | `sequence`, `steps` | Required. The step names in order, and the steps (topic `steps`). |
 | `try`, `whatIf` | Later parts; not played (below). |
 | `colours` | Colours the document names for itself (topic `colour`). |
-| `style` | Overrides of the standard style: `easings`, `motion`. |
+| `style` | Overrides of the standard style: `easings`, `motion`; and `overrides`, an operation's colour changed at a person's request (topic `colour`). |
 | `plays` | The wording suggested for `paced` and `skippable` playback. |
 | `wording` | Required. Every line, by locale and wording (topic `wording`). |
 | `extensions` | Keys named `vendor.feature`; keep any you do not understand. |
@@ -294,7 +294,7 @@ A text element's runs are its entry's placeholders: in `"{a} − {b} = {ans}"` t
 `b` and `ans`, and `runs.ans.text` fills `ans` from an entry until a verb sets it. A piece is a
 quantity: it is never faded below a ghost (0.28), and nothing removes an element.
 
-## colour: profiles and the colours a document names
+## colour: profiles, the colours a document names, and changing an operation's colour
 
 A document is made for a profile. With no `profile` it is `open`, which fixes no colour's meaning. Write `"profile": "maths"` for an explainer on arithmetic that draws the operation roles (`components.arithmetic`), whose colours then mean what the profile fixes. An operation role stays drawable in either profile, and an operation's colour is not used for anything else in `maths`. A profile the studio does not have is a `ref` error.
 
@@ -323,6 +323,26 @@ Colours that keep 3:1 contrast with each sheet and with their own tint, and are 
 - A colour the person names in words: use its row of the table. `muted` is within 20 of teal and of pink in some conditions; if the document draws `muted`, `check` says so.
 - Values the person gives: use them, and report each `colour` warning in plain words. When a colour is hard to see, say on which background and offer the nearest value that shows, which the warning names. A person's choice stands.
 - The person wants different colours and names none: offer orange and purple, and say that they stay apart for colour-blind viewers and on both backgrounds.
+
+### Changing an operation's colour
+
+In `maths` the six operation colours are fixed. Change one only when the person asks for it, never on your own, and never to colour something that is not an operation (that is a colour under `colours`). Before the edit, say why the colour is fixed, in your own words and in a few lines, then ask:
+
+> The colour for taking away is the same in every ChalkScript explainer, so that a child who has learned what it means can rely on it. The colours were chosen with research on colour vision in mind, and they are checked so that colour-blind children can still tell them apart. I can change it for this explainer. The studio will check the new colour against the others, and an app that plays the explainer may show the standard colour instead. Shall I change it?
+
+Name the operation by what it means: taking away (`subtract`), trading or regrouping (`trade`), the answer (`result`), adding or joining (`add`), groups of (`multiply`), sharing (`divide`). Make the edit only after the person says yes:
+
+```json
+"style": {
+  "overrides": {
+    "subtract": {"light": "#995DE1", "dark": "#C67EFF", "asked": "Make taking away purple, like our worksheets."}
+  }
+}
+```
+
+`asked` is required and holds the person's request, in their words. Give a value for each appearance the document is made for: the table's row for a colour named in words, or the person's own values. Every `check` and `edit` then returns an `override` warning for the operation, which is expected and stays; do not try to clear it. Report any `colour` warning on the new colour in plain words, as for a colour of the document's own, and offer the nearest colour that shows or a colour that stays apart; the person's choice stands. The studio's window shows a notice with a button, "Use the standard colour", which removes the override. To restore the colour yourself, remove the operation's entry, and `overrides` when it is left empty. In `open` nothing is fixed and an override is an error: use `colours`.
+
+### Appearances
 
 A document is made for both appearances, light and dark, unless `appearances` says otherwise. Keep both unless the person says that the explainer is only for one, or has chosen colours by looking at one and does not want to tune the other; then write `"appearances": ["dark"]` (or `["light"]`) and give each colour only that value. A value given for the other appearance is kept and not checked. Do not drop an appearance to silence a warning: offer the nearest colour first, and drop the appearance only if the person prefers. Tell a person who asks that a player whose screen is in the other appearance still draws the explainer in the one it is made for, with its caption and controls. Look at a colour in each appearance the document is made for with `show`, `image` and `appearance`. The person can also tick Light or Dark in the studio; ticking one writes a value for each colour that has none there, which `check` then measures like any other.
 
@@ -522,4 +542,5 @@ the problem's values, a time, then the message.
 | `areas` | A warning that a declared range and a layout's `suits` disagree, that no entry names a layout, or that `suits` depends on the area's size; change the range or the layout's `suits`, or add the missing entry. |
 | `patch` | A refused patch: stale base, protected path, or an operation that failed. |
 | `colour` | A warning, made in each appearance the document is made for: a colour that is hard to see (on the light or dark background, or on its own tint), two colours drawn together that may look alike to some colour-blind viewers, in `maths` a colour near an operation's, or a colour with no `cue`. The message gives the measurement and, for contrast, the nearest colour that shows. |
+| `override` | A warning that the document changes an operation's colour in `maths` (topic `colour`). It stays while the override does; it is the person's choice, made after the explanation. |
 | `capability` | A kind, verb or key used without its capability in `requires` (`components.arithmetic` or `drawing.turn`), or one this studio does not draw. |

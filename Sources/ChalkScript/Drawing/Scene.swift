@@ -18,11 +18,18 @@ public struct Scene: Equatable, Sendable {
     /// With a camera, every element not `fixed` is in the drawing's own units and is mapped into
     /// the camera's viewport; a fixed one (the problem's question) stays where it is.
     public var camera: Camera?
+    /// The operations a document draws in a colour of its choosing (EXP-6), which the stage draws
+    /// in place of the style's. Empty for every scene but that of a document with an override.
+    public var operationColours: [ExplainerOperation: DocumentColour]
 
-    public init(elements: [SceneElement] = [], size: CGSize = Scene.stage, camera: Camera? = nil) {
+    public init(
+        elements: [SceneElement] = [], size: CGSize = Scene.stage, camera: Camera? = nil,
+        operationColours: [ExplainerOperation: DocumentColour] = [:]
+    ) {
         self.elements = elements
         self.size = size
         self.camera = camera
+        self.operationColours = operationColours
     }
 
     /// How the scene sits in a drawing area of `area` points: scaled to fit, keeping its shape,

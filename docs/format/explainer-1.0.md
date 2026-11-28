@@ -186,7 +186,7 @@ then reports every reference the rename broke.
 | `try` | no | The problem the viewer tries alone (section 15.5). |
 | `whatIf` | no | A part in which the viewer drags a value toward goals (section 15.6). |
 | `colours` | no | Colours the document names for itself (section 16.5). |
-| `style` | no | Overrides of the standard style (section 16). |
+| `style` | no | Overrides of the standard style, and of an operation's colour in the `maths` profile (section 16). |
 | `plays` | no | The wording a document suggests for each playback control (section 17). |
 | `wording` | yes | Every line, by locale and wording (section 14). |
 | `extensions` | no | Section 2.4. |
@@ -1125,7 +1125,8 @@ The standard style defines the operation roles `subtract`, `trade`, `result`, `a
 and `divide`. A document names the neutral roles and `result` in any case, and the others when it
 requires `components.arithmetic` (section 2.3), in every profile. A document's own colours (section
 16.5) are named in the same keys and have the same three forms. A document names a role in each
-appearance it is made for (section 16.6). A document does not define a role in its `style`.
+appearance it is made for (section 16.6). A document does not define a role in its `style`; in the
+`maths` profile it may change the colour of an operation role (section 16.7).
 
 ### 16.2 The standard style
 
@@ -1150,7 +1151,7 @@ to (1, 1) at that *x*, exactly 0 at 0 and exactly 1 at 1.
 
 A document's `style` has the keys of the standard style except `palette`, `format` and `version`,
 each optional: `easings` and `motion`. A value it gives replaces the value at the same path; a value
-it omits keeps the style's. An unknown curve name is an error. A `style.palette` is a `schema` error
+it omits keeps the style's. It has one key of its own, `overrides` (section 16.7). An unknown curve name is an error. A `style.palette` is a `schema` error
 that names `colours`: a document's colours are named under `colours` (section 16.5), not given in
 `style`.
 
@@ -1166,7 +1167,7 @@ format does not change.
 | `profile.id` | The name a document declares: two or more lowercase letters, such as `maths`. |
 | `profile.title` | A short name for people. |
 | `profile.fixed` | The roles whose meaning the profile fixes, each with a sentence saying what it means. |
-| `profile.overrides` | `explained` or `none`: whether a fixed role may be changed in one document. |
+| `profile.overrides` | `explained` or `none`: whether a fixed role may be changed in one document (section 16.7). |
 | `palette.light.suggested`, `palette.dark.suggested` | Named colours, each one `#RRGGBB` value, offered as the first choice when a person asks for colours without naming them. As for an operation role, the ink is also the fill, and the soft form is the ink at 16% over the light sheet and 18% over the dark sheet. |
 
 Two profiles are bundled. `maths` fixes the six operation roles (`subtract` taking away, `trade`
@@ -1236,6 +1237,51 @@ made for. A value for another appearance may be given; it is not checked and not
   "hour": {"dark": "#FF924A", "cue": "the short, wide hand"}
 }
 ```
+
+### 16.7 Changing an operation's colour in one document
+
+In a profile whose `overrides` is `explained`, which of the bundled profiles is `maths`, a document
+may change the colour of a role the profile fixes. It does so under `style.overrides`, one entry for
+each role changed:
+
+```json
+"profile": "maths",
+"style": {
+  "overrides": {
+    "subtract": {"light": "#995DE1", "dark": "#C67EFF", "asked": "Make taking away purple, like our worksheets."}
+  }
+}
+```
+
+| Key | Holds |
+|---|---|
+| `light`, `dark` | The colour, written `#RRGGBB`, for each appearance the document is made for (section 16.6). As for a colour of the document's own, the one value is the fill and the ink, and the soft form is derived. |
+| `asked` | Required. The request of the person who asked for the change, in that person's words where possible. |
+
+The change is for a person to ask for, after being told why the colour is fixed: the operation
+colours are the same in every explainer of the profile, so that a learner who knows what one means
+can rely on it, and they are chosen and checked so that people with a colour-vision deficiency can
+tell them apart. `asked` records that request, so that a later author finds the reason beside the
+change. An author does not use an override to colour something that is not an operation; that is a
+colour of the document's own (section 16.5).
+
+The reader reports each entry as an `override` warning (section 21) at its path, which names the
+operation and says why its colour is normally fixed, so that every check of the document tells
+whoever made it. The overriding colour is held to the `colour` checks of section 16.5 as a colour of
+the document's own is, at the entry's path, beside every other colour the document draws; it is
+compared with the colours of the other operations, and not with the standard colour it replaces. An
+overridden role is drawn in its colour wherever the role is drawn, by name or by default (a
+cross-out, a tally, a box).
+
+An entry without `asked`, or with an empty one, an entry without a value for an appearance the
+document is made for, a value that is not `#RRGGBB` and an entry for a name the profile does not fix
+are `schema` errors. In a profile whose `overrides` is `none`, such as `open`, `style.overrides` is
+a `schema` error that says the profile fixes no colour and so needs no override.
+
+The override is part of the document, and so of its hash and its revision (section 19). A player
+may draw an overridden role in the document's colour or in the standard colour; both conform. A
+player that draws the document's colour draws the value for the appearance it draws in (section
+16.6), and tells the viewer nothing of the change.
 
 ## 17. Playback options
 
@@ -1338,6 +1384,7 @@ A reader and a validator report *findings*. Each has:
 | `range` | A problem outside the parameters' ranges. |
 | `areas` | A declared shape at which another layout is chosen, a layout no entry names, or a `suits` that depends on the area's size (warnings). |
 | `colour` | A colour of the document's that may not be seen or told from another in an appearance the document is made for, or that has no `cue` (warnings; section 16.5). |
+| `override` | An operation's colour that the document changes, in a profile that lets a document change one (a warning; section 16.7). |
 | `patch` | A patch refused: a stale base, a protected path, or an operation that failed. |
 
 A validator adds its own codes for the checks it computes. One finding is written on one line as

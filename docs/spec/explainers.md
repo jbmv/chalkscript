@@ -101,6 +101,8 @@ In an explainer made for the maths profile (EXP-20), each operation has one colo
 
 Subtract, the answer and the fill for trade are Okabe-Ito colours. Add, multiply and divide leave that set. A thin stroke must keep 3:1 contrast with the sheet, and within that range the set's remaining colours could not be told apart from the others under a simulated deficiency.
 
+A document of the maths profile may change the colour of one operation, for that document alone, when a person asks for it. The person is first told why the colour is fixed: it is the same in every explainer, the set was chosen with reference to research on colour vision, and it is checked so that people with a colour-vision deficiency can tell the colours apart. The document records the change with the person's request, every check of the document reports it as a warning, and the studio's window shows a notice with a control that restores the standard colour. The notice does not prevent the change.
+
 **Why:** a colour with one meaning is learned once. Red-green colour vision deficiency is common, so the palette is checked with a simulation and every colour has a second cue. Colour follows the problem's structure and not its words, because key-word rules fail ("5 more than" can require addition).
 
 **Acceptance:**
@@ -111,8 +113,11 @@ Subtract, the answer and the fill for trade are Okabe-Ito colours. Add, multiply
 - Any two colours shown together stay at least 20 apart (CIE76 in CIELAB, D65), with normal vision and under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009), in each appearance the explainer is made for (EXP-20), which is light and dark unless its document declares otherwise. A test checks this for the colours each explainer draws.
 - Every colour drawn is one of these roles, resolved from the style, or a colour of the document's own (EXP-20). A style with other values changes every colour of a role, with no change to an explainer's code, and is held to the same checks.
 - In a document made for the maths profile, a colour of its own within 20 of an operation colour with normal vision is reported as a warning, since a learner may read it as that operation.
+- A document made for the maths profile may change an operation's colour under `style.overrides`, with a value for each appearance it is made for and the person's request in `asked`. It reads with a warning that names the operation, and the colour is drawn in each appearance and held to the checks of a document's own colour (EXP-20). An override without `asked` is an error, and so is an override in the open profile, which fixes no colour.
+- An agent that authors documents explains why the colour is fixed and asks before it writes an override. The studio shows a notice while a document has one, with a control that removes it as one step of undo.
+- An app that plays a document may draw an overridden operation in the document's colour or in the standard colour.
 
-*In the package:* `ExplainerStyle` reads `Resources/style.json`; `ExplainerPalette.light` and `.dark` are the bundled values.
+*In the package:* `ExplainerStyle` reads `Resources/style.json`; `ExplainerPalette.light` and `.dark` are the bundled values. `ExplainerDocument.overrides` gives a document's changed operations, a document's scenes carry their colours (`Scene.operationColours`), and `ExplainerStage` draws them with `ExplainerPalette.overriding`.
 
 ## EXP-20. A document declares a style profile, and its colours can be seen by everyone
 

@@ -34,7 +34,7 @@ extension DocumentFilm {
     init(_ resolved: ResolvedExplainer, resolver r: Resolver) throws(EvalFailure) {
         let doc = r.doc
         let style = DocumentStyle(doc)
-        let roles = DocumentRoles(colours: doc.colours)
+        let roles = DocumentRoles(colours: doc.colours, overrides: doc.overridingColours)
         // Every instance, in draw order (section 9.1): by z, then by element name in code point
         // order, then by index.
         var drawn: [(z: Double, name: [UInt32], index: Int, inst: DrawnInstance)] = []

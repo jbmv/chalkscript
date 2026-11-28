@@ -110,6 +110,26 @@ public struct ExplainerDocument: Sendable {
         return out
     }
 
+    /// The operations whose colour the document changes (EXP-6), by operation: those under
+    /// `style.overrides` that give a value, in a document whose profile fixes the operation and
+    /// lets a document change it. None in any other profile.
+    public var overrides: [ExplainerOperation: OperationOverride] {
+        guard let profile = ExplainerStyle.profiles[profileID]?.profile, profile.overrides == .explained else { return [:] }
+        var out: [ExplainerOperation: OperationOverride] = [:]
+        for (name, o) in root["style"]?["overrides"]?.object?.entries ?? [] {
+            guard profile.fixed[name] != nil, let op = ExplainerOperation(rawValue: name) else { continue }
+            let l = o["light"]?.string.flatMap(RGB.init(hexString:)), d = o["dark"]?.string.flatMap(RGB.init(hexString:))
+            guard l != nil || d != nil else { continue }
+            out[op] = OperationOverride(
+                operation: op, colour: DocumentColour(name: name, light: l, dark: d), asked: o["asked"]?.string ?? "",
+                meaning: profile.fixed[name] ?? name)
+        }
+        return out
+    }
+
+    /// The colour each overridden operation is drawn in, which a film gives its scenes.
+    var overridingColours: [ExplainerOperation: DocumentColour] { overrides.mapValues(\.colour) }
+
     public var id: String { root["id"]?.string ?? "" }
     public var title: String { root["title"]?.string ?? "" }
     public var sourceLocale: String { root["sourceLocale"]?.string ?? "" }
@@ -137,6 +157,24 @@ public struct ExplainerDocument: Sendable {
             s.object.map { o in Dictionary(uniqueKeysWithValues: o.entries.compactMap { k, v in DocumentValue(json: v).map { (k, $0) } }) }
         }
     }
+}
+
+/// One operation's colour as a document of the maths profile changes it (EXP-6): the colour, with
+/// a value for each appearance the document is made for, and the request of the person who asked
+/// for the change.
+public struct OperationOverride: Hashable, Sendable {
+    public let operation: ExplainerOperation
+    /// The colour drawn for the operation: one value for fill and ink, with the soft form derived.
+    public let colour: DocumentColour
+    /// The person's request, in the person's words where possible.
+    public let asked: String
+    /// What the operation's colour means in the profile, such as "taking away".
+    public let meaning: String
+
+    /// Why an operation's colour is normally the same in every explainer, in a sentence a
+    /// person who is not a programmer can read.
+    public static let reason =
+        "Operation colours are the same in every maths explainer so that a learner can rely on them, and they are chosen from research on colour vision and checked so that colour-blind viewers can tell them apart."
 }
 
 /// Which parts of an explainer one wording of one locale can play (section 14.5): every entry
