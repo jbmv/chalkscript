@@ -102,24 +102,55 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   others: a video exported from the studio has no narration, whatever the tick says. What an
   agent reads through the helper does not change with the tick.
 - **Export Video.** File > Export Video… (Shift-Command-E) writes an mp4 of the shown
-  document's watched steps for the problem shown, to send to someone who has no player
-  (EXP-21). It is available while the window shows a document that can be played. A save panel
-  asks where to put the file, offering the document's title and the problem's values as its
-  name, in the folder last used or in Movies the first time. The video is 1920 by 1080 pixels
-  at 30 frames a second, in H.264. It plays the intro, held for the time its line takes to say
-  and at least 2 seconds, then every step without a stop, as the window plays them with Speak
-  lines off, and holds the last picture for 2 seconds. The wording and language are those the
-  window plays, and the version is the learner's. The drawing is laid out at the shape nearest
-  16:9 among those the explainer is made for, as the Preview control shows that shape, and is
-  drawn in the appearance the Appearance control shows, or in the one the explainer is made
-  for when it is not made for that one. Each line is drawn under the drawing as the player
-  shows it. Round the drawing is a margin in the sheet colour of the appearance. The video has
-  no narration and no audio track. While the video is made, a sheet shows how many seconds of
-  it are done, with Cancel, which stops the export and leaves no file; a file of the same name
-  already in the folder is replaced only when the whole video has been made. When the video is
-  saved the sheet names the file and offers Show in Finder. If it cannot be saved, the sheet
-  says why. The export has a player of its own, so the window's player stays where it was. The
-  code is `VideoExport` in `Sources/ChalkScriptStudioCore/VideoExport.swift`, and the sheet is
+  document's watched steps for one problem, to send to someone who has no player (EXP-21). It
+  is available while the window shows a document that can be played, and opens a sheet with
+  these choices:
+
+  | Choice | Offers | Starts at |
+  |---|---|---|
+  | Problem | The document's samples, and the problem shown if it was typed | The problem shown |
+  | Video shape | Widescreen 16:9 (1920 by 1080 pixels), Standard 4:3 (1440 by 1080), Custom | Widescreen 16:9 |
+  | Drawing shape | The shapes the explainer is made for, when there are several | The one nearest the video's drawing space |
+  | Appearance | Light or Dark, when the explainer is made for both | The window's Appearance |
+  | Captions | In the picture, As subtitles the viewer turns on, Both, None | In the picture |
+  | Pause between steps | None, Half a second, One second, Two seconds | None |
+
+  **Custom** shows two fields, Width and Height, for whole or decimal numbers, such as 1 : 1
+  for a square video or 9 : 16 for a phone held upright, with a small picture of the frame
+  and the drawing's place in it, and the size in pixels: 1080 on the shorter side, the longer
+  rounded to an even number. A shape wider than 3 to 1 or taller than 1 to 3 is refused in a
+  sentence under the fields, and Export is unavailable until it is corrected. Changing the
+  video's shape starts the drawing's shape again at the nearest. Under the choices, a line
+  gives what will be made, such as "1920 × 1080 pixels · about 38 seconds", worked out from the
+  steps' timelines, and a second line says that the video has no narration.
+
+  The drawing is laid out at the chosen shape's preview ratio, as the Preview control shows
+  it, inside the frame less a margin of 4.5 per cent of its shorter side, and the sheet colour
+  of the appearance fills the rest. Captions in the picture are drawn under the drawing as the
+  player shows them, in a band of two lines; without them the drawing has that room too.
+  Subtitles are a track inside the mp4, in the language played, which the viewer turns on in
+  a video player (in QuickTime Player, View > Subtitles); they do not carry the colour of a
+  line's emphasis, and a player that ignores subtitle tracks does not show them. The video
+  plays the intro, held for the time its line takes to say and at least 2 seconds, then every
+  step as the window plays it with Speak lines off, each finished picture held for the pause
+  chosen, and the last picture for 2 seconds. The wording and language are those the window
+  plays, and the version is the learner's. The video is H.264 at 30 frames a second, with no
+  narration and no audio track.
+
+  **Export…** opens a save panel, offering the document's title and the problem's values as
+  the name, in the folder last used or in Movies the first time. While the video is made the
+  sheet shows how many seconds of it are done, with Cancel, which stops the export, leaves no
+  file and returns to the choices. A file of the same name already in the folder is replaced
+  only when the whole video has been made. When the video is saved, the sheet names the file
+  and offers Show in Finder, Open, which opens it in the Mac's video player, and Done. If it
+  cannot be saved, the sheet says why and offers Try Again, which makes it again in the same
+  place, and Cancel, which returns to the choices. The video's shape, with the custom
+  numbers, the captions and the pause are kept from one export to the next, and from one
+  launch to the next, in the app's settings; the problem, the drawing's shape and the
+  appearance start each time from the window and the video's shape. Nothing is written to the
+  document, and the export has a player of its own, so the window's player stays where it
+  was. The code is `VideoExport`, `VideoExportSettings` and `VideoExportPlan` in
+  `Sources/ChalkScriptStudioCore/VideoExport.swift`, and the sheet is
   `Studio/Sources/ExportSheet.swift`. An agent has no tool for export.
 - **What the studio authors.** A document holds the drawing and its words. The arrangement of
   the question, the line and the controls round the drawing belongs to the app that plays the
@@ -245,15 +276,19 @@ picture of its window to that path, for a session that cannot capture the screen
 that cannot send keys to another app, `org.chalkscript.studio.newExplainer` opens the New
 Explainer sheet, and `org.chalkscript.studio.keys` presses the keys its object names, `return`,
 `escape` or text to type, in the sheet if one is open. `org.chalkscript.studio.exportVideo` does
-what File > Export Video does, and with a file's path as its object it makes the video there
-without the save panel. None of them brings the app to the front, so the menu items and their
-shortcuts are tried by hand.
+what File > Export Video does, and with a file's path as its object it also makes the video
+there, with the choices the sheet opens with and without the save panel. The choices are user
+defaults, `ExportVideoShape` (`widescreen`, `standard` or `custom`), `ExportVideoCustomWidth`,
+`ExportVideoCustomHeight`, `ExportVideoCaptions` (`inPicture`, `subtitles`, `both` or `none`)
+and `ExportVideoPause` in seconds, so launch arguments of those names set them for a session
+that cannot click. None of the notifications brings the app to the front, so the menu items
+and their shortcuts are tried by hand.
 
 ## Not built yet
 
 Narration in a voice fit to send to others (the window speaks lines with the system voice, for
-drafts only), in the window or in an exported video; a choice of the exported video's shape,
-captions and pause; do it with me, What if? and try one, a
+drafts only), in the window or in an exported video; a video of every sample at once; do it
+with me, What if? and try one, a
 timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for
 and a document's title, a document's own palette, and
 notarisation.

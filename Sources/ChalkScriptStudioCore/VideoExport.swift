@@ -94,13 +94,102 @@ public struct VideoFrame: Equatable, Sendable {
     }
 }
 
-/// What a video is made of besides the document: the frame's shape and the pause between steps.
+/// Where a video shows the lines.
+public enum VideoCaptions: String, CaseIterable, Identifiable, Sendable {
+    case inPicture, subtitles, both, none
+
+    public var id: String { rawValue }
+
+    /// Whether each line is drawn under the drawing.
+    public var inPicture: Bool { self == .inPicture || self == .both }
+
+    /// Whether the lines are a subtitle track of the file, which the viewer turns on in a player.
+    public var asSubtitles: Bool { self == .subtitles || self == .both }
+
+    public var title: String {
+        switch self {
+        case .inPicture: "In the picture"
+        case .subtitles: "As subtitles the viewer turns on"
+        case .both: "Both"
+        case .none: "None"
+        }
+    }
+}
+
+/// What a person chooses for a video besides the document and its problem.
 public struct VideoExportSettings: Equatable, Sendable {
-    public var shape: VideoShape = .widescreen
+    public enum ShapeChoice: String, CaseIterable, Identifiable, Sendable {
+        case widescreen, standard, custom
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .widescreen: "Widescreen 16:9"
+            case .standard: "Standard 4:3"
+            case .custom: "Custom"
+            }
+        }
+    }
+
+    public var shapeChoice: ShapeChoice = .widescreen
+    /// The two numbers of the custom shape, kept while another shape is chosen.
+    public var customWidth = 16.0
+    public var customHeight = 9.0
+    /// The title of the shape the drawing is laid out at, among those the document is made for;
+    /// nil takes the one nearest the frame's drawing space.
+    public var drawingShape: String?
+    /// Nil takes the appearance the window shows.
+    public var appearance: Appearance?
+    public var captions: VideoCaptions = .inPicture
     /// Seconds each step's finished picture is held before the next step begins.
     public var pause: Double = 0
 
+    /// The pauses offered, in seconds, with their names.
+    public static let pauses: [(seconds: Double, title: String)] = [
+        (0, "None"), (0.5, "Half a second"), (1, "One second"), (2, "Two seconds"),
+    ]
+
     public init() {}
+
+    public var shape: VideoShape {
+        switch shapeChoice {
+        case .widescreen: .widescreen
+        case .standard: .standard
+        case .custom: .custom(width: customWidth, height: customHeight)
+        }
+    }
+
+    // MARK: remembered choices
+
+    enum Key {
+        static let shape = "ExportVideoShape"
+        static let customWidth = "ExportVideoCustomWidth"
+        static let customHeight = "ExportVideoCustomHeight"
+        static let captions = "ExportVideoCaptions"
+        static let pause = "ExportVideoPause"
+    }
+
+    /// The choices as last saved. The drawing's shape and the appearance are not kept: each
+    /// starts from the video's shape and from the window.
+    public init(defaults: UserDefaults) {
+        if let shape = defaults.string(forKey: Key.shape).flatMap(ShapeChoice.init(rawValue:)) { shapeChoice = shape }
+        let width = defaults.double(forKey: Key.customWidth), height = defaults.double(forKey: Key.customHeight)
+        if width > 0, height > 0 { (customWidth, customHeight) = (width, height) }
+        if let captions = defaults.string(forKey: Key.captions).flatMap(VideoCaptions.init(rawValue:)) { self.captions = captions }
+        let pause = defaults.double(forKey: Key.pause)
+        if Self.pauses.contains(where: { $0.seconds == pause }) { self.pause = pause }
+    }
+
+    public func save(to defaults: UserDefaults) {
+        defaults.set(shapeChoice.rawValue, forKey: Key.shape)
+        if customWidth > 0, customHeight > 0, customWidth.isFinite, customHeight.isFinite {
+            defaults.set(customWidth, forKey: Key.customWidth)
+            defaults.set(customHeight, forKey: Key.customHeight)
+        }
+        defaults.set(captions.rawValue, forKey: Key.captions)
+        defaults.set(pause, forKey: Key.pause)
+    }
 }
 
 /// What a video is made from: a document as the window shows it.
@@ -168,6 +257,8 @@ public struct VideoExportPlan {
     /// document not made for the window's.
     public let appearance: AppearanceUse
     public let pause: Double
+    /// Whether the lines are also written as a subtitle track.
+    public let subtitles: Bool
     /// The intro is held for its line's estimated time, and at least `introLeast`.
     public let introHold: Double
     /// Each step's length as the window plays it with the stand-in voice (`StepTimeline`).
@@ -196,11 +287,12 @@ public struct VideoExportPlan {
         guard let pixels = settings.shape.pixels else {
             throw VideoExportError(settings.shape.refusal ?? "The video's shape cannot be used.")
         }
-        frame = VideoFrame(pixelWidth: pixels.width, pixelHeight: pixels.height, captions: true)
+        frame = VideoFrame(pixelWidth: pixels.width, pixelHeight: pixels.height, captions: settings.captions.inPicture)
         let shapes = Self.drawingShapes(source.document)
-        drawingShape = Self.nearestShape(shapes, to: frame)
-        appearance = Appearance.use(asked: source.appearance, madeFor: source.document.appearances)
+        drawingShape = shapes.first { $0.title == settings.drawingShape } ?? Self.nearestShape(shapes, to: frame)
+        appearance = Appearance.use(asked: settings.appearance ?? source.appearance, madeFor: source.document.appearances)
         pause = max(0, settings.pause)
+        subtitles = settings.captions.asSubtitles
         do {
             // The learner's version: the same steps as the parent's, played without its controls.
             explainer = try DocumentExplainer(
@@ -215,7 +307,20 @@ public struct VideoExportPlan {
         stepLengths = (0..<laid.stepCount).map { StepTimeline.make(laid, step: $0).length }
     }
 
-    var drawingArea: CGRect { frame.drawingArea(ratio: drawingShape?.ratio) }
+    /// Where the drawing is laid out in the frame.
+    public var drawingArea: CGRect { frame.drawingArea(ratio: drawingShape?.ratio) }
+
+    /// The language of the lines, as a BCP 47 tag.
+    var locale: String { explainer.resolved.locale }
+
+    /// The video's size and length in a line: "1920 × 1080 pixels · about 38 seconds".
+    public var summary: String {
+        let seconds = Int(length.rounded())
+        func count(_ n: Int, _ unit: String) -> String { "\(n) \(unit)" + (n == 1 ? "" : "s") }
+        var time = count(seconds % 60, "second")
+        if seconds >= 60 { time = count(seconds / 60, "minute") + (seconds % 60 == 0 ? "" : " " + time) }
+        return "\(frame.pixelWidth) × \(frame.pixelHeight) pixels · about \(time)"
+    }
 }
 
 /// A line of the video, and the seconds from the video's start between which it is shown.
@@ -239,7 +344,8 @@ public struct VideoExportResult: Sendable {
 
 /// Writes an mp4 of a document's watched steps for one problem, played straight through (EXP-21):
 /// the intro held, each step as the player plays it with the stand-in voice, and the last picture
-/// held. The video is H.264 at 30 frames a second and has no audio track.
+/// held. The video is H.264 at 30 frames a second and has no audio track. The lines can also be a
+/// subtitle track of the file, in the 3GPP timed text form that mp4 players read.
 ///
 /// Each frame is the player's scene drawn by the engine's stage, with the caption under it as the
 /// player's screen sets it, on the sheet colour of the appearance. The export has a player of its
@@ -299,8 +405,12 @@ public enum VideoExport {
             pixelFormatType: CVPixelFormatType(rawValue: kCVPixelFormatType_32BGRA),
             size: CVImageSize(width: frame.pixelWidth, height: frame.pixelHeight))
         let receiver = writer.inputPixelBufferReceiver(for: input, pixelBufferAttributes: attributes)
+        var subtitles: Subtitles?
         do {
+            if plan.subtitles { subtitles = try Subtitles(timing.captions, plan: plan, length: Double(timing.frames) / Double(fps), writer: writer) }
             try writer.start()
+        } catch let error as VideoExportError {
+            throw error
         } catch {
             throw VideoExportError(error.localizedDescription)
         }
@@ -318,7 +428,17 @@ public enum VideoExport {
                 guard let pool = receiver.pixelBufferPool else { throw failure(writer) }
                 do {
                     let buffer = try pixelBuffer(of: image, from: pool, frame: frame)
-                    try await receiver.append(buffer, with: CMTime(value: CMTimeValue(count), timescale: CMTimeScale(fps)))
+                    // The writer takes a picture only when it has the lines up to that picture's
+                    // time, and a line only once the pictures have reached it. Neither is waited
+                    // for alone, which would stop both tracks: each is offered until it is taken.
+                    let time = CMTime(value: CMTimeValue(count), timescale: CMTimeScale(fps))
+                    let asked = ContinuousClock.now
+                    while true {
+                        try subtitles?.offer()
+                        if try receiver.appendImmediately(buffer, with: time) { break }
+                        guard writer.status == .writing, asked.duration(to: .now) < .seconds(30) else { throw failure(writer) }
+                        try await Task.sleep(for: .milliseconds(1))
+                    }
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
@@ -341,6 +461,16 @@ public enum VideoExport {
             throw error
         }
         receiver.finish()
+        do {
+            let asked = ContinuousClock.now
+            while try subtitles?.offer() == false {
+                guard writer.status == .writing, asked.duration(to: .now) < .seconds(30) else { throw failure(writer) }
+                try await Task.sleep(for: .milliseconds(1))
+            }
+        } catch {
+            writer.cancelWriting()
+            throw error
+        }
         let end = CMTime(value: CMTimeValue(count), timescale: CMTimeScale(fps))
         writer.endSession(atSourceTime: end)
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
@@ -384,6 +514,95 @@ public enum VideoExport {
         }
         guard drawn else { throw VideoExportError("A picture of the video could not be drawn.") }
         return CVReadOnlyPixelBuffer(buffer)
+    }
+
+    /// The lines as a subtitle track: one sample of timed text for each line, and an empty one
+    /// wherever no line is shown, so that the samples follow one another without a gap.
+    @MainActor
+    struct Subtitles {
+        private let receiver: AVAssetWriterInput.SampleBufferReceiver
+        private let format: CMFormatDescription
+        private var samples: [(start: Double, end: Double, text: String)] = []
+        private var next = 0
+        private var finished = false
+
+        init(_ captions: [VideoCaption], plan: VideoExportPlan, length: Double, writer: AVAssetWriter) throws {
+            let frame = plan.frame
+            // The text's box is the foot of the picture, where a player sets the line.
+            let colour: [CFString: Any] = [
+                kCMTextFormatDescriptionColor_Red: 1.0, kCMTextFormatDescriptionColor_Green: 1.0,
+                kCMTextFormatDescriptionColor_Blue: 1.0, kCMTextFormatDescriptionColor_Alpha: 1.0,
+            ]
+            let clear: [CFString: Any] = [
+                kCMTextFormatDescriptionColor_Red: 0.0, kCMTextFormatDescriptionColor_Green: 0.0,
+                kCMTextFormatDescriptionColor_Blue: 0.0, kCMTextFormatDescriptionColor_Alpha: 0.0,
+            ]
+            let extensions: [CFString: Any] = [
+                kCMTextFormatDescriptionExtension_DisplayFlags: 0,
+                kCMTextFormatDescriptionExtension_BackgroundColor: clear,
+                kCMTextFormatDescriptionExtension_HorizontalJustification: 1,
+                kCMTextFormatDescriptionExtension_VerticalJustification: -1,
+                kCMTextFormatDescriptionExtension_DefaultTextBox: [
+                    kCMTextFormatDescriptionRect_Top: 0, kCMTextFormatDescriptionRect_Left: 0,
+                    kCMTextFormatDescriptionRect_Bottom: frame.pixelHeight * 3 / 20, kCMTextFormatDescriptionRect_Right: frame.pixelWidth,
+                ] as [CFString: Any],
+                kCMTextFormatDescriptionExtension_DefaultStyle: [
+                    kCMTextFormatDescriptionStyle_StartChar: 0, kCMTextFormatDescriptionStyle_EndChar: 0,
+                    kCMTextFormatDescriptionStyle_Font: 1, kCMTextFormatDescriptionStyle_FontFace: 0,
+                    kCMTextFormatDescriptionStyle_FontSize: frame.pixelHeight / 20,
+                    kCMTextFormatDescriptionStyle_ForegroundColor: colour,
+                ] as [CFString: Any],
+                kCMTextFormatDescriptionExtension_FontTable: ["1": "Helvetica"],
+            ]
+            var made: CMFormatDescription?
+            CMFormatDescriptionCreate(
+                allocator: nil, mediaType: kCMMediaType_Subtitle, mediaSubType: kCMSubtitleFormatType_3GText,
+                extensions: extensions as CFDictionary, formatDescriptionOut: &made)
+            guard let made else { throw VideoExportError("The subtitles could not be written.") }
+            format = made
+            let input = AVAssetWriterInput(mediaType: .subtitle, outputSettings: nil, sourceFormatHint: made)
+            input.extendedLanguageTag = plan.locale
+            input.languageCode = Locale(identifier: plan.locale).language.languageCode?.identifier(.alpha3)
+            // The track is in the file and is off until the viewer turns it on.
+            input.marksOutputTrackAsEnabled = false
+            input.naturalSize = CGSize(width: frame.pixelWidth, height: frame.pixelHeight)
+            guard writer.canAdd(input) else { throw VideoExportError("The subtitles could not be written.") }
+            receiver = writer.inputReceiver(for: input)
+
+            var at = 0.0
+            for caption in captions where caption.end > caption.start {
+                if caption.start > at + 1e-9 { samples.append((at, caption.start, "")) }
+                samples.append((caption.start, caption.end, caption.text))
+                at = caption.end
+            }
+            if length > at + 1e-9 { samples.append((at, length, "")) }
+        }
+
+        /// Hands the writer the samples it will take now, in order, and returns whether it has
+        /// taken them all. The track is ended with its last sample: the writer would otherwise
+        /// hold the pictures after that sample's start back, waiting for another line.
+        @discardableResult
+        mutating func offer() throws -> Bool {
+            guard !finished else { return true }
+            while next < samples.count {
+                let sample = samples[next]
+                // Timed text: the count of the text's bytes in two bytes, then the text in UTF-8.
+                let text = Data(sample.text.utf8)
+                var data = Data([UInt8(text.count >> 8 & 0xFF), UInt8(text.count & 0xFF)])
+                data.append(text)
+                let timing = CMSampleTimingInfo(
+                    duration: CMTime(seconds: sample.end - sample.start, preferredTimescale: 600),
+                    presentationTimeStamp: CMTime(seconds: sample.start, preferredTimescale: 600), decodeTimeStamp: .invalid)
+                let buffer = CMReadySampleBuffer<CMReadOnlyDataBlockBuffer>(
+                    dataBuffer: CMReadOnlyDataBlockBuffer(data), formatDescription: format,
+                    sampleProperties: .init(sampleCount: 1, sizes: .uniform(data.count), timings: .distinct([timing])))
+                guard try receiver.appendImmediately(CMReadySampleBuffer<CMSampleBuffer.DynamicContent>(buffer)) else { return false }
+                next += 1
+            }
+            receiver.finish()
+            finished = true
+            return true
+        }
     }
 
     /// The video's clock: a player of the export's own, moved a frame at a time. The player has

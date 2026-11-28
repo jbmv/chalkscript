@@ -157,7 +157,7 @@ struct VideoExportTests {
         let plan = try VideoExportPlan(try exportSource(model, "equal-groups", ["a": .number(3), "b": .number(4)]))
         let folder = try VideoFolder()
 
-        func cancelled(_ url: URL) async {
+        func cancelled(_ url: URL, _ plan: VideoExportPlan = plan) async {
             let running = RunningExport()
             var most = 0.0
             let task = Task { @MainActor in
@@ -180,6 +180,13 @@ struct VideoExportTests {
         await cancelled(kept)
         #expect(folder.files == ["kept.mp4"])
         #expect(try Data(contentsOf: kept) == Data("an earlier video".utf8))
+
+        // The same with a subtitle track being written beside the pictures.
+        var settings = VideoExportSettings()
+        settings.captions = .both
+        let subtitled = try VideoExportPlan(try #require(model.videoExportSource), settings: settings)
+        await cancelled(url, subtitled)
+        #expect(folder.files == ["kept.mp4"])
     }
 
     @Test func aDarkOnlyDocumentExportsDarkWhateverTheWindowShows() async throws {
@@ -225,5 +232,207 @@ struct VideoExportTests {
         let model = try openModel(project)
         let source = try exportSource(model, "subtraction", ["a": .number(54), "b": .number(26)])
         #expect(source.fileName == "Two-digit subtraction by trading a ten (54, 26).mp4")
+    }
+
+    // MARK: the choices
+
+    @Test func aCustomShapeIs1080OnItsShorterSideAndIsRefusedBeyond3To1() {
+        func size(_ w: Double, _ h: Double) -> [Int]? { VideoShape.custom(width: w, height: h).pixels.map { [$0.width, $0.height] } }
+        #expect(size(9, 16) == [1080, 1920])
+        #expect(size(2.35, 1) == [2538, 1080])
+        #expect(size(1, 1) == [1080, 1080])
+        #expect(size(16, 9) == [1920, 1080])
+        #expect(size(3, 1) == [3240, 1080])
+        #expect(size(1, 3) == [1080, 3240])
+        #expect(VideoShape.custom(width: 3, height: 1).refusal == nil)
+        #expect(size(5, 1) == nil)
+        #expect(VideoShape.custom(width: 5, height: 1).refusal == "Choose a shape no wider than 3 to 1.")
+        #expect(VideoShape.custom(width: 1, height: 5).refusal == "Choose a shape no taller than 1 to 3.")
+        #expect(VideoShape.custom(width: 0, height: 9).refusal == "Type two numbers greater than zero, such as 9 and 16.")
+        #expect(VideoShape.custom(width: .nan, height: 9).pixels == nil)
+        #expect(VideoShape.widescreen.refusal == nil && VideoShape.standard.refusal == nil)
+    }
+
+    @Test func theLineUnderTheControlsGivesTheSizeAndTheLengthAsTheyChange() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let source = try exportSource(model, "subtraction", ["a": .number(54), "b": .number(26)])
+        var settings = VideoExportSettings()
+        #expect(try VideoExportPlan(source, settings: settings).summary == "1920 × 1080 pixels · about 38 seconds")
+        settings.pause = 1
+        #expect(try VideoExportPlan(source, settings: settings).summary == "1920 × 1080 pixels · about 43 seconds")
+        settings.shapeChoice = .standard
+        #expect(try VideoExportPlan(source, settings: settings).summary == "1440 × 1080 pixels · about 43 seconds")
+        settings.shapeChoice = .custom
+        (settings.customWidth, settings.customHeight) = (9, 16)
+        settings.pause = 2
+        let upright = try VideoExportPlan(source, settings: settings)
+        // The tall layout's steps are longer, and there are five pauses of two seconds.
+        #expect(upright.drawingShape?.title == "Tall")
+        #expect(upright.summary == "1080 × 1920 pixels · about 50 seconds")
+        settings.customWidth = 5
+        settings.customHeight = 1
+        #expect(throws: VideoExportError("Choose a shape no wider than 3 to 1.")) { try VideoExportPlan(source, settings: settings) }
+    }
+
+    @Test func theChosenDrawingShapeAppearanceAndCaptionsAreThePlans() throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let source = try exportSource(model, "subtraction", ["a": .number(54), "b": .number(26)])
+        var settings = VideoExportSettings()
+        settings.shapeChoice = .standard
+        settings.drawingShape = "Square"
+        settings.appearance = .dark
+        settings.captions = .subtitles
+        let plan = try VideoExportPlan(source, settings: settings)
+        #expect(plan.drawingShape?.title == "Square")
+        #expect(plan.appearance.used == .dark)
+        #expect(plan.subtitles)
+        // Without the caption's band the drawing has the whole frame inside the margin.
+        #expect(plan.frame.captionRect == nil)
+        #expect(plan.frame.space == CGRect(x: 24, y: 24, width: 672, height: 492))
+        #expect(plan.drawingArea.height == 492)
+        // A shape the document is not made for is not taken: the nearest to the space is, which
+        // without the caption's band is Square in a 4:3 frame.
+        settings.drawingShape = "Round"
+        #expect(try VideoExportPlan(source, settings: settings).drawingShape?.title == "Square")
+        for captions in VideoCaptions.allCases {
+            settings.captions = captions
+            let plan = try VideoExportPlan(source, settings: settings)
+            #expect(plan.frame.captions == (captions == .inPicture || captions == .both))
+            #expect(plan.subtitles == (captions == .subtitles || captions == .both))
+        }
+    }
+
+    @Test func theChoicesAreRememberedExceptTheDrawingsShapeAndTheAppearance() throws {
+        let suite = "video-export-\(UUID().uuidString.prefix(8))"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(VideoExportSettings(defaults: defaults) == VideoExportSettings())
+
+        var chosen = VideoExportSettings()
+        chosen.shapeChoice = .custom
+        (chosen.customWidth, chosen.customHeight) = (9, 16)
+        chosen.captions = .both
+        chosen.pause = 0.5
+        chosen.drawingShape = "Tall"
+        chosen.appearance = .dark
+        chosen.save(to: defaults)
+
+        let read = VideoExportSettings(defaults: try #require(UserDefaults(suiteName: suite)))
+        #expect(read.shape == .custom(width: 9, height: 16))
+        #expect(read.captions == .both)
+        #expect(read.pause == 0.5)
+        #expect(read.drawingShape == nil)
+        #expect(read.appearance == nil)
+
+        // The custom shape's numbers are kept while another shape is chosen.
+        var next = read
+        next.shapeChoice = .widescreen
+        next.save(to: defaults)
+        let later = VideoExportSettings(defaults: defaults)
+        #expect(later.shape == .widescreen)
+        #expect(later.customWidth == 9 && later.customHeight == 16)
+    }
+
+    @Test func aPauseOfOneSecondLengthensTheVideoByOneSecondForEachStepChange() async throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let source = try exportSource(model, "equal-groups", ["a": .number(3), "b": .number(4)])
+        var settings = VideoExportSettings()
+        let straight = try VideoExportPlan(source, settings: settings)
+        settings.pause = 1
+        let paused = try VideoExportPlan(source, settings: settings)
+        let changes = straight.stepLengths.count - 1
+        #expect(changes == 2)
+        #expect(abs(paused.length - straight.length - Double(changes)) < 1e-9)
+        #expect(try VideoExport.Timing(paused).frames - VideoExport.Timing(straight).frames == 30 * changes)
+
+        let folder = try VideoFolder()
+        let url = folder.url.appendingPathComponent("paused.mp4")
+        let result = try await VideoExport.write(paused, to: url)
+        let duration = try await AVURLAsset(url: url).load(.duration).seconds
+        #expect(abs(duration - (Double(try VideoExport.Timing(straight).frames) / 30 + Double(changes))) < 0.001)
+        // Each step but the first begins a second after the one before it has ended.
+        let unpaused = try VideoExport.Timing(straight).stepStarts
+        for k in result.stepStarts.indices {
+            #expect(abs(result.stepStarts[k] - unpaused[k] - Double(k)) < 0.001, "step \(k)")
+        }
+    }
+
+    @Test func theSubtitleTrackOfTheSubtractionExampleHoldsItsLinesWithTheTimesThePlayerShowsThem() async throws {
+        let project = try TemporaryProject()
+        let model = try openModel(project)
+        let source = try exportSource(model, "subtraction", ["a": .number(54), "b": .number(26)])
+        var settings = VideoExportSettings()
+        settings.captions = .subtitles
+        let plan = try VideoExportPlan(source, settings: settings)
+        let folder = try VideoFolder()
+        let url = folder.url.appendingPathComponent("subtitled.mp4")
+        let result = try await VideoExport.write(plan, to: url)
+
+        // The lines the player shows: the intro's, then each line a step captions, in order.
+        let explainer = try DocumentExplainer(document: source.document, problem: source.problem)
+        let laid = try #require(explainer.laidOutExplainer(for: plan.drawingArea.size) as? DocumentExplainer)
+        var lines = [explainer.intro.display]
+        var firstOfStep: [Int] = []
+        for k in 0..<laid.stepCount {
+            firstOfStep.append(lines.count)
+            for event in laid.script(for: k).events {
+                if case let .say(line, true) = event.action, line.display != lines.last { lines.append(line.display) }
+            }
+        }
+        #expect(lines.count == 9)
+        #expect(lines.first == "54 minus 26. Let's see how!")
+        #expect(lines.last == "54 minus 26 is 28!")
+        #expect(result.captions.map(\.text) == lines)
+
+        let asset = AVURLAsset(url: url)
+        let tracks = try await asset.load(.tracks)
+        #expect(tracks.map(\.mediaType) == [.video, .subtitle])
+        let track = try #require(tracks.last)
+        #expect(try await track.load(.isEnabled) == false)
+        #expect(try await track.load(.extendedLanguageTag) == "en-US")
+        // A player is offered the track among the subtitles to turn on, and may show none. The
+        // system also offers every subtitle track as one of forced subtitles only.
+        let group = try #require(try await asset.loadMediaSelectionGroup(for: .legible))
+        let offered = group.options.filter { !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) }
+        #expect(offered.count == 1)
+        #expect(offered.first?.isPlayable == true)
+        #expect(offered.first?.extendedLanguageTag == "en-US")
+        #expect(group.allowsEmptySelection)
+
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+        let provider = reader.outputProvider(for: output)
+        try reader.start()
+        var read: [VideoCaption] = []
+        while let sample = try await provider.next() {
+            // The reader also gives markers, which hold no text.
+            guard let held = CMReadySampleBuffer<CMReadOnlyDataBlockBuffer>(sample) else { continue }
+            let data = Data(held.content)
+            #expect(data.count >= 2)
+            let count = Int(data[data.startIndex]) << 8 | Int(data[data.startIndex + 1])
+            let text = try #require(String(data: data.dropFirst(2).prefix(count), encoding: .utf8))
+            let start = sample.presentationTimeStamp.seconds
+            if !text.isEmpty { read.append(VideoCaption(start: start, end: start + sample.duration.seconds, text: text)) }
+        }
+        #expect(read.map(\.text) == lines)
+        for (inFile, shown) in zip(read, result.captions) {
+            #expect(abs(inFile.start - shown.start) < 0.001, "\(shown.text)")
+            #expect(abs(inFile.end - shown.end) < 0.001, "\(shown.text)")
+        }
+        // The intro's line is shown for the intro's hold, and each step's first line from within
+        // the step; the last line stays to the video's end.
+        let frame = 1.0 / 30
+        #expect(read[0].start == 0)
+        #expect(abs(read[0].end - plan.introHold) <= frame)
+        for (k, first) in firstOfStep.enumerated() where first < read.count {
+            #expect(read[first].start >= result.stepStarts[k] - frame, "step \(k)")
+            #expect(read[first].start < result.stepStarts[k] + plan.stepLengths[k], "step \(k)")
+        }
+        #expect(abs(try #require(read.last).end - result.length) < 0.001)
+        // No line is drawn in the picture: the frame has no band for one.
+        #expect(plan.frame.captionRect == nil)
     }
 }

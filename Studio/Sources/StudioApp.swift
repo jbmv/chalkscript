@@ -82,7 +82,8 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
     static let newExplainerRequest = Notification.Name("org.chalkscript.studio.newExplainer")
     static let keysRequest = Notification.Name("org.chalkscript.studio.keys")
     /// A third notification does what File > Export Video does. With a file's path as its
-    /// object, it makes the video there without asking where to save it.
+    /// object, it also makes the video there, with the choices the sheet opens with and without
+    /// asking where to save it.
     static let exportVideoRequest = Notification.Name("org.chalkscript.studio.exportVideo")
 
     private func observeKeyRequests() {
@@ -94,11 +95,7 @@ final class StudioDelegate: NSObject, NSApplicationDelegate {
             let path = note.object as? String
             MainActor.assumeIsolated {
                 guard let self else { return }
-                if let path, let source = self.model.videoExportSource {
-                    self.exportVideo.make(source, to: URL(fileURLWithPath: path))
-                } else {
-                    self.exportVideo.begin(self.model)
-                }
+                self.exportVideo.begin(self.model, destination: path.map { URL(fileURLWithPath: $0) })
             }
         }
         center.addObserver(forName: Self.keysRequest, object: nil, queue: .main) { note in
