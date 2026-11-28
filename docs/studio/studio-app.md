@@ -99,8 +99,28 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   closing the window each stop what is being said at once. Ticking or unticking plays the step
   shown again. A Mac with no voice for the document's language speaks in its own voice. The
   system voice is for hearing a draft while it is made. It is not the voice of anything sent to
-  others: an export is to be spoken by another voice, and is not built yet. What an agent reads
-  through the helper does not change with the tick.
+  others: a video exported from the studio has no narration, whatever the tick says. What an
+  agent reads through the helper does not change with the tick.
+- **Export Video.** File > Export Video… (Shift-Command-E) writes an mp4 of the shown
+  document's watched steps for the problem shown, to send to someone who has no player
+  (EXP-21). It is available while the window shows a document that can be played. A save panel
+  asks where to put the file, offering the document's title and the problem's values as its
+  name, in the folder last used or in Movies the first time. The video is 1920 by 1080 pixels
+  at 30 frames a second, in H.264. It plays the intro, held for the time its line takes to say
+  and at least 2 seconds, then every step without a stop, as the window plays them with Speak
+  lines off, and holds the last picture for 2 seconds. The wording and language are those the
+  window plays, and the version is the learner's. The drawing is laid out at the shape nearest
+  16:9 among those the explainer is made for, as the Preview control shows that shape, and is
+  drawn in the appearance the Appearance control shows, or in the one the explainer is made
+  for when it is not made for that one. Each line is drawn under the drawing as the player
+  shows it. Round the drawing is a margin in the sheet colour of the appearance. The video has
+  no narration and no audio track. While the video is made, a sheet shows how many seconds of
+  it are done, with Cancel, which stops the export and leaves no file; a file of the same name
+  already in the folder is replaced only when the whole video has been made. When the video is
+  saved the sheet names the file and offers Show in Finder. If it cannot be saved, the sheet
+  says why. The export has a player of its own, so the window's player stays where it was. The
+  code is `VideoExport` in `Sources/ChalkScriptStudioCore/VideoExport.swift`, and the sheet is
+  `Studio/Sources/ExportSheet.swift`. An agent has no tool for export.
 - **What the studio authors.** A document holds the drawing and its words. The arrangement of
   the question, the line and the controls round the drawing belongs to the app that plays the
   document (EXP-17), and nothing the studio's view controls choose is saved in the document or
@@ -224,13 +244,16 @@ session that cannot click the control. In a Debug build, posting the distributed
 picture of its window to that path, for a session that cannot capture the screen. For a session
 that cannot send keys to another app, `org.chalkscript.studio.newExplainer` opens the New
 Explainer sheet, and `org.chalkscript.studio.keys` presses the keys its object names, `return`,
-`escape` or text to type, in the sheet if one is open. Neither brings the app to the front, so
-the menu item and its shortcut are tried by hand.
+`escape` or text to type, in the sheet if one is open. `org.chalkscript.studio.exportVideo` does
+what File > Export Video does, and with a file's path as its object it makes the video there
+without the save panel. None of them brings the app to the front, so the menu items and their
+shortcuts are tried by hand.
 
 ## Not built yet
 
 Narration in a voice fit to send to others (the window speaks lines with the system voice, for
-drafts only), do it with me, What if? and try one, export to video, a
+drafts only), in the window or in an exported video; a choice of the exported video's shape,
+captions and pause; do it with me, What if? and try one, a
 timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for
 and a document's title, a document's own palette, and
 notarisation.

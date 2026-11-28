@@ -321,7 +321,25 @@ An explainer is a vector drawing, rendered and animated on the device from the t
 - An explainer plays with no network.
 - One template renders every version, on iOS and macOS.
 
-Export of an explainer to a video file is not built.
+An explainer can be recorded to a video file in the studio (EXP-21). The recording is of one problem.
+
+## EXP-21. The studio exports an explainer's watched steps to a video
+
+status: draft
+governs: Sources/ChalkScriptStudioCore/VideoExport.swift
+
+The studio writes an mp4 of a document's watched steps for one problem, played straight through: the intro, then each step as the player plays it, then the last picture held. The drawing is laid out at a shape the document is made for (EXP-17) and drawn in an appearance it is made for (EXP-20), inside the video's frame, with a margin and the sheet colour round it. Each line is shown in the picture, under the drawing. The video has no narration.
+
+**Why:** a person can then send an explainer to someone who has no player, such as a teacher. A video is a recording of one problem (EXP-12), so it is made for the problem chosen when it is exported.
+
+**Acceptance:**
+- Each step lasts in the video what it lasts in the studio's window with the stand-in voice, within a frame.
+- The drawing is never cropped and never touches the frame's edge.
+- Each line shown is shown from the moment the player shows it.
+- The export uses no network, and no voice that is not fit to send to others.
+- A cancelled export leaves no file.
+
+*In the package:* `VideoExport` in `ChalkScriptStudioCore` writes H.264 at 1920 by 1080 pixels and 30 frames a second, with no audio track. It plays the document with a player of its own and the stand-in voice, holds the intro for its line's estimated time and at least 2 seconds, leaves no pause between steps, and holds the last picture for 2 seconds. The drawing is laid out at the shape nearest the frame's among those the document is made for, in the appearance the studio's window shows when the document is made for it. The video's shape, the drawing's shape, the appearance, subtitles and a pause between steps cannot be chosen yet, and neither can narration. An agent has no tool for export.
 
 ## EXP-19. An explainer is a document in one documented format
 
