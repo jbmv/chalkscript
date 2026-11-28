@@ -58,6 +58,23 @@ The app carries the helper at `Contents/Helpers/chalkscript-mcp`, and the exampl
   from the title, with `-2` added when the name is taken. Create is unavailable while the title
   is empty, Return in the field creates, and Cancel or Escape makes nothing. If the document
   cannot be made, the sheet stays open and says why.
+- **Rename, Duplicate and Move to Trash.** A document's context menu in the sidebar holds the
+  three commands, with Show in Finder and Open in Text Editor. **Rename** opens a sheet that
+  asks for a title, with the present one filled in. The title, the file's name and the
+  document's `id` change together: the name is made from the title as New Explainer makes it,
+  the file keeps its folder, and a name another document has gets a number added. The document
+  stays selected if it was, on the step and with the problem it was shown with. An agent that
+  holds the old name is told that no document has it. **Duplicate** makes a copy at the project
+  folder's top level, titled as the original with "copy" added, and "copy 2" and so on when
+  that title is in use, with the name and `id` made from that title, and selects it. **Move to
+  Trash** asks first, then moves the file to the Mac's Trash, from which Finder's Put Back
+  returns it to the project, where the studio lists it again. If the document was selected, the
+  one after it in the sidebar is selected, or the one before it when it was the last. Rename
+  and Duplicate are unavailable for a file that cannot be read as a document. None of the three
+  is a step of Edit > Undo, and Rename and Move to Trash clear its steps, since an earlier step
+  would otherwise write a document under a name it no longer has. The code is
+  `StudioModel.renameDocument(_:title:)`, `duplicateDocument(_:)` and `trashDocument(_:)`. An
+  agent has no tool for renaming or removing a document.
 - **Playing.** The window plays the selected document's watched steps with the engine's player and
   view (`ExplainerView`), for a problem chosen from the document's samples or typed within its
   parameters, in a chosen wording and language, paced or skippable. Lines are shown, and are
@@ -198,6 +215,6 @@ the menu item and its shortcut are tried by hand.
 
 Narration in a voice fit to send to others (the window speaks lines with the system voice, for
 drafts only), do it with me, What if? and try one, export to video, a
-timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for,
-renaming, duplicating and removing a document in the window, a document's own palette, and
+timeline or inspector, editing in the window other than the ticks for the shapes an explainer is made for
+and a document's title, a document's own palette, and
 notarisation.

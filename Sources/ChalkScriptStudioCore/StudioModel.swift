@@ -468,6 +468,124 @@ public final class StudioModel {
         return made
     }
 
+    // MARK: renaming, duplicating and removing a document
+
+    /// Moves a file to the Trash. The system's Trash by default, from which Finder can put the
+    /// file back; a test gives another, so that it leaves nothing in the Trash.
+    @ObservationIgnored public var moveToTrash: (URL) throws -> Void = {
+        try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
+    }
+
+    /// Gives a document another title, and with it the name and `id` made from that title: the
+    /// file is written and renamed in its folder before the folder is read again, so the project
+    /// never lists it half renamed. A name another document has gets a number added. The
+    /// document stays shown if it was, with its problem, and Undo's steps are forgotten, since
+    /// each would write a document under a name and `id` it no longer has.
+    ///
+    /// - Returns: The document under its new name, as read back from its file.
+    /// - Throws: An error whose description says why nothing was changed.
+    @discardableResult
+    public func renameDocument(_ name: String, title: String) throws -> StudioDocument {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            throw MethodError(code: Studio.RPCError.invalidParams, "A title must not be empty.")
+        }
+        // Another program may have added files since the folder was last read.
+        reload()
+        let old = try present(name)
+        guard let doc = old.document else {
+            throw MethodError(code: Studio.ErrorCode.failed, "\(name) cannot be read as a document, so it cannot be renamed.")
+        }
+        let directory = old.url.deletingLastPathComponent()
+        let prefix = name.lastIndex(of: "/").map { String(name[...$0]) } ?? ""
+        func target(_ leaf: String) -> URL { directory.appendingPathComponent(leaf + "." + ProjectFolder.fileExtension) }
+        func fileNumber(_ url: URL) -> NSNumber? {
+            (try? FileManager.default.attributesOfItem(atPath: url.path))?[.systemFileNumber] as? NSNumber
+        }
+        let ownFile = fileNumber(old.url)
+        func isTaken(_ leaf: String) -> Bool {
+            if prefix + leaf == name { return false }
+            if documents.contains(where: { $0.name == prefix + leaf }) { return true }
+            // Where case is not told apart, a name differing only in case is this document's own file.
+            guard let found = fileNumber(target(leaf)) else { return false }
+            return found != ownFile
+        }
+        let leaf = DocumentStarter.available(DocumentStarter.name(forTitle: title), isTaken: isTaken)
+        let newName = prefix + leaf
+        let data = Data(DocumentText.format(DocumentStarter.copy(of: doc.json, id: leaf, title: title)).utf8)
+        do {
+            try data.write(to: old.url, options: .atomic)
+            if newName != name {
+                do {
+                    try FileManager.default.moveItem(at: old.url, to: target(leaf))
+                } catch {
+                    try? old.data.write(to: old.url, options: .atomic)
+                    throw error
+                }
+            }
+        } catch {
+            throw MethodError(code: Studio.ErrorCode.failed, "The studio could not rename \(name): \(error.localizedDescription)")
+        }
+        if let problem = problems.removeValue(forKey: name) { problems[newName] = problem }
+        undoManager?.removeAllActions(withTarget: self)
+        if selectedName == name { selectedName = newName }
+        reload()
+        guard let renamed = document(named: newName) else {
+            throw MethodError(code: Studio.ErrorCode.failed, "The studio renamed \(name) but could not find it in the project folder.")
+        }
+        return renamed
+    }
+
+    /// Makes a copy of a document beside the others, titled as the original with "copy" added,
+    /// and a number after that when the project has such a title already; selects and plays it.
+    ///
+    /// - Throws: An error whose description says why nothing was made.
+    @discardableResult
+    public func duplicateDocument(_ name: String) throws -> StudioDocument {
+        let original = try present(name)
+        let base = (original.title ?? String(name.split(separator: "/").last ?? "Explainer")) + " copy"
+        let titles = Set(documents.compactMap(\.title))
+        var title = base
+        var n = 2
+        while titles.contains(title) {
+            title = "\(base) \(n)"
+            n += 1
+        }
+        return try make(title: title, name: nil, from: name)
+    }
+
+    /// Moves a document's file to the Trash and, if it was the one shown, shows the document
+    /// that follows it in the list, or the last when it was the last. Undo's steps are forgotten,
+    /// since one of them could write over a later document of the same name.
+    ///
+    /// - Throws: An error whose description says why the file was not moved.
+    public func trashDocument(_ name: String) throws {
+        let gone = try present(name)
+        do {
+            try moveToTrash(gone.url)
+        } catch {
+            throw MethodError(code: Studio.ErrorCode.failed, "The studio could not move \(name) to the Trash: \(error.localizedDescription)")
+        }
+        problems[name] = nil
+        undoManager?.removeAllActions(withTarget: self)
+        guard selectedName == name else { return reload() }
+        let rest = documents.filter { $0.name != name }
+        let place = documents.firstIndex { $0.name == name } ?? 0
+        selectedName = rest.isEmpty ? nil : rest[min(place, rest.count - 1)].name
+        preview = defaultPreview
+        reload()
+        rebuild(keepStep: false)
+    }
+
+    /// The document of that name, for a command of the window.
+    private func present(_ name: String) throws(MethodError) -> StudioDocument {
+        guard folder != nil else { throw MethodError(code: Studio.ErrorCode.noProject, "No project folder is open.") }
+        guard let d = document(named: name) else {
+            throw MethodError(code: Studio.ErrorCode.noDocument, "\(name) is not in the project folder any more.")
+        }
+        return d
+    }
+
     // MARK: showing a step
 
     /// Shows the document and plays a step of it (section 6.6). Returns the step's name and

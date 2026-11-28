@@ -86,6 +86,15 @@ and `title`; use it when the person wants to start from an example. `name` sets 
 the person has asked for one; a name that is taken or is not lower case letters, digits and
 hyphens is refused, and nothing is made.
 
+The person has three commands on a document in the sidebar of the studio's window, and you have
+no tool for any of them. Rename takes a new title and changes the file's name and the `id` to
+the name made from it, so "Telling the time" becomes `telling-the-time`. Duplicate makes a copy
+titled with "copy" added, under its own name and `id`. Move to Trash removes the document from
+the project. When the person asks you for another title, replace `/title` by a patch, which
+leaves the name and the `id` as they were, and tell the person that Rename in the sidebar
+changes the name as well. After a rename or a removal the old name answers "No document named";
+`list` gives the names there are now. For a copy, use `create` with `from`.
+
 Work in this order, one patch for each point or a few:
 
 1. The problem. Agree with the person, in a sentence, what varies. Give `params`, `let`,

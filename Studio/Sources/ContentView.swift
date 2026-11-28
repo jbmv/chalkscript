@@ -43,9 +43,13 @@ struct ContentView: View {
     }
 }
 
-/// The documents of the project, by name, with a mark on any that has an error.
+/// The documents of the project, by name, with a mark on any that has an error. A document's
+/// context menu renames it, duplicates it and moves it to the Trash.
 struct DocumentList: View {
     let model: StudioModel
+    @State private var renaming: DocumentSubject?
+    @State private var trashing: DocumentSubject?
+    @State private var failure: CommandFailure?
 
     var body: some View {
         List(selection: Binding(get: { model.selectedName }, set: { model.select($0) })) {
@@ -61,8 +65,16 @@ struct DocumentList: View {
                     }
                     .tag(d.name)
                     .contextMenu {
+                        // A file that cannot be read has no title to change and nothing to copy.
+                        Button("Rename…") { renaming = DocumentSubject(d) }
+                            .disabled(d.document == nil)
+                        Button("Duplicate") { duplicate(d) }
+                            .disabled(d.document == nil)
+                        Divider()
                         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([d.url]) }
                         Button("Open in Text Editor") { NSWorkspace.shared.open(d.url) }
+                        Divider()
+                        Button("Move to Trash", role: .destructive) { trashing = DocumentSubject(d) }
                     }
                 }
             }
@@ -72,6 +84,118 @@ struct DocumentList: View {
                 ContentUnavailableView("No documents", systemImage: "doc",
                                        description: Text("Choose New Explainer or Add Example Documents from the File menu, or ask the agent to make one."))
             }
+        }
+        .sheet(item: $renaming) { RenameSheet(model: model, subject: $0) }
+        .confirmationDialog(
+            "Move “\(trashing?.title ?? "")” to the Trash?",
+            isPresented: Binding(get: { trashing != nil }, set: { if !$0 { trashing = nil } }),
+            presenting: trashing
+        ) { subject in
+            Button("Move to Trash", role: .destructive) { trash(subject) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("You can put it back from the Trash in Finder.")
+        }
+        .alert(
+            failure?.title ?? "",
+            isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } }),
+            presenting: failure
+        ) { _ in
+            Button("OK") {}
+        } message: {
+            Text($0.reason)
+        }
+    }
+
+    private func duplicate(_ d: StudioDocument) {
+        do {
+            try model.duplicateDocument(d.name)
+        } catch {
+            failure = CommandFailure(title: "The explainer was not duplicated.", reason: error.localizedDescription)
+        }
+    }
+
+    private func trash(_ subject: DocumentSubject) {
+        do {
+            try model.trashDocument(subject.name)
+        } catch {
+            failure = CommandFailure(title: "The explainer was not moved to the Trash.", reason: error.localizedDescription)
+        }
+    }
+}
+
+/// The document a command of the sidebar is about: its name, for the model, and its title, or
+/// its name when it has none, for what the person is asked.
+struct DocumentSubject: Identifiable {
+    let name: String
+    let title: String
+    var id: String { name }
+
+    init(_ d: StudioDocument) {
+        name = d.name
+        title = d.title ?? d.name
+    }
+}
+
+/// Why a command of the sidebar did nothing, for an alert.
+struct CommandFailure {
+    let title: String
+    let reason: String
+}
+
+/// Asks for a document's new title. The file's name and the document's `id` follow the title, so
+/// the sheet asks for nothing else.
+struct RenameSheet: View {
+    let model: StudioModel
+    let subject: DocumentSubject
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var refusal: String?
+    @FocusState private var titleFocused: Bool
+
+    private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Rename Explainer").font(.headline)
+
+            LabeledContent("Title:") {
+                TextField("Title", text: $title, prompt: Text("What the explainer is about"))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .focused($titleFocused)
+                    .onSubmit(rename)
+            }
+
+            Text(refusal ?? "The name in the sidebar changes to match the title.")
+                .font(.callout)
+                .foregroundStyle(refusal == nil ? Color.secondary : Color.red)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Rename", action: rename)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(trimmedTitle.isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 380)
+        .onAppear {
+            title = subject.title
+            titleFocused = true
+        }
+        .onChange(of: title) { refusal = nil }
+    }
+
+    private func rename() {
+        guard !trimmedTitle.isEmpty else { return }
+        do {
+            try model.renameDocument(subject.name, title: trimmedTitle)
+            dismiss()
+        } catch {
+            refusal = "The explainer was not renamed. \(error.localizedDescription)"
         }
     }
 }
